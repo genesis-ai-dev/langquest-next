@@ -384,8 +384,17 @@ team's unsent work between the two phones, with no internet.
   certificates it checked, and the partners it last finished with, with no time, place or
   meeting record; from 2026-11-24, on a phone that may share while LangQuest is open, the day
   it last met each teammate on Share nearby, never older than two weeks, gone at sign-out and
-  under a disguise (decision 230 as amended). None of it reaches our server or any third
-  party: phones exchange the rest only with each other, and the days not at all.
+  under a disguise (decision 230 as amended); from 2026-11-24 also, on a phone that let people
+  in, the ids of those it let in under each of its last few passes, so it stops at a pass's
+  count, gone at sign-out, and the hashes of library documents this build cannot read, until the app updates.
+  From 2026-11-24 also (review items 13, 17 and 18): the confirmed work of its language that its
+  own checkpoints dropped, at most 10,000 rows and 16 MB a language, which it already held and
+  keeps, only while it holds a certificate, so a teammate a little behind can be given it; the hashes of the library documents
+  its language's earlier lists named, at most 2,000; and a mark that some of the names library
+  items go by in the app's language came from a teammate.
+  None of it reaches our server or any third party: phones exchange the rest only with each
+  other, the hashes of documents earlier lists named among it, and the days, the ids let in and
+  the hashes of documents this build cannot read not at all.
 - **What goes to teammates.** The language's unsent events and recordings with their
   authors' names, signed batches, holdings, the revocation list, a newer discovery key, and
   each phone's certificate (install key, profile id, device id, organization and role
@@ -396,8 +405,15 @@ team's unsent work between the two phones, with no internet.
   guides name (pictures, maps and audio, never a film) and a library source's chapter audio for
   passages the phone keeps (never Bible Brain's), with which of them this phone holds, FIA's by
   a hash of their web address: reference material the organization chose, which every member already reads in the app and which the
-  app already declares (guide media). Never a recording as such a file. Data safety, above: not
-  sharing, no new type.
+  app already declares (guide media). Never a recording as such a file. From 2026-11-24 also
+  (review items 12, 13, 16 and 17): the reviews listeners and review links gave, releases and work
+  imported from LangQuest v2, which the server wrote and every member reads from it, with the
+  server's signed word for each; the names checked certificates give people a member let in
+  offline, passed on as the certificates already were; the names other organizations give the
+  library items the language uses, in the app's language; older versions of those
+  documents; and (review item 9) the list of Bibles other organizations share that the team
+  reads, with those Bibles, which every member already sees from our server. Data safety,
+  above: not sharing, no new type.
 - **Data safety, Location** stays "not collected": the location permissions exist only because
   Android 10 to 12L require them to scan and use Wi-Fi Direct, and the scan is marked
   `neverForLocation` from Android 12.
@@ -491,9 +507,12 @@ permissions Share nearby was already granted and never asks, keeps no screen awa
 service and shows no notification, stops when the screen goes off, never hosts or joins a
 hotspot, and never runs on a phone that wears a disguise or behind the app lock; it shares only
 with teammates whose certificate was renewed within the last two weeks, or whom this phone met
-on Share nearby within that time, for which the phone keeps the day of each such meeting on the
-phone alone. It sends the same data to the same members as Share nearby, and the days never leave
-the phone, so no Data safety, permission, content or audience answer changes.
+on Share nearby, or let in or was let in by on Let someone in (2026-11-24), within that time, for
+which the phone keeps the day of each such meeting on the phone alone. It sends the same data to the same members as Share nearby, and the days never leave
+the phone, so no Data safety, permission, content or audience answer changes. From 2026-11-24 it
+also gives a starting copy on Android to a teammate let in offline whose copy is short or lost,
+and such a person takes one, as on Share nearby: the same data between the same members, so
+again no answer changes.
 
 Share nearby's diagnostics (`docs/diagnostics.md`, the `nearby` kind in the facts block):
 on Android, a record when a room stops, when a session ends, when Find fails and when the
@@ -506,7 +525,7 @@ from hearing a teammate to meeting them, a stop to rest, and, when the phone tur
 away, a reason from a fixed list (past the two weeks, revoked, another organization, expired,
 other); and how many library documents a session took from a teammate, refused, could not get
 or left for a cap, and how many library files it held, could use of the teammate's, got and
-served, summed in the room's record while LangQuest was open. They name no
+served, summed in the room's record while LangQuest was open; and, from 2026-11-24 too, a join on Let someone in records a session on both phones, whether the grant went, whether the newest work followed the copy on the same link and, when it did not, which of three fixed reasons (an older app, the phone's own language not opening, the person leaving), and any session that moved a starting copy says whether it came whole, how many passages it filled, how many of its documents were kept, not given or refused, how many parts the giver sent or refused, and a fixed word for why a teammate gave no more (from 2026-11-24 also `moved`, its checkpoint moved meanwhile), whether the link went during the documents after a whole copy, and how many documents came whole but in a format this build cannot read, which a member's documents and a quiet room's sums count too; the newcomer's record waits on the phone until it is someone's and online. They name no
 teammate's phone (no tag, salt, key, install key, profile or device id), say nothing of a
 disguise, carry no content, and go only to our own database with the person's other
 diagnostics, under the same Settings switch and 90 days. That is more of "App info and
@@ -608,7 +627,7 @@ this block.
       "error": ["code", "errorId", "fatal", "name", "where"],
       "expected": ["code", "count", "name", "where"],
       "fill": ["event", "headKb", "ms", "msToMap", "passages", "reason", "rows", "why"],
-      "nearby": ["adv", "alone", "busy", "bye", "clockOff", "code", "cutBackups", "direct", "docsCapped", "docsKept", "docsMissing", "docsRefused", "done", "echoed", "end", "error", "event", "events", "fallbacks", "farAhead", "fileFails", "files", "greets", "heard", "hotspot", "keyRefused", "levelMs", "libGot", "libHeld", "libServed", "libTheirs", "link", "maxMeetMs", "maxUnmatched", "maybe", "mode", "ms", "newerApp", "noAnswer", "noRoom", "older", "openMin", "overBudget", "pauseMin", "pipeFails", "refusal", "refused", "role", "scanMin", "sent", "served", "sessions", "stop", "strangers", "syncMin", "taps", "viaDirect", "why"],
+      "nearby": ["adv", "alone", "busy", "bye", "clockOff", "code", "copyDocsCut", "copyDocsKept", "copyDocsMissing", "copyDocsRefused", "copyDocsUnreadable", "copyFilled", "copyNo", "copyNos", "copyParts", "copyWhole", "cutBackups", "direct", "docsCapped", "docsKept", "docsMissing", "docsRefused", "docsUnreadable", "done", "echoed", "end", "error", "event", "events", "exchangeLeft", "exchangeNoPieces", "exchangeOlder", "exchanged", "fallbacks", "farAhead", "fileFails", "files", "granted", "greets", "heard", "hotspot", "keyRefused", "levelMs", "libGot", "libHeld", "libServed", "libTheirs", "link", "maxMeetMs", "maxUnmatched", "maybe", "mode", "ms", "newerApp", "noAnswer", "noRoom", "older", "openMin", "overBudget", "pauseMin", "pipeFails", "refusal", "refused", "role", "scanMin", "sent", "served", "sessions", "stop", "strangers", "syncMin", "taps", "viaDirect", "why"],
       "load": ["checkpoint", "events", "foldMs", "fromSnapshot", "ms", "readMs", "reason", "staleCheckpointSeq"],
       "open": ["cold", "loadMs", "ms", "pulled", "snapshotMs", "syncs"],
       "snapshot": ["bytes", "chunks", "ms", "outcome", "resumedChunks", "seq", "why"],

@@ -155,6 +155,42 @@ describe('study files from a teammate\'s phone', () => {
     void links;
   });
 
+  // The 2026-11-24 review (item 22): a kept passage's files have their own room, bounded too.
+  it('takes what a kept passage needs after the spare room is used, within a room of its own', async () => {
+    const { folder, links } = await load();
+    const spare = Array.from({ length: 32 }, (_, i) => `https://fia.bible/x${i}.jpg`);
+    const need = Array.from({ length: 65 }, (_, i) => `https://fia.bible/n${i}.jpg`);
+    folder.setStudyWanted(new Map([['luke1', need]]), false, null, ['luke1']);
+    links.lacking([...spare, ...need]);
+    // Files on a teammate's word no kept passage needs take the whole spare room (32 of 8 MB).
+    for (const url of spare) expect(await give(links, url, 8 * MB)).toBe(true);
+    expect(links.stage('https://fia.bible/y.jpg')).toBeNull();
+    // A kept passage's still come, to a room of their own: 63 of 8 MB, then at most what is left.
+    for (const url of need.slice(0, 63)) expect(await give(links, url, 8 * MB)).toBe(true);
+    expect(links.stage(need[63]!)!.maxBytes).toBe(8 * MB);
+    expect(await give(links, need[63]!, 8 * MB)).toBe(true);
+    expect(links.stage(need[64]!)).toBeNull();
+    // A later session works it out again from the files here, and finds the same.
+    links.lacking(need);
+    expect(links.stage(need[64]!)).toBeNull();
+  });
+
+  // The 2026-11-24 review (item 23): the count is worked out from the files here, so one the folder's clearing deleted no longer counts.
+  it('counts only the teammates\' files still here, so room comes back once the folder clears one', async () => {
+    const { folder, links } = await load();
+    folder.setStudyWanted(new Map([['luke1', ['https://fia.bible/a.mp3']]]), false, null, ['luke1']);
+    const spare = Array.from({ length: 32 }, (_, i) => `https://fia.bible/x${i}.jpg`);
+    links.lacking(spare);
+    for (const url of spare) expect(await give(links, url, 8 * MB)).toBe(true);
+    expect(links.stage('https://fia.bible/y.jpg')).toBeNull();
+    // The folder's clearing deletes one.
+    const name = folder.studyFolder.nameOf(spare[0]!);
+    disk.delete(name);
+    folder.studyFolder.present.delete(name);
+    links.lacking(['https://fia.bible/y.jpg']);
+    expect(links.stage('https://fia.bible/y.jpg')).not.toBeNull();
+  });
+
   it('a file staged for one address never becomes another\'s', async () => {
     const { links } = await load();
     links.lacking([]);
@@ -182,5 +218,23 @@ describe('study files from a teammate\'s phone', () => {
     expect([...disk.values()]).toContain('https://fia.bible/a.mp3');
     expect(folder.hasStudyFile('https://fia.bible/gone.jpg')).toBe(false);
     expect(folder.hasStudyFile('https://fia.bible/a.mp3')).toBe(true);
+  });
+
+  // The 2026-11-24 review (P12): online, only what a kept passage needs is fetched again; the rest goes once the wish list is whole.
+  it('once online, fetches again only what a kept passage needs and lets the rest go', async () => {
+    const { folder, links } = await load();
+    const need = 'https://fia.bible/a.mp3';
+    const spare = 'https://fia.bible/other.jpg';
+    folder.setStudyWanted(new Map([['luke1', [need]]]), false, null, ['luke1']);
+    links.lacking([need, spare]);
+    expect(await give(links, need)).toBe(true);
+    expect(await give(links, spare)).toBe(true);
+    folder.setStudyWanted(new Map([['luke1', [need]]]), true, { orgId: 'o', languageId: 'l' }, ['luke1'], true);
+    await new Promise((r) => setTimeout(r, folder.STUDY_NEWS_MS + 50));
+    for (let i = 0; i < 20 && kv.get('study-files:nearby') !== '[]'; i++) await settle();
+    expect(net.fetched).toContain(need);
+    expect(net.fetched).not.toContain(spare);
+    expect(folder.hasStudyFile(spare)).toBe(false);
+    expect(JSON.parse(kv.get('study-files:nearby')!)).toEqual([]);
   });
 });

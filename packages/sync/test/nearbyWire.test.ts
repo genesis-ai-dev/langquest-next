@@ -22,6 +22,8 @@ const EVERY: Message[] = [
   { t: 'discovery-key', gen: 3, key: KEY },
   { t: 'arrange', summary: '1f1d85db', radios: { directByName: true, band5: false, hotspot: true, joinHotspot: false } },
   { t: 'arrange', summary: '1f1d85db', radios: { directByName: false, band5: true, hotspot: false, joinHotspot: true, awdl: true, joinDirect: true } },
+  { t: 'arrange', summary: '1f1d85db', radios: { directByName: false, band5: true, hotspot: false, joinHotspot: true }, soon: true },
+  { t: 'wants', files: false },
   { t: 'host', attempt: 1, kind: 'wifi-direct', ssid: 'DIRECT-ab-Android_12', passphrase: 'secret', port: 9000, band: '5', security: 'wpa2' },
   { t: 'host', attempt: 3, kind: 'bluetooth' },
   { t: 'host', kind: 'bluetooth' },
@@ -46,12 +48,19 @@ const EVERY: Message[] = [
   { t: 'join-ask', installKey: KEY, idSalt: 'AAECAwQFBgcICQoLDA0ODw', profileId: 'p1', deviceId: 'd1', name: 'Sam', proof: SIG },
   { t: 'join-grant', chain: CHAIN, proof: SIG, discoveryKey: KEY, gen: 2, floor: 1 },
   { t: 'join-grant', chain: CHAIN, proof: SIG, discoveryKey: KEY, gen: 2, floor: 1, features: ['nearby', 'nearby_open'] },
+  // 2026-11-24: the Worker's revocation list the inviter holds, as a `revoked` message carries it.
+  { t: 'join-grant', chain: CHAIN, proof: SIG, discoveryKey: KEY, gen: 2, floor: 1, revoked: { text: '{"v":1}', kid: 'k1', sig: SIG } },
   { t: 'copy-ask', part: 'doc', stream: 'lang1', after: '10', hash: HASH },
   { t: 'copy-ask', part: 'state' },
   // 2026-11-24: which documents the sender holds, asked only of a phone whose Hello names copy-library.
   { t: 'copy-ask', part: 'held', after: '0' },
+  // 2026-11-24, review item 13: the names library items go by in a language, asked only of a phone whose Hello names copy-labels.
+  { t: 'copy-ask', part: 'labels', lang: 'zh-Hans', after: '0' },
+  { t: 'copy-ask', part: 'shared', after: '0' },
   { t: 'copy-part', part: 'state', stream: 'lang1', next: null, body: 'text' },
   { t: 'copy-part', part: 'doc', next: '900', body: '' },
+  // The checkpoint a passage's rows belong to (2026-11-24, review item 4).
+  { t: 'copy-part', part: 'rows', stream: 'lang1', next: null, body: '[]', seq: 42 },
   { t: 'copy-no', reason: 'not-here' }
 ];
 
@@ -68,7 +77,7 @@ describe('nearby messages', () => {
   });
 
   it('holds a message of every type the plan names', () => {
-    expect(new Set(EVERY.map((m) => m.t)).size).toBe(25);
+    expect(new Set(EVERY.map((m) => m.t)).size).toBe(26);
   });
 
   it('a have travels with its maps as JSON objects', () => {
@@ -95,6 +104,20 @@ describe('nearby messages', () => {
     for (const bad of ['nearby_open', ['nearby_open', 7], Array(17).fill('nearby')]) expect(read(bad).kind, JSON.stringify(bad)).toBe('malformed');
   });
 
+  // The review of 2026-11-24, item 11: an older inviter sends no list, and an older newcomer reads past one.
+  it('a join grant carries a revocation list as a `revoked` message does, or none, and one of another shape is malformed', () => {
+    const grant = { t: 'join-grant', chain: CHAIN, proof: SIG, discoveryKey: KEY, gen: 2, floor: 1 };
+    const read = (revoked: unknown) => parseMessage(utf8Encode(JSON.stringify({ ...grant, revoked })));
+    const list = { text: '{"v":1}', kid: 'k1', sig: SIG };
+    expect(read(list)).toEqual({ kind: 'message', message: { ...grant, revoked: list } });
+    // Only what a list is: anything more on it stays behind.
+    expect(read({ ...list, extra: 'x' })).toEqual({ kind: 'message', message: { ...grant, revoked: list } });
+    expect(read(undefined)).toEqual({ kind: 'message', message: grant });
+    for (const bad of ['list', [list], { ...list, text: 5 }, { ...list, kid: '' }, { ...list, sig: 'short' }, { text: list.text, kid: list.kid }]) {
+      expect(read(bad).kind, JSON.stringify(bad)).toBe('malformed');
+    }
+  });
+
   it('what is not a message at all is malformed', () => {
     for (const bad of ['', 'nope', '[]', 'null', '5', '{}', '{"t":5}', '{"t":null}']) expect(parseJson(bad).kind).toBe('malformed');
     expect(parseMessage(new Uint8Array([0xff, 0xfe])).kind).toBe('malformed');
@@ -105,7 +128,8 @@ describe('nearby messages', () => {
     for (const m of EVERY) {
       const wire = JSON.parse(Buffer.from(encodeMessage(m)).toString('utf8')) as Record<string, unknown>;
       for (const k of Object.keys(wire).filter((x) => x !== 't')) {
-        const stayedOptional = (m.t === 'host' && k !== 'kind') || (m.t === 'holdings' && (k === 'sig' || k === 'chain')) || (m.t === 'copy-ask' && k !== 'part') || (m.t === 'copy-part' && k === 'stream') || (m.t === 'join-grant' && k === 'features');
+        const stayedOptional = (m.t === 'host' && k !== 'kind') || (m.t === 'holdings' && (k === 'sig' || k === 'chain')) || (m.t === 'copy-ask' && k !== 'part') || (m.t === 'copy-part' && (k === 'stream' || k === 'seq')) ||
+          (m.t === 'join-grant' && (k === 'features' || k === 'revoked')) || (m.t === 'arrange' && k === 'soon');
         // A discovery key's number is for `handedKeyHolds` to judge (below).
         for (const bad of [{ bad: 1 }, [{ bad: 1 }, 2], ...(m.t === 'discovery-key' ? [] : [-1])]) {
           const out = parse({ ...wire, [k]: bad });
@@ -128,6 +152,11 @@ describe('nearby messages', () => {
     malformed({ t: 'discovery-key', gen: 1, key: 'x'.repeat(257) });
   });
 
+  it('a language asked for names holds nothing but a language code, since it goes in a saved key\'s name', () => {
+    expect(parse({ t: 'copy-ask', part: 'labels', lang: 'fra' }).kind).toBe('message');
+    for (const lang of ['../x', 'fr/x', '', 'f', 'x'.repeat(40), 'fr-', 'fr:x', 'fr x']) malformed({ t: 'copy-ask', part: 'labels', lang });
+  });
+
   it('a transfer id and a format hold no path, since they go in a file\'s name', () => {
     malformed({ t: 'file-ask', transferId: '../x', hash: HASH, format: 'm4a' });
     malformed({ t: 'file-ask', transferId: 'a', hash: HASH, format: '../m4a' });
@@ -141,6 +170,9 @@ describe('nearby messages', () => {
     // An iPhone's radios (phase 5) are booleans when present; a phone that does not name them leaves them out.
     malformed({ t: 'arrange', summary: '1f1d85db', radios: { directByName: false, band5: true, hotspot: false, joinHotspot: true, awdl: 'yes' } });
     malformed({ t: 'arrange', summary: '1f1d85db', radios: { directByName: false, band5: true, hotspot: false, joinHotspot: true, joinDirect: 1 } });
+    malformed({ t: 'arrange', summary: '1f1d85db', radios: { directByName: false, band5: true, hotspot: false, joinHotspot: true }, soon: 'yes' });
+    malformed({ t: 'wants' });
+    malformed({ t: 'wants', files: 1 });
     malformed({ t: 'host', kind: 'hotspot', attempt: 64 });
     malformed({ t: 'host', kind: 'hotspot', attempt: -1 });
   });
@@ -189,6 +221,9 @@ describe('every list is capped', () => {
     malformed({ ...hello, can: Array.from({ length: 65 }, (_, i) => `a${i}`) });
     malformed({ ...hello, can: [''] });
     malformed({ t: 'copy-part', part: 'state', next: null, body: 'x'.repeat(NEARBY_COPY_PART_MAX_CHARS + 1) });
+    // A rows part's seq is a whole number or absent, as an older sender sends it.
+    expect(parse({ t: 'copy-part', part: 'rows', next: null, body: '[]' })).toEqual({ kind: 'message', message: { t: 'copy-part', part: 'rows', next: null, body: '[]' } });
+    for (const seq of [1.5, '7', Number.MAX_SAFE_INTEGER + 1]) malformed({ t: 'copy-part', part: 'rows', next: null, body: '[]', seq });
   });
 
   it('ranges in a have: more than a phone stores, since a have is only a claim, and not without end', () => {

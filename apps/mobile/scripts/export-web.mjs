@@ -303,7 +303,39 @@ for (const name of fs.readdirSync(catalogs).filter((f) => f.endsWith('.json') &&
 // and Share nearby's count of guide files and Let someone in's and Join without internet's line, in English, in
 // the nearby chunk. The asking and the landing are in files only a phone loads. 653 bytes are left; a first
 // visit has 352.
-const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 176 * 1024;
+// Raised by 1 KB with a newcomer let in offline lasting 90 days from their invite link, and Let someone in
+// saying how many days this phone can still let people in and warning under 30 (Carl, 2026-11-24,
+// docs/decisions/0240-a-join-pass-lets-a-member.md, amended that day), 340 bytes past it: the screen's line
+// and its amber warning, and their two English lines, in the nearby chunk the web loads with Share nearby.
+// Which pass is in effect, the days left and the clock they are read on are in files only a phone loads
+// (nearbyModel.ts, useLetIn.android.ts), and the link's time is in the nearby entry. 684 bytes are left; a
+// first visit has 947.
+// Raised by 5 KB with the review of 2026-11-24's items 3 to 7 and 26 to 28 (Carl, 2026-11-24,
+// docs/decisions/2026-11-24-a-starting-copy-comes-whole-from-one-checkpoint.md and
+// 2026-11-24-a-lost-or-short-copy-is-taken-again-and-updates-wait.md), 4,569 bytes past it: `SyncClient`, which the
+// web runs too, marks a stream downloaded to the server's newest, and a copy lost, and answers whether it can give
+// a copy and what a copy still needs (about 2.4 KB, in a first visit as well); the app looks for an over-the-air
+// update itself (shell/useUpdateAtStart.ts); and Share nearby's and Let someone in's lines and their six English
+// words, in the nearby chunk. The copy's checks, the copy target, the update hold and a document this build cannot
+// read are in files only a phone loads (the nearby entry, nearbyCopyTarget.native.ts, updatesHeld.native.ts,
+// nearbyModel.ts). 551 bytes are left; a first visit has 659. The review of the fixes (2026-11-24) added the inviter's
+// line for a copy cut during its documents, and moved the start look's setting check into updatesHeld.native.ts: 433
+// bytes are left; a first visit has 747.
+// Raised by 5 KB with the review of 2026-11-24's items 12, 13, 15 to 18 (Carl, 2026-11-24,
+// docs/decisions/2026-11-24-a-checkpoint-keeps-its-rows-for-claims.md and
+// 2026-11-24-server-written-team-work-travels-as-a-claim.md), 4,425 bytes past it: the event stores, which the web
+// runs too, keep the rows a checkpoint of a phone's own drops for claims (`nearby_claimable`, `claimableAfter`,
+// `claimableFrom`) and `SyncClient` asks for that on its own checkpoints (about 3.5 KB, in a first visit as well);
+// saved names are split from the server's read so a phone's nearby code reads them without the server's client
+// (library/labelsKept.ts); and the chain names a session reports are kept in one write. Claims, labels between
+// phones, the documents worked out again after events and older versions are in the nearby entry and in files only
+// a phone loads (library/labelsTeammate.native.ts, nearbyLibrary.native.ts). 695 bytes are left; a first visit
+// has 1,008.
+// Raised by 4 KB with the review of 2026-11-24's files and performance groups (Carl, 2026-11-24,
+// docs/decisions/2026-11-24-nearby-sessions-spare-the-radios-and-the-round-trips.md), about 3 KB past it: the 2 KB
+// a first visit grew by (FIRST_VISIT_BUDGET_BYTES, below, says what), and Share nearby's line for guide files that did
+// not fit in its 16 languages. The rest of the review's work is in the nearby entry and in files only a phone loads.
+const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 191 * 1024;
 // A first visit's cap rose to 5.75 MB when Global Viewers' read-only guard on
 // the recorder (decisions.md 158) took it past 5.7 MB by a few hundred bytes
 // (5.70 MB then): main had 50 bytes left, and a guard that refuses before the
@@ -431,7 +463,28 @@ const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 176 * 1024;
 // guide editor's upload (guides/files.ts) and a source's chapter (sources/offline.ts) each note it
 // (library/libraryOrigins.ts). The web keeps no record: its copy of that module does nothing, and the record itself
 // is in a file only a phone loads (libraryOrigins.native.ts). 961 bytes are left; all chunks have 189.
-const FIRST_VISIT_BUDGET_BYTES = 3.94 * 1024 * 1024 + 121 * 1024;
+// Raised by 3 KB with the review of 2026-11-24's items 4 to 7, 26 and 27 (Carl, 2026-11-24,
+// docs/decisions/2026-11-24-a-starting-copy-comes-whole-from-one-checkpoint.md), 2,413 bytes past it: `SyncClient`,
+// which every visit carries, marks a stream downloaded to the server's newest (`downloaded:`) and a copy lost
+// (`copyLost:`), and answers `canGiveCopy`, `copyNeed`, `dropStartingCopy` and `startingCopyRowsAt`, which need its
+// own fields; the app's own look for an over-the-air update at start (shell/useUpdateAtStart.ts), whose hold is a
+// web stub here (updatesHeld.ts); and Let someone in's two new reasons. 659 bytes are left; all chunks have 551.
+// After the review of the fixes (2026-11-24), 747 bytes are left; all chunks have 433.
+// Raised by 5 KB with the review of 2026-11-24's items 12, 13, 15 to 18 (Carl, 2026-11-24,
+// docs/decisions/2026-11-24-a-checkpoint-keeps-its-rows-for-claims.md), 4,112 bytes past it: the event stores and
+// `SyncClient`, which every visit carries, keep a checkpoint's rows for claims on a phone that shares nearby (the
+// web never asks them to); saved library names in the app's language split from the server's read
+// (library/labelsKept.ts); and a session's chain names kept in one write (account/chainNames.ts). What moves names
+// between phones is in files only a phone loads (library/labelsTeammate.native.ts). 1,008 bytes are left; all
+// chunks have 695.
+// Raised by 3 KB with the review of 2026-11-24's files and performance groups (Carl, 2026-11-24,
+// docs/decisions/2026-11-24-nearby-sessions-spare-the-radios-and-the-round-trips.md), about 2 KB past it: an open
+// guide takes up a picture or audio that arrives without being reopened (study/ui.tsx, study/useStudyAudio.ts), a
+// passage's study counts take in a team's guide files by hash (study/studyFiles.ts), core's head names a guide set so
+// the app and nearby leave out the same languages, and `SyncClient` says when it last wrote. What only a phone does
+// stays in files the web never loads: the download ahead (study/guideFilesAhead.native.ts), heads kept on disk
+// (library/docHeads.native.ts) and shared Bibles between phones (library/sharedTeammate.native.ts).
+const FIRST_VISIT_BUDGET_BYTES = 3.94 * 1024 * 1024 + 132 * 1024;
 
 const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path.join(dir, e.name)) : [path.join(dir, e.name)]));
 let moved = 0;

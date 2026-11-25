@@ -9,8 +9,15 @@ export interface WriteBatch {
   events?: LocalEvent[];
   cursor?: { orgId: string; streamId: string; seq: number };
   meta?: Record<string, string>;
-  /** Drop confirmed events at or below `uptoSeq`; a checkpoint holds them now. */
-  prune?: { orgId: string; streamId: string; uptoSeq: number };
+  /**
+   * Drop confirmed events at or below `uptoSeq`; a checkpoint holds them now. With `claimable`
+   * (a checkpoint this phone took of its own log, on a phone that shares nearby), the rows it drops
+   * go to the claimable side table as well, which then keeps only its newest `maxRows` rows and
+   * `maxChars` characters of their JSON, and an attestation all of whose rows are gone goes with
+   * them (2026-11-24, review item 18). Without it, that table's rows for the stream go: a server's
+   * snapshot leaves a gap below it, which claims must not cross.
+   */
+  prune?: { orgId: string; streamId: string; uptoSeq: number; claimable?: NearbyClaimableBound };
   /**
    * Records a language keeps on the phone instead of in memory (decisions.md
    * 110): upsert these. `clear` first drops every kept record of the
@@ -83,7 +90,18 @@ export interface NearbyBatchRow {
   chain: string;
 }
 
-/** The Worker's word for rows this phone pulled, kept until `prune` passes them. */
+/**
+ * How much of a language's pruned log a phone keeps for claims (2026-11-24, review item 18): every
+ * confirmed row a checkpoint of its own drops, the newest first, so a teammate a little behind can
+ * still be claimed what the Worker vouched for. Contiguous by construction: a checkpoint drops
+ * every confirmed row from the last one to its own, and the oldest go first.
+ */
+export interface NearbyClaimableBound {
+  maxRows: number;
+  maxChars: number;
+}
+
+/** The Worker's word for rows this phone pulled, kept until `prune` passes them, or with `claimable` until the side table lets their rows go. */
 export interface NearbyAttestRow {
   orgId: string;
   streamId: string;
@@ -187,6 +205,14 @@ export interface EventStore {
   unsignedPage(orgId: string, streamId: string, afterHlc: string | null, limit: number): Promise<LocalEvent[]>;
   /** Confirmed rows past `afterSeq`, in `serverSeq` order. */
   confirmedAfter(orgId: string, streamId: string, afterSeq: number, limit: number): Promise<LocalEvent[]>;
+  /**
+   * As `confirmedAfter`, with the rows checkpoints moved to the claimable side table read in
+   * after the log (`prune`'s `claimable`): what claims and attestations work from (2026-11-24,
+   * review item 18). An id in both is read once.
+   */
+  claimableAfter(orgId: string, streamId: string, afterSeq: number, limit: number): Promise<LocalEvent[]>;
+  /** The lowest `serverSeq` the claimable side table holds for this stream, or null when it holds none. */
+  claimableFrom(orgId: string, streamId: string): Promise<number | null>;
   /** Every batch held, without its manifest, by signer and then number. */
   batchKeys(orgId: string, streamId: string): Promise<{ key: string; n: number; actorId: string; firstHlc: string | null }[]>;
   /** One signer's batches past `afterN`, in number order. */
@@ -338,6 +364,16 @@ export interface StartingCopy {
 
 /** A line as a starting copy carries it: core's `PassageLine`, checked when it is adopted. */
 export type PassageLineRow = { unitId: string } & Record<string, unknown>;
+
+/**
+ * Whether a stream would give a starting copy now (`SyncClient.canGiveCopy`, 2026-11-24): not
+ * while its passages' rows are still coming (`filling`, with how far), before it was downloaded
+ * right up to the server's newest (`downloading`), or with nothing from the server (`nothing`).
+ */
+export type CopyReadiness = { ok: true } | { ok: false; why: 'filling' | 'downloading' | 'nothing'; fill?: { filled: number; total: number } | null };
+
+/** What a person let in offline still needs of a starting copy for one stream (`SyncClient.copyNeed`), or null. */
+export type CopyNeed = 'filling' | 'lost' | 'missing' | null;
 
 export interface SnapshotRowsPage {
   /** The snapshot these rows are from. */

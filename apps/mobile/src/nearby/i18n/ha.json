@@ -76,6 +76,7 @@
       "filesIn": "Naɗe-naɗen da aka karɓa: {{n}}",
       "filesOut": "Naɗe-naɗen da aka aika: {{n}}",
       "guideFilesIn": "Hotuna da sautukan jagorori da aka karɓa: {{n}}",
+      "guideFilesShort": "Hotuna da sautukan jagorori da ba su sami wuri ba: {{n}}",
       "refused": "Canje-canjen da ba a karɓa ba: {{n}}",
       "filesFailed": "Naɗe-naɗen da ba su iso ba: {{n}}",
       "noRoom": "Wannan waya ta cika, babu sauran wuri don naɗe-naɗe.",
@@ -90,6 +91,11 @@
     "clockOff": "Agogon wani abokin aiki da na wannan waya sun bambanta da fiye da minti biyar. Duba kwanan wata da lokaci a wayoyin biyu.",
     "newerApp": "Sigogin manhajar wannan waya da ta wani abokin aiki sun yi nisa da juna sosai, don haka ba za su iya rabawa ba. Sabunta tsohuwar daga shago, ko daga fayil ɗin girkawa na ɗayar wayar.",
     "newerAppIphone": "Sigogin manhajar wannan waya da ta wani abokin aiki sun yi nisa da juna sosai, don haka ba za su iya rabawa ba. Sabunta tsohuwar daga shago.",
+    "copy": {
+      "lost": "Sabuntawar manhaja ta goge aikin ƙungiya da wannan waya ta samu daga abokin aiki. Ka zauna kusa da abokin aikin da ya buɗe Raba da na kusa don sake samunsa.",
+      "short": "Wannan waya ba ta da duk aikin ƙungiya tukuna. Ka zauna kusa da abokin aikin da ya buɗe Raba da na kusa don samun sauran.",
+      "keepVersion": "Har sai wannan waya ta samu intanet, kada ka sanya wata sigar LangQuest a kanta. Aikin ƙungiya da ta samu daga abokin aiki zai goge, kuma abokin aiki zai sake ba ta shi."
+    },
     "tooOld": "Wannan manhaja ta tsufa da yawa don rabawa. Sabunta ta daga shago.",
     "farAhead": "Wayar {{name}} tana da kwanan wata mai nisa a nan gaba. Aikinsu zai jira har sai ya iso sabar.",
     "olderFromServer": "Tsohon aiki zai zo daga sabar.",
@@ -145,8 +151,13 @@
         "noPass": "Wannan waya ba za ta iya shigar da kowa ba. Dole ƙungiyarka ta kunna shi, dole ka iya gayyatar mutane zuwa wannan harshe, kuma dole wannan waya ta sami intanet tun daga lokacin.",
         "expired": "Izinin wannan waya na shigar da mutane ya ƙare. Ka haɗa da intanet sau ɗaya don sabunta shi.",
         "noRole": "Babu matsayin da wannan waya za ta iya bayarwa ba tare da intanet ba. Mai kula zai iya ba da matsayi bayan sabon mutumin ya sami intanet.",
-        "wifiOff": "Ka kunna Wi-Fi a saitunan wayarka, sannan ka dawo."
+        "wifiOff": "Ka kunna Wi-Fi a saitunan wayarka, sannan ka dawo.",
+        "usedUp": "Wannan waya ta riga ta shigar da duk mutanen da za ta iya ba tare da intanet ba. Ka haɗa da intanet sau ɗaya don shigar da wasu.",
+        "copyNotReady": "Wannan waya ba ta gama sauke aikin ƙungiya ba, don haka ba za ta iya ba sabon mutum kwafi ba tukuna. Ka haɗa da intanet har ta gama, sannan ka dawo.",
+        "copyFilling": "Wannan waya tana ci gaba da karɓar aikin ƙungiya: sassa {{filled, number}} cikin {{total, number}}. Ka haɗa da intanet har ta gama, sannan ka dawo."
       },
+      "daysLeft": "Sauran kwanaki na shigar da mutane daga wannan waya: {{n, number}}",
+      "renewSoon": "Ka haɗa da intanet sau ɗaya kafin su ƙare, don wannan waya ta ci gaba da shigar da mutane. Mutanen da aka riga aka shigar ba abin ya shafe su ba.",
       "role": "Matsayinsa",
       "roleHelp": "Matsayin da sabon mutumin zai samu. Mai kula zai iya canja shi bayan ya sami intanet.",
       "asRole": "Zai shiga a matsayin {{role}}. Mai kula zai iya canja shi bayan ya sami intanet.",
@@ -209,6 +220,7 @@
         "refused": "Wannan waya ba ta iya shigar da shi da wannan matsayin ba. Ka haɗa da intanet sau ɗaya, sannan ka sake gwadawa.",
         "dropped": "Haɗin ya yanke kafin a shigar da shi. Ka yi sabuwar lamba.",
         "droppedAfter": "Ya shiga, amma haɗin ya yanke. Duk abokin aikin da ya buɗe Raba da na kusa zai iya kammala kwafinsa na farko.",
+        "droppedDocs": "Ya shiga kuma zai iya fara aiki, amma haɗin ya yanke kafin komai ya iso. Duk abokin aikin da ya buɗe Raba da na kusa zai iya ba shi sauran.",
         "copyShort": "Ya shiga, amma wannan wayar ba ta da kwafin farko da za ta ba shi tukuna. Duk abokin aikin da ya buɗe Raba da na kusa zai iya kammala shi.",
         "stopped": "Lambar ta tafi saboda ka bar wannan shafin. Ka yi sabuwa.",
         "noCertificate": "Dole wannan waya ta haɗa da intanet sau ɗaya kafin ta iya shigar da kowa.",

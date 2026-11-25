@@ -76,6 +76,7 @@
       "filesIn": "Rekodi zilizopokelewa: {{n}}",
       "filesOut": "Rekodi zilizotumwa: {{n}}",
       "guideFilesIn": "Picha na sauti za miongozo zilizopokelewa: {{n}}",
+      "guideFilesShort": "Picha na sauti za miongozo zisizotosha nafasi: {{n}}",
       "refused": "Mabadiliko yasiyokubaliwa: {{n}}",
       "filesFailed": "Rekodi ambazo hazikufika: {{n}}",
       "noRoom": "Simu hii imeishiwa nafasi ya rekodi.",
@@ -90,6 +91,11 @@
     "clockOff": "Saa ya simu ya mwenzako na ya simu hii zinatofautiana kwa zaidi ya dakika tano. Angalia tarehe na saa kwenye simu zote mbili.",
     "newerApp": "Programu ya simu hii na ya mwenzako ni matoleo yanayotofautiana mno kuweza kushiriki. Sasisha ile ya zamani kutoka dukani, au kwa faili ya kusakinisha ya simu nyingine.",
     "newerAppIphone": "Programu ya simu hii na ya mwenzako ni matoleo yanayotofautiana mno kuweza kushiriki. Sasisha ile ya zamani kutoka dukani.",
+    "copy": {
+      "lost": "Sasisho la programu limefuta kazi ya timu ambayo simu hii ilipata kutoka kwa mwenzako. Kaa karibu na mwenzako aliyefungua Shiriki karibu ili uipate tena.",
+      "short": "Simu hii bado haina kazi yote ya timu. Kaa karibu na mwenzako aliyefungua Shiriki karibu ili upate iliyobaki.",
+      "keepVersion": "Hadi simu hii ifike kwenye intaneti, usisakinishe toleo jingine la LangQuest juu yake. Kazi ya timu iliyopata kutoka kwa mwenzako ingefutwa, na mwenzako angelazimika kuitoa tena."
+    },
     "tooOld": "Programu hii ni ya zamani mno kushiriki. Isasishe kutoka dukani.",
     "farAhead": "Simu ya {{name}} ina tarehe ya mbali sana mbeleni. Kazi yake inasubiri hadi ifike kwenye seva.",
     "olderFromServer": "Kazi ya zamani zaidi itakuja kutoka kwenye seva.",
@@ -145,8 +151,13 @@
         "noPass": "Simu hii haiwezi kumruhusu mtu yeyote aingie. Shirika lako lazima liwe limewasha hili, lazima uweze kualika watu kwenye lugha hii, na simu hii lazima iwe imefika kwenye intaneti tangu wakati huo.",
         "expired": "Ruhusa ya simu hii kuwaruhusu watu waingie imeisha muda. Unganisha kwenye intaneti mara moja ili kuifanya upya.",
         "noRole": "Hakuna jukumu ambalo simu hii inaweza kutoa bila intaneti. Msimamizi anaweza kutoa majukumu baada ya mtu mpya kufika kwenye intaneti.",
-        "wifiOff": "Washa Wi-Fi kwenye mipangilio ya simu yako, kisha urudi."
+        "wifiOff": "Washa Wi-Fi kwenye mipangilio ya simu yako, kisha urudi.",
+        "usedUp": "Simu hii imeshawaruhusu kuingia watu wote inaoweza bila intaneti. Unganisha kwenye intaneti mara moja ili kuwaruhusu wengine.",
+        "copyNotReady": "Simu hii haijamaliza kupakua kazi ya timu, kwa hiyo bado haiwezi kumpa mtu mpya nakala. Unganisha kwenye intaneti hadi imalize, kisha urudi.",
+        "copyFilling": "Simu hii bado inapokea kazi ya timu: vifungu {{filled, number}} kati ya {{total, number}}. Unganisha kwenye intaneti hadi imalize, kisha urudi."
       },
+      "daysLeft": "Siku zilizobaki za kuwaruhusu watu waingie kutoka simu hii: {{n, number}}",
+      "renewSoon": "Unganisha kwenye intaneti mara moja kabla hazijaisha, ili simu hii iendelee kuwaruhusu watu waingie. Walioruhusiwa kuingia tayari hawaathiriki.",
       "role": "Jukumu lake",
       "roleHelp": "Jukumu ambalo mtu mpya anapata. Msimamizi anaweza kulibadilisha baada ya yeye kufika kwenye intaneti.",
       "asRole": "Anajiunga kama {{role}}. Msimamizi anaweza kulibadilisha baada ya yeye kufika kwenye intaneti.",
@@ -209,6 +220,7 @@
         "refused": "Simu hii haikuweza kumruhusu aingie kwa jukumu hilo. Unganisha kwenye intaneti mara moja, kisha ujaribu tena.",
         "dropped": "Muunganisho ulikatika kabla hajaruhusiwa kuingia. Tengeneza msimbo mpya.",
         "droppedAfter": "Ameingia, lakini muunganisho ulikatika. Mwenzako yeyote wa timu aliyefungua Shiriki karibu anaweza kumaliza nakala yake ya kuanzia.",
+        "droppedDocs": "Ameingia na anaweza kuanza kazi, lakini muunganisho ulikatika kabla kila kitu hakijafika. Mwenzako yeyote wa timu aliyefungua Shiriki karibu anaweza kumpa kilichobaki.",
         "copyShort": "Ameingia, lakini simu hii haikuwa na nakala ya kuanzia ya kumpa bado. Mwenzako yeyote wa timu aliyefungua Shiriki karibu anaweza kuimaliza.",
         "stopped": "Msimbo umeondoka kwa sababu uliondoka kwenye skrini hii. Tengeneza mpya.",
         "noCertificate": "Simu hii lazima iunganishwe kwenye intaneti mara moja kabla ya kuweza kumruhusu mtu yeyote aingie.",

@@ -578,6 +578,30 @@ describe.each(STORES)('a session on the %s store', (_name, make) => {
     expect([...entries.keys()].filter((k) => held.has(k))).toHaveLength(3);
     expect(held.get(cy.key)).toEqual(cys);
     expect(rb.holdings.dropped).toBe(2);
+    // The names their chains give the three kept go to the screen, and only theirs (review item 12): a member's chain names nobody.
+    expect(rb.names.map((n) => n.name).sort()).toEqual(['Flood 0', 'Flood 1', 'Flood 2']);
+    expect(ra.names).toEqual([]);
+  });
+
+  it('a newcomer\'s batch carried by a teammate names them on the phone it reaches, which never met them (review item 12)', async () => {
+    const [a, b] = await two();
+    const ana = await teammate('ana');
+    ana.chain = await worker.certify({ installKey: ana.key, profileId: 'ana', deviceId: ana.deviceId }, { orgId: ORG, privileges: ['invite_members', 'translate', 'view_status'] });
+    const body = (await joinPassBody({ orgId: ORG, languageId: LANG, inviter: 'ana', inviterKey: ana.key, roles: [{ roleId: 'translator', privileges: ['translate', 'view_status'] }], nowMs: NOW }, fakeSha256))!;
+    const pass = await worker.signPass(body);
+    const crypto = fakeSigner('nyibol');
+    const idSalt = base64urlEncode(new Uint8Array(16).fill(3));
+    const profileId = (await newcomerProfileId(crypto.publicKey, idSalt, fakeSha256))!;
+    const link = await issueInviteLink({ inviterLink: ana.chain[0] as WorkerLink, pass, ask: { installKey: crypto.publicKey, idSalt, profileId, deviceId: 'd-nyibol', name: '  Nyibol   Deng ' }, roleId: 'translator', now: NOW, sha256: fakeSha256, sign: ana.crypto.sign });
+    if (!link.ok) throw new Error(link.reason);
+    const nyibol: Teammate = { profileId, deviceId: 'd-nyibol', crypto, key: crypto.publicKey, chain: [ana.chain[0]!, link.link] };
+    const intake = { people: () => a.people, rootKeys: worker.rootKeys, verify: crypto.verify, sha256: fakeSha256, budget: { maxRows: 1000, maxBytes: 1e7, maxManifestBytes: 1e7 }, peerKey: nyibol.key };
+    const work = { id: `by:${profileId}:u-ny:0`, type: 'v1.UnitAdded', orgId: ORG, streamId: LANG, actorId: profileId, deviceId: 'd-nyibol', hlc: `${String(NOW + 5).padStart(15, '0')}:000000:d-nyibol`, payload: { unitId: 'u-ny', parentUnitId: null, kind: 'passage', label: 'u-ny', order: 'u-ny' } } as never;
+    expect(await a.client.receiveNearby(await pageOf(nyibol, 1, [work]), intake)).toMatchObject({ outcome: 'taken', kept: 1, named: { profileId, name: 'Nyibol Deng' } });
+    const [ra, rb] = await run(a, b, pairOf());
+    expect([ra.ended.how, rb.ended.how]).toEqual(['done', 'done']);
+    expect(rb.got.events).toBeGreaterThan(0);
+    expect(rb.names).toEqual([{ profileId, name: 'Nyibol Deng' }]);
   });
 
   it('drops an entry whose hold field was turned on after its owner signed it off, or that another key signed', async () => {
@@ -655,6 +679,24 @@ describe.each(STORES)('a session on the %s store', (_name, make) => {
       expect(ra.linkKind).toBe('bluetooth');
     });
 
+    // Review P3: every session formed a Wi-Fi Direct group first, even one that moved a few KB of events.
+    it('with only events to move, stays on the pipe and forms no group; both say so before Wi-Fi would come up', async () => {
+      const [a, b] = await two();
+      await unit(a, 'a1');
+      const air = memoryNearbyAir({ time, files: shelf });
+      const radios = { directByName: true, band5: false, hotspot: true, joinHotspot: true };
+      const pipe = pairOf({ kind: 'bluetooth' });
+      const [ra, rb] = await run(a, b, pipe, { arrange: { radio: air.radio('a'), radios } }, { arrange: { radio: air.radio('b'), radios } });
+      expect([ra.ended.how, rb.ended.how]).toEqual(['done', 'done']);
+      expect(rb.got.events).toBeGreaterThan(0);
+      expect([ra.linkKind, rb.linkKind]).toEqual(['bluetooth', 'bluetooth']);
+      expect(ra.files.wanted).toEqual({ mine: false, theirs: false });
+      expect(air.links).toEqual([]);
+      const said = [...typesOf(pipe.sent.a.frames), ...typesOf(pipe.sent.b.frames)];
+      expect(said.filter((t) => t === 'wants')).toHaveLength(2);
+      for (const t of ['host', 'holdings', 'file-ask']) expect(said).not.toContain(t);
+    });
+
     it('arranges Wi-Fi Direct, moves files over it, and closes the pipe', async () => {
       const [a, b] = await two();
       await record(a, shelf, 'ra');
@@ -666,6 +708,8 @@ describe.each(STORES)('a session on the %s store', (_name, make) => {
       expect(ra.linkKind).toBe('wifi-direct');
       expect(b.files.here.size).toBe(1);
       expect(pipe.closedBy.a || pipe.closedBy.b).toBe(true);
+      // The link came up after the events, since a file waited (review P3).
+      expect(ra.files.wanted).toEqual({ mine: true, theirs: false });
     });
 
     it('with no ready by the deadline it tries the hotspot, then stays on the pipe', async () => {
@@ -682,7 +726,8 @@ describe.each(STORES)('a session on the %s store', (_name, make) => {
 
     it('takes down every group hosted for an abandoned attempt, and keeps the one whose link won', async () => {
       const [a, b] = await two();
-      await unit(a, 'a1');
+      // A file to move, so the link that moves files comes up (review P3).
+      await record(a, shelf, 'ra');
       const air = memoryNearbyAir({ time, files: shelf });
       const radios = { directByName: true, band5: true, hotspot: true, joinHotspot: true };
       // Wi-Fi Direct never comes up, at either band; the hotspot does.
@@ -715,7 +760,8 @@ describe.each(STORES)('a session on the %s store', (_name, make) => {
       // Why: a link secured for an abandoned attempt, and its sealed goodbye, would otherwise
       // reuse the winning attempt's keys and nonces from counter 0.
       const [a, b] = await two();
-      await unit(a, 'a1');
+      // A file to move, so the link that moves files comes up (review P3).
+      await record(a, shelf, 'ra');
       const air = memoryNearbyAir({ time, files: shelf });
       const radios = { directByName: true, band5: true, hotspot: false, joinHotspot: false };
       const keysBy: { attempt: number; side: 'a' | 'b'; send: string; receive: string }[] = [];
@@ -769,7 +815,8 @@ describe.each(STORES)('a session on the %s store', (_name, make) => {
 
     it('takes down a group whose attempt never came up, when the pipe carries on as the link', async () => {
       const [a, b] = await two();
-      await unit(a, 'a1');
+      // A file to move, so the link that moves files comes up (review P3).
+      await record(a, shelf, 'ra');
       const air = memoryNearbyAir({ time, files: shelf });
       const radios = { directByName: true, band5: false, hotspot: false, joinHotspot: false };
       const stuck = { neverUp: ['wifi-direct', 'hotspot'] as ('wifi-direct' | 'hotspot')[] };

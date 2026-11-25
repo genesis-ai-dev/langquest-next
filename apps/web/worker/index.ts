@@ -101,11 +101,13 @@ function randomPassword(): string {
 /** A newcomer's account in the database and Auth (nearbyJoin.ts), for the join route and the relay alike. */
 function newcomerAccounts(env: Env): Omit<AccountDeps, 'rootKeys' | 'verify' | 'sha256'> {
   return {
-    state: async ({ profileId, key, salt, pass, roleId }) => await serviceClient(env).rpc('nearby_join_state', {
-      p_profile: profileId, p_key: key, p_salt: salt, p_pass: pass, p_role: roleId
+    // `p_made_at` only for a link that has one, so a link from an older build still reaches a database before it (decision 240 as amended).
+    state: async ({ profileId, key, salt, pass, roleId, madeAt }) => await serviceClient(env).rpc('nearby_join_state', {
+      p_profile: profileId, p_key: key, p_salt: salt, p_pass: pass, p_role: roleId, ...(madeAt !== undefined ? { p_made_at: madeAt } : {})
     }),
-    finish: async ({ profileId, key, salt, deviceId, name, pass, roleId, token }) => await serviceClient(env).rpc('nearby_join_finish', {
-      p_profile: profileId, p_key: key, p_salt: salt, p_install: deviceId, p_name: name, p_pass: pass, p_role: roleId, p_token: token ?? null
+    finish: async ({ profileId, key, salt, deviceId, name, pass, roleId, token, madeAt }) => await serviceClient(env).rpc('nearby_join_finish', {
+      p_profile: profileId, p_key: key, p_salt: salt, p_install: deviceId, p_name: name, p_pass: pass, p_role: roleId, p_token: token ?? null,
+      ...(madeAt !== undefined ? { p_made_at: madeAt } : {})
     }),
     preview: async (token) => await serviceClient(env).rpc('preview_invite', { p_token: token }),
     // `managed` makes it a looked-after account to the server, and `chain_key` says which key reaches it; only the service role writes app_metadata.

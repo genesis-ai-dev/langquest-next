@@ -1,11 +1,11 @@
 import { createHash } from 'node:crypto';
 import type { AnyEvent, EventPayloads, EventType } from '../src/events';
 import { HlcClock } from '../src/hlc';
-import { checkChain, newcomerProfileId, peopleWithChains, type ChainVerdict, type CheckChainOptions, type JoinAsk, type JoinPass, type RevocationList, type WorkerLink } from '../src/nearbyChain';
+import { checkChain, NEARBY_NEWCOMER_MS, newcomerProfileId, peopleWithChains, type ChainVerdict, type CheckChainOptions, type JoinAsk, type JoinPass, type RevocationList, type WorkerLink } from '../src/nearbyChain';
 import {
-  chainRoleId, issueInviteLink, JOIN_PASS_USES, joinPassBody, joinPassStop, joinPictures, newcomerOrgState, passRoles, signJoinPass, withChainMembership
+  chainRoleId, issueInviteLink, JOIN_PASS_USES, joinPassBody, joinPassStop, joinPictures, newcomerOrgState, PASS_NEXT_WITHIN_MS, passRoles, passWindowTimes, signJoinPass, withChainMembership
 } from '../src/nearbyJoin';
-import { base64urlEncode, linkText, nearbyBytes, PASS_WINDOW_MS, passIdOf } from '../src/nearbySigning';
+import { base64urlEncode, linkText, nearbyBytes, PASS_WINDOW_MS, passIdOf, passWindowAt } from '../src/nearbySigning';
 import { foldOrg, membershipsOf, privilegesFor, type OrgState } from '../src/org';
 import { MANAGE_PRIVILEGES, type Privilege } from '../src/orgTerms';
 import { OBJECT_MEMBER_NAMES } from '../src/validate';
@@ -129,6 +129,22 @@ describe('a pass (Carl\'s answers 8 and 17)', () => {
     expect(await passIdOf({ orgId: 'org1', languageId: 'lang1', inviter: v.PROFILE, inviterKey: v.PUBLIC_KEY, window: v.PASS_WINDOW }, sha256)).toBe(v.PASS_ID);
   });
 
+  it('is signed for the next window too in a window\'s last 30 days, this window\'s first, so a team leaving town late can still let people in (2026-11-24)', async () => {
+    // Why: a pass ends with its window, and a phone that last reached the server near the end held one with days left.
+    expect(PASS_NEXT_WITHIN_MS).toBe(30 * 86_400_000);
+    const end = passWindowAt(NOW).expiresAt;
+    expect(passWindowTimes(NOW)).toEqual([NOW]);
+    expect(passWindowTimes(end - PASS_NEXT_WITHIN_MS - 1)).toEqual([end - PASS_NEXT_WITHIN_MS - 1]);
+    expect(passWindowTimes(end - PASS_NEXT_WITHIN_MS)).toEqual([end - PASS_NEXT_WITHIN_MS, end]);
+    expect(passWindowTimes(end - 1)).toEqual([end - 1, end]);
+    const roles = [{ roleId: 'translator', privileges: ['translate'] as Privilege[] }];
+    const bodies = await Promise.all(passWindowTimes(end - 1).map((nowMs) => joinPassBody({ orgId: ORG, languageId: LANG, inviter: INVITER, inviterKey: INVITER_KEY, roles, nowMs }, sha256)));
+    expect(bodies.map((b) => b!.expiresAt)).toEqual([end, end + PASS_WINDOW_MS]);
+    expect(bodies[0]!.passId).not.toBe(bodies[1]!.passId);
+    // The next window's pass is the same one the next window's own answers give: no third id, and no new uses.
+    expect((await joinPassBody({ orgId: ORG, languageId: LANG, inviter: INVITER, inviterKey: INVITER_KEY, roles, nowMs: end + 5 }, sha256))!.passId).toBe(bodies[1]!.passId);
+  });
+
   it('is not issued with no role to offer', async () => {
     expect(await joinPassBody({ orgId: ORG, languageId: LANG, inviter: INVITER, inviterKey: INVITER_KEY, roles: [], nowMs: NOW }, sha256)).toBeNull();
   });
@@ -142,6 +158,29 @@ describe('the invite link an inviter signs', () => {
     expect(out.link.body).toMatchObject({ roleId: 'translator', privileges: ['translate', 'view_status'], name: 'Nyibol', deviceId: 'device-b' });
     const verdict = await checkChain([workerLink(), out.link], options());
     expect(verdict).toMatchObject({ ok: true, links: 2, inviter: INVITER, inviterKey: INVITER_KEY, roleId: 'translator', holder: { profileId: (await ask()).profileId, name: 'Nyibol' } });
+  });
+
+  it('signs when it was made, by the clock it is given, and teammates accept the newcomer for 90 days from then, past the pass\'s expiry (decision 240 as amended)', async () => {
+    // Why: a pass expires at its window's end, the same date for everyone; a newcomer let in the day before was refused by every phone the day after.
+    const p = await pass();
+    const madeAt = p.body.expiresAt - 86_400_000;
+    const link = workerLink({ expiresAt: Number.MAX_SAFE_INTEGER });
+    const out = await issue({ link, pass: p, now: madeAt + 0.5 });
+    expect(out.ok).toBe(true);
+    if (!out.ok) return;
+    expect(out.link.body.madeAt).toBe(madeAt);
+    const chain = [link, out.link];
+    expect(await checkChain(chain, options({ now: p.body.expiresAt + 86_400_000 }))).toMatchObject({ ok: true, links: 2 });
+    expect(await checkChain(chain, options({ now: madeAt + NEARBY_NEWCOMER_MS }))).toMatchObject({ ok: true });
+    expect(await checkChain(chain, options({ now: madeAt + NEARBY_NEWCOMER_MS + 1 }))).toEqual({ ok: false, reason: 'pass expired' });
+    // Batches and the server's door skip the clock.
+    expect(await checkChain(chain, options({ now: null }))).toMatchObject({ ok: true });
+  });
+
+  it('refuses a clock it cannot read, and signs no time a teammate would not read as one', async () => {
+    const link = workerLink({ expiresAt: Number.MAX_SAFE_INTEGER });
+    expect(await reasonOf({ link, now: -5 })).toBe('clock');
+    expect(await reasonOf({ link, now: Number.NaN })).toBe('certificate expired');
   });
 
   it('refuses an expired pass and an expired certificate', async () => {

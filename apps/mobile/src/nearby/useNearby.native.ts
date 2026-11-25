@@ -1,10 +1,11 @@
 import { languagePeople } from '@langquest-next/core';
+import type { CopyNeed } from '@langquest-next/sync';
 import type { NearbyRoom, NearbyRoomEvent, NearbySessionReport } from '@langquest-next/sync/nearby';
 import { NavigationContext } from '@react-navigation/native';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import { useCallback, useContext, useEffect, useMemo, useReducer, useRef, useState, useSyncExternalStore } from 'react';
 import { AppState } from 'react-native';
-import { noteChainName } from '../account/chainNames';
+import { noteChainNames } from '../account/chainNames';
 import { noteExpected } from '../diagnostics/report';
 import type { NativeCapabilities } from '../../modules/nearby-link';
 import { showsLock } from '../appLock/appLockModel';
@@ -19,6 +20,7 @@ import { nearbyRowShown } from './nearbyRowModel';
 import { nearbyRadio } from './nearbyLink.native';
 import { carryFactsOf, quietFactsOf, type StoredCarryFacts } from './nearbyCarry.native';
 import { copySourceOf } from './nearbyCopySource';
+import { roomCopyTargetFor } from './nearbyCopyTarget.native';
 import { nearbyLibraryOf } from './nearbyLibrary.native';
 import { nearbyBlockedOf } from './nearbyDiagModel';
 import { holdByDefault, notesMetOf, radiosMayRun } from './nearbyModel';
@@ -84,6 +86,9 @@ export function useNearby(ctx: Ctx): NearbyHandle {
   const present = useSyncExternalStore(language.syncStatus.subscribe, () => language.syncStatus.get().present);
   const [stored, setStored] = useState<StoredCarryFacts | null>(null);
   const [whileOpen, setWhileOpenShown] = useState<boolean | null>(null);
+  /** What this person's starting copy still needs of a teammate (2026-11-24, review items 6 and 26), as Share nearby says it. */
+  const [copyNeed, setCopyNeed] = useState<CopyNeed>(null);
+  const [copyHeld, setCopyHeld] = useState(false);
   const wornRef = useRef(worn);
   wornRef.current = worn;
   const { os, sdk } = phoneSystem();
@@ -208,8 +213,15 @@ export function useNearby(ctx: Ctx): NearbyHandle {
         dispatch({ t: 'room', report: e, worn, names: names.current });
         if (e.t === 'ended') void nearbyNamesOf(open, orgId).then((n) => { names.current = n; }).catch(() => undefined);
         // Someone let in offline, met before the server knows them: their chain names them (14.1, 5).
-        if (e.t === 'ended' && e.report.peer?.name) void noteChainName(actorId, e.report.peer.profileId, e.report.peer.name).catch((x: unknown) => noteExpected('nearby: chain name', x));
+        // And whoever else a checked chain named, on a batch or a holdings entry this phone took (review item 12).
+        if (e.t === 'ended' && (e.report.peer?.name || e.report.names.length > 0)) {
+          const named = [...(e.report.peer?.name ? [{ profileId: e.report.peer.profileId, name: e.report.peer.name }] : []), ...e.report.names];
+          void noteChainNames(actorId, named).catch((x: unknown) => noteExpected('nearby: chain name', x));
+        }
         if (e.t === 'ended' || e.t === 'level') readCarry();
+        // A copy taken: what is still wanted, read again for the screen.
+        if (e.t === 'ended' && e.report.copy) void roomCopyTargetFor({ actorId, orgId, languageId, language: open.client, org: orgClient.current() })
+          .then((t) => setCopyNeed(t?.need ?? null)).catch((x: unknown) => noteExpected('nearby: copy need', x));
         // A stop of its own (idle, the run limit, "Up to date" on a worn phone): nothing more to stop here.
         if (e.t === 'stopped' && room) release(room);
       };
@@ -223,8 +235,16 @@ export function useNearby(ctx: Ctx): NearbyHandle {
       const copy = copySourceOf({ actorId, language: open.client, org: orgClient.current() });
       // Any teammate, iPhone or Android, swaps the library documents the language uses (14.1, 2026-11-24).
       const library = nearbyLibraryOf({ language: open.client, org: () => orgState.current });
+      // A person let in offline whose copy is missing, short or lost to an update takes one from any teammate on the same
+      // versions here, as the join screen's Look did before they were set (2026-11-24, review items 6 and 26).
+      const takeCopy = await roomCopyTargetFor({ actorId, orgId, languageId, language: open.client, org: orgClient.current() });
+      const holdsCopy = (await open.client.holdsCopy()) || ((await orgClient.current()?.holdsCopy()) ?? false);
+      if (!still()) return;
+      setCopyNeed(takeCopy?.need ?? null);
+      setCopyHeld(holdsCopy);
       room = nearbyRoomOf({
         radio, pieces: got.pieces, language: open, actorId, orgId, languageId, worn, report, progress, copy, library,
+        ...(takeCopy ? { takeCopy: takeCopy.target } : {}),
         ...(notesMet ? { notesMetForMs: NEARBY_OPEN_FRESH_MS } : {})
       });
       held.current = { room, ticker: null };
@@ -302,8 +322,8 @@ export function useNearby(ctx: Ctx): NearbyHandle {
 
   const iphone = os === 'ios';
   const view = useMemo(
-    () => nearbyViewOf({ offered: offered === true, iphone, tapCoversAll, whyNot, radiosOff, permissions, worn, run, holding, hold, whileOpen, carry }),
-    [offered, iphone, tapCoversAll, whyNot, radiosOff, permissions, worn, run, holding, hold, whileOpen, carry]
+    () => nearbyViewOf({ offered: offered === true, iphone, tapCoversAll, whyNot, radiosOff, permissions, worn, run, holding, hold, whileOpen, carry, copyNeed, copyHeld }),
+    [offered, iphone, tapCoversAll, whyNot, radiosOff, permissions, worn, run, holding, hold, whileOpen, carry, copyNeed, copyHeld]
   );
   return useMemo(() => ({ view, actions }), [view, actions]);
 }

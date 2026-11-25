@@ -1,6 +1,6 @@
 import type { NearbyStudyLinks } from '@langquest-next/sync/nearby';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { File, Paths } from 'expo-file-system';
+import { File, Paths, type Directory } from 'expo-file-system';
 import { noteExpected } from '../diagnostics/report';
 import { wornNow } from '../shell/appCovered';
 import { RECORDING_RESERVE_BYTES } from '../sync/blobsModel';
@@ -29,14 +29,41 @@ const RECHECK_MS = 5 * 60 * 1000;
  * audio. Bytes no hash holds to anything are kept small (security review, 2026-11-24).
  */
 export const STUDY_LINK_MAX_BYTES = 8 * 1024 * 1024;
+/**
+ * Room for files on a teammate's word that this language's kept passages need, apart from the
+ * spare room the rest share: a kept passage's pictures and step audio still come once the spare
+ * room is used, and are bounded all the same (2026-11-24).
+ */
+export const STUDY_LINK_NEEDED_BYTES = 512 * 1024 * 1024;
 
 let given: Promise<Set<string>> | null = null;
+/** The list once read, for the counts a session works out at once; null until then. */
+let givenNow: Set<string> | null = null;
 /** The addresses whose file a teammate gave and this phone has not fetched again. A list that cannot be read is not taken as empty. */
 function teammates(): Promise<Set<string>> {
   given ??= AsyncStorage.getItem(GIVEN_KEY)
-    .then((raw) => new Set((JSON.parse(raw ?? '[]') as unknown[]).filter((u): u is string => typeof u === 'string')))
+    .then((raw) => {
+      givenNow = new Set((JSON.parse(raw ?? '[]') as unknown[]).filter((u): u is string => typeof u === 'string'));
+      return givenNow;
+    })
     .catch((e: unknown) => { given = null; throw e; });
   return given;
+}
+void teammates().catch(() => undefined);
+
+/**
+ * Each study file's size by name, read from the phone once a run (an address names the same file
+ * while it is here), so a session does not ask the phone for every file's size again.
+ */
+const sizes = new Map<string, number>();
+function sizeOf(name: string): number {
+  let n = sizes.get(name);
+  const dir = studyFolder.dir();
+  if (n === undefined && dir) {
+    n = new File(dir, name).size ?? 0;
+    sizes.set(name, n);
+  }
+  return n ?? 0;
 }
 
 async function save(urls: Set<string>): Promise<void> {
@@ -68,16 +95,31 @@ export function looksLike(ext: string, b: Uint8Array): boolean {
 const neededNow = () => new Set([...studyFolder.wanted().values()].flat());
 /** Bytes left of the folder's room for files no kept passage needs, worked out as a session lists what it lacks. */
 let spareLeft = 0;
-/** Bytes left for files on a teammate's word not yet fetched again, needed or not: all of them stay within the spare room. */
+/** Bytes left for files on a teammate's word not yet fetched again that no kept passage needs: within the spare room. */
 let wordLeft = 0;
+/** Bytes left for files on a teammate's word that kept passages need (`STUDY_LINK_NEEDED_BYTES`). */
+let neededWordLeft = 0;
 
 const here = (url: string) => studyFolder.present.get(studyFolder.nameOf(url));
-/** Bytes of the files on a teammate's word still here and not fetched again, kept as they come and go. */
-let wordBytes = 0;
-void teammates().then((urls) => {
-  const dir = studyFolder.dir();
-  if (dir) for (const url of urls) { const uri = here(url); if (uri) wordBytes += new File(uri).size ?? 0; }
-}).catch(() => undefined);
+
+/**
+ * The room a session's files on a teammate's word may take, worked out from the files here now,
+ * so a file the folder's clearing deleted no longer counts against it. Until the list of them is
+ * read it counts none; none can be kept until it is read (`adopt`), so none is kept past the room.
+ */
+export function studyLinkRoom(): { spareLeft: number; wordLeft: number; neededWordLeft: number } {
+  const needed = neededNow();
+  const neededNames = new Set([...needed].map(studyFolder.nameOf));
+  let used = 0;
+  for (const name of studyFolder.present.keys()) if (!neededNames.has(name)) used += sizeOf(name);
+  let word = 0;
+  let neededWord = 0;
+  for (const url of givenNow ?? []) if (here(url) !== undefined) {
+    if (needed.has(url)) neededWord += sizeOf(studyFolder.nameOf(url));
+    else word += sizeOf(studyFolder.nameOf(url));
+  }
+  return { spareLeft: studyFolder.spare - used, wordLeft: studyFolder.spare - word, neededWordLeft: STUDY_LINK_NEEDED_BYTES - neededWord };
+}
 
 export const nearbyStudyLinks: NearbyStudyLinks = {
   held: (urls) => (studyFolder.dir() ? urls.filter((u) => here(u) !== undefined) : []),
@@ -85,16 +127,16 @@ export const nearbyStudyLinks: NearbyStudyLinks = {
     const dir = studyFolder.dir();
     if (!dir) return [];
     const needed = neededNow();
-    const neededNames = new Set([...needed].map(studyFolder.nameOf));
-    let used = 0;
-    for (const name of studyFolder.present.keys()) if (!neededNames.has(name)) used += new File(dir, name).size ?? 0;
-    spareLeft = studyFolder.spare - used;
-    // What came on a teammate's word and is not fetched again yet, as last read (`given`): `adopt` adds to it.
-    wordLeft = studyFolder.spare - wordBytes;
+    ({ spareLeft, wordLeft, neededWordLeft } = studyLinkRoom());
     const missing = urls.filter((u) => here(u) === undefined);
     // Under a cover (decision 171), only what its own kept passages need: a search finds no more than its work asks for.
     if (wornNow()) return missing.filter((u) => needed.has(u));
     return [...missing.filter((u) => needed.has(u)), ...missing.filter((u) => !needed.has(u))];
+  },
+  neededLacking: (urls) => {
+    if (!studyFolder.dir()) return false;
+    const needed = neededNow();
+    return urls.some((u) => needed.has(u) && here(u) === undefined);
   },
   serve: (url) => {
     const uri = here(url);
@@ -106,9 +148,11 @@ export const nearbyStudyLinks: NearbyStudyLinks = {
     let free: number | null = null;
     try { free = Paths.availableDiskSpace; } catch { /* the room is not known: the spare share still bounds it */ }
     if (free !== null && free < RECORDING_RESERVE_BYTES) return null;
-    if (wordLeft <= 0) return null;
-    if (!neededNow().has(url) && (spareLeft <= 0 || wornNow())) return null;
-    return { stagingUri: new File(dir, studyFolder.nameOf(url) + STAGING).uri, maxBytes: Math.min(STUDY_LINK_MAX_BYTES, wordLeft), minFreeBytes: RECORDING_RESERVE_BYTES };
+    const needed = neededNow().has(url);
+    // What a kept passage needs has its own room; the rest share the spare room, and none comes under a cover.
+    const left = needed ? neededWordLeft : Math.min(wordLeft, spareLeft);
+    if (left <= 0 || (!needed && wornNow())) return null;
+    return { stagingUri: new File(dir, studyFolder.nameOf(url) + STAGING).uri, maxBytes: Math.min(STUDY_LINK_MAX_BYTES, left), minFreeBytes: RECORDING_RESERVE_BYTES };
   },
   adopt: async (url, stagingUri, size) => {
     const dir = studyFolder.dir();
@@ -138,9 +182,12 @@ export const nearbyStudyLinks: NearbyStudyLinks = {
     if (dest.exists) dest.delete();
     staged.move(dest);
     studyFolder.present.set(name, dest.uri);
-    wordBytes += size;
-    wordLeft -= size;
-    if (!neededNow().has(url)) spareLeft -= size;
+    sizes.set(name, size);
+    if (neededNow().has(url)) neededWordLeft -= size;
+    else {
+      wordLeft -= size;
+      spareLeft -= size;
+    }
     studyFolder.changed();
   }
 };
@@ -148,7 +195,20 @@ export const nearbyStudyLinks: NearbyStudyLinks = {
 let checking = false;
 let lastCheck = -RECHECK_MS;
 
-/** Online: each file a teammate gave is fetched again from its address, so the teammate's word is replaced. */
+/** Delete a teammate's file and forget it: what it stood for is fetched from its address when it is wanted. */
+function dropGiven(dir: Directory, url: string, urls: Set<string>): void {
+  const name = studyFolder.nameOf(url);
+  try { new File(dir, name).delete(); } catch { /* the folder's clearing */ }
+  studyFolder.present.delete(name);
+  sizes.delete(name);
+  urls.delete(url);
+}
+
+/**
+ * Online: each file a teammate gave that a kept passage needs is fetched again from its address,
+ * so the teammate's word is replaced; one no kept passage needs goes (P12 of the 2026-11-24
+ * review), once the wish list is whole, and is fetched from its address if it is ever shown.
+ */
 async function recheck(): Promise<void> {
   const dir = studyFolder.dir();
   if (checking || !dir || !studyFolder.online() || Date.now() - lastCheck < RECHECK_MS) return;
@@ -158,10 +218,15 @@ async function recheck(): Promise<void> {
   lastCheck = Date.now();
   let changed = false;
   try {
+    const needed = neededNow();
     for (const url of [...urls]) {
       if (!studyFolder.online()) break;
       const name = studyFolder.nameOf(url);
       if (!studyFolder.present.has(name)) { urls.delete(url); continue; }
+      if (!needed.has(url)) {
+        if (studyFolder.whole()) { dropGiven(dir, url, urls); changed = true; }
+        continue;
+      }
       const staged = new File(dir, name + CHECKING);
       let timer: ReturnType<typeof setTimeout> | undefined;
       try {
@@ -171,19 +236,16 @@ async function recheck(): Promise<void> {
           new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('timed out')), TIMEOUT_MS); })
         ]);
         const dest = new File(dir, name);
-        wordBytes -= dest.size ?? 0;
         if (dest.exists) dest.delete();
         staged.move(dest);
         studyFolder.present.set(name, dest.uri);
+        sizes.delete(name);
         urls.delete(url);
         changed = true;
       } catch (e) {
         // Its source says it is not there: the teammate's copy goes too. Anything else is tried again later.
         if (refusedBy(e)) {
-          wordBytes -= new File(dir, name).size ?? 0;
-          try { new File(dir, name).delete(); } catch { /* the folder's clearing */ }
-          studyFolder.present.delete(name);
-          urls.delete(url);
+          dropGiven(dir, url, urls);
           changed = true;
         } else noteExpected('study files: a teammate\'s, fetched again', e);
         try { if (staged.exists) staged.delete(); } catch { /* next launch */ }

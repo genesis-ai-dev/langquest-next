@@ -8,7 +8,7 @@ import type { RpcAnswer } from '../worker/nearby';
 import { subtleSha256, subtleVerify } from '../worker/nearbyKeys';
 import { accountFromChain, checkJoinChain, handleJoin, JOIN_PATH, refusalStatus, type CheckedJoin, type JoinDeps } from '../worker/nearbyJoin';
 import { routeClass } from '../worker/requestTally';
-import { CHAIN, CHAIN_INVITER_KEY, CHAIN_ROOT_KEY, NEWCOMER_ID, NEWCOMER_SALT, PROFILE, PUBLIC_KEY } from '../../../packages/core/test/nearbyVectors';
+import { CHAIN, CHAIN_INVITER_KEY, CHAIN_MADE, CHAIN_MADE_AT, CHAIN_ROOT_KEY, NEWCOMER_ID, NEWCOMER_SALT, PROFILE, PUBLIC_KEY } from '../../../packages/core/test/nearbyVectors';
 
 /**
  * A newcomer's first contact at the Worker (docs/nearby-sync-plan.md 14.1), with real Ed25519 on
@@ -159,6 +159,20 @@ describe('POST /api/nearby/join', () => {
     });
     expect(fns(w)).toEqual(['state', 'createUser', 'finish', 'signIn']);
     expect(await res.json()).toEqual({ session: { access_token: 'at-ye-481@people.langquest.org', refresh_token: 'rt' }, orgId: 'org1', signInName: 'ye-481' });
+  });
+
+  // Decision 240 as amended (2026-11-24): a newcomer is let in for 90 days from when their link was made, and the database decides it.
+  it('gives the database the link\'s madeAt, and refuses a link made after its pass expired before any database call', async () => {
+    const { deps, w } = setup();
+    expect((await handleJoin(post(joinBody({ chain: CHAIN_MADE })), deps)).status).toBe(200);
+    expect(w.calls.find((c) => c.fn === 'state')!.args).toEqual({ profileId: NEWCOMER_ID, key: PUBLIC_KEY, salt: NEWCOMER_SALT, pass: GOLDEN_PASS.body, roleId: 'translator', madeAt: CHAIN_MADE_AT });
+    expect(w.calls.find((c) => c.fn === 'finish')!.args).toMatchObject({ madeAt: CHAIN_MADE_AT });
+    const body = { ...GOLDEN_LINK.body, madeAt: GOLDEN_PASS.body.expiresAt + 1 };
+    const late: InviteLink = { kind: 'invite@1', body, sig: signWith(INVITER_SEED, nearbyBytes('link', linkText({ kind: 'invite@1', body }, WORKER_LINK.sig))) };
+    const refused = setup();
+    const res = await handleJoin(post(joinBody({ chain: [WORKER_LINK, late] })), refused.deps);
+    expect([res.status, await res.json()]).toEqual([410, { error: 'chain: pass expired', status: 'chain' }]);
+    expect(refused.w.calls).toEqual([]);
   });
 
   it('is safe to repeat: the account its key reaches makes no second one, and a session comes only until the key\'s first session', async () => {

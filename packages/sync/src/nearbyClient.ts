@@ -1,18 +1,18 @@
 import { clockCloseEnough, decodeHlc, entityKeyOf, validateEvent, type AnyEvent, type LanguageState } from '@langquest-next/core';
 import {
   applyFloor, checkChain, countBatch, doorFactsOf, doorKeptReads, isCounted, NEARBY_VECTOR_MAX_RANGES, nearbyCopy, nearbyDoor, nearbyLookUpRefusal, parseAttestation, parseBatchManifest,
-  parseVector, revokedLater, type DoorFacts, type InviteLink, type NearbyPeople, type NearbyVector, type NearbyVia, type PageFacts, type RevocationList
+  parseVector, revokedLater, type BatchManifest, type DoorFacts, type InviteLink, type NearbyPeople, type NearbyVector, type NearbyVia, type PageFacts, type RevocationList
 } from '@langquest-next/core/nearby';
 import type { Diagnostics } from './diagnostics';
 import { deliverNearby, departureOf, departureRows } from './nearbyDeliver';
 import { deliverDiagOf, NEARBY_DIAG_SCHEMA } from './nearbyDiag';
 import {
-  batchIsWhole, chainAsSigned, checkBatchPage, checkClaimsPage, nearbyDropped,
+  batchIsWhole, chainAsSigned, chainNameOf, checkBatchPage, checkClaimsPage, nearbyDropped,
   type NearbyBatchPage, type NearbyClaimsPage, type NearbyGate, type NearbyIntake, type NearbyPage, type NearbyReceipt, type NearbyRefusal, type NearbySigned, type NearbySigner
 } from './nearbyIntake';
 import { batchPageOf, nextClaimsOf, signBatch } from './nearbySender';
-import { applyRevocationList, attestNearby, isServerVerdict, replaceBareManifest, settleBatches, sweepNearby, type NearbyHost, type NearbyPlatform } from './nearbyUpkeep';
-import { nearbyBudgetOf, passIdOfChain, type EventStore, type KeptRecord, type LocalEvent, type NearbyUse, type Transport, type WriteBatch } from './types';
+import { applyRevocationList, attestNearby, claimsFloorOf, isServerVerdict, replaceBareManifest, settleBatches, sweepNearby, type NearbyHost, type NearbyPlatform } from './nearbyUpkeep';
+import { nearbyBudgetOf, passIdOfChain, type EventStore, type KeptRecord, type LocalEvent, type NearbyClaimableBound, type NearbyUse, type Transport, type WriteBatch } from './types';
 
 /**
  * Nearby sharing's half of a `SyncClient` (docs/nearby-sync-plan.md 5.4, 5.7, 5.12): signing,
@@ -71,8 +71,23 @@ export interface NearbyPort {
   pushNow(): Promise<unknown>;
 }
 
+/**
+ * What a phone keeps of its language's log past its own checkpoints, for claims (2026-11-24, review
+ * item 18): a few checkpoints' worth of rows, and never more than 16 MB of them, so a teammate a
+ * little behind can still be claimed what a carrier pulled in town, a consultant's reviews among it.
+ */
+export const NEARBY_CLAIMABLE: NearbyClaimableBound = { maxRows: 10_000, maxChars: 16 * 1024 * 1024 };
+
 /** What a `SyncClient` asks of its nearby half. */
 export interface NearbyPart {
+  /**
+   * How much of the log its own checkpoints keep for claims (`NEARBY_CLAIMABLE`), read at each checkpoint. Null while
+   * the phone holds no certificate (review of item 18): it asks for no attestation then, so nothing kept could be
+   * claimed, and the next checkpoint lets the side table go.
+   */
+  readonly claimable: NearbyClaimableBound | null;
+  /** The authors of the signed batches this phone holds in this language: who a starting copy's names may name (review item 12). */
+  nearbyAuthors(): Promise<Set<string>>;
   signUnsigned(signer: NearbySigner): Promise<NearbySigned>;
   nearbyHave(): Promise<{ cursor: number; claimedSeq: number; vector: NearbyVector }>;
   nearbyUncounted(them: NearbyVector): Promise<{ key: string; n: number }[]>;
@@ -117,9 +132,9 @@ export type NearbyMaker = (port: NearbyPort) => NearbyPart;
  * Nearby sharing for a client. `platform` is the phone's half (hashing, and whether it holds a
  * certificate); without it a sync still sweeps, but asks for no attestation and closes no batch number.
  */
-export function nearbyClient(platform?: NearbyPlatform): NearbyMaker {
+export function nearbyClient(platform?: NearbyPlatform, o: { claimable?: NearbyClaimableBound } = {}): NearbyMaker {
   const phone: PhoneShare = { held: null };
-  return (port) => new NearbyClient(port, platform, phone);
+  return (port) => new NearbyClient(port, platform, phone, o.claimable ?? NEARBY_CLAIMABLE);
 }
 
 /**
@@ -205,8 +220,12 @@ class NearbyClient implements NearbyPart {
   /** Push held back an undo this sync, to go again after delivery. */
   private heldBack = false;
 
-  constructor(private readonly port: NearbyPort, platform: NearbyPlatform | undefined, private readonly phone: PhoneShare) {
+  constructor(private readonly port: NearbyPort, platform: NearbyPlatform | undefined, private readonly phone: PhoneShare, private readonly bound: NearbyClaimableBound) {
     this.host = { ...port, platform, vector: () => this.vector(), vectorMeta: (vector) => this.vectorMeta(vector), number: (key) => this.number(key) };
+  }
+
+  get claimable(): NearbyClaimableBound | null {
+    return this.host.platform?.holdsCertificate() ? this.bound : null;
   }
 
   /** A row that cannot be read reads as nothing: an entry too low is always safe, because it costs only re-sends. */
@@ -258,6 +277,10 @@ class NearbyClient implements NearbyPart {
     return keys.filter(({ key, n }) => !isCounted(them, key, n)).map(({ key, n }) => ({ key, n }));
   }
 
+  async nearbyAuthors(): Promise<Set<string>> {
+    return new Set((await this.port.store.batchKeys(this.port.orgId, this.port.streamId)).map((b) => b.actorId));
+  }
+
   /** One batch as a page: the manifest whole, with the rows still here that it may carry. A confirmed row goes by claim instead. */
   nearbyBatchPage(key: string, n: number): Promise<NearbyBatchPage | null> {
     return batchPageOf(this.host, key, n);
@@ -276,9 +299,12 @@ class NearbyClient implements NearbyPart {
     return nextClaimsOf(this.host, them);
   }
 
-  /** This phone's log starts past what the other has been told of, so it cannot send all it knows of, and the screen says so. */
+  /**
+   * What this phone can still claim starts past what the other has been told of, so it cannot send all it knows of, and the
+   * screen says so: its log less what its checkpoints kept for claims (2026-11-24, review item 18).
+   */
   async nearbyHoldsLess(them: { cursor: number; claimedSeq: number }): Promise<boolean> {
-    return ((await this.port.checkpointSeq()) ?? 0) > Math.max(them.cursor, them.claimedSeq);
+    return (await claimsFloorOf(this.host)) > Math.max(them.cursor, them.claimedSeq);
   }
 
   /** Authors whose newest stamp on a page was far ahead of this phone's time, for one line on screen, kept as long as this client. */
@@ -332,11 +358,11 @@ class NearbyClient implements NearbyPart {
   }
 
   private async receiveBatch(page: NearbyBatchPage, intake: NearbyIntake): Promise<NearbyReceipt> {
-    const { store, orgId, streamId } = this.port;
+    const { streamId } = this.port;
     // 1.
     const manifest = parseBatchManifest(page.manifest, this.stream());
     if (!manifest) return nearbyDropped('bad manifest');
-    const { key, n, floor } = manifest;
+    const { key, n } = manifest;
     if (isCounted(await this.vector(), key, n)) return { ...nearbyDropped('already counted'), outcome: 'ignored', counted: true };
     // A newcomer's batches spend their pass's budget, read here from a chain not yet checked: one naming another pass fails its check below, so it can only drop its own page.
     const passId = passIdOfChain(page.chain);
@@ -348,6 +374,18 @@ class NearbyClient implements NearbyPart {
     const checked = await checkBatchPage(manifest, page, intake, streamId);
     if ('reason' in checked) return nearbyDropped(checked.reason);
     const pass = checked.verdict.ok && checked.verdict.links === 2 ? (page.chain[1] as InviteLink).body.pass.body : null;
+    // The chain checked: the name it gives someone let in offline goes to the screen, whatever becomes of the rows (review item 12).
+    const named = chainNameOf(checked.verdict);
+    const receipt = await this.takeBatch(page, intake, manifest, checked, pass, who, passId);
+    return named ? { ...receipt, named } : receipt;
+  }
+
+  private async takeBatch(
+    page: NearbyBatchPage, intake: NearbyIntake, manifest: BatchManifest, checked: Exclude<Awaited<ReturnType<typeof checkBatchPage>>, { reason: string }>,
+    pass: InviteLink['body']['pass']['body'] | null, who: string, passId: string | null
+  ): Promise<NearbyReceipt> {
+    const { store, orgId, streamId } = this.port;
+    const { key, n, floor } = manifest;
     return this.port.exclusive(async () => {
       // A pass lets in `maxUses` people, so no more than that many newcomers' keys under it are kept here.
       const newcomers = pass ? this.keysNow.get(who) : undefined;

@@ -59,3 +59,5 @@ in different languages).
 Reverse if: organizations need to name their own items in several
 languages from the app (then a page for a language's names), or the sets
 grow big enough that reading them once a session is too slow.
+
+Amended (2026-11-24, Carl Sauder): the phone no longer learns the sets only from the server. Between phones offline, a teammate's phone gives the names it keeps in the app's language for the followed items the language uses, through a starting copy and a member's top-up, and a phone keeps them only for items it has no name for and only while what it keeps came from no server read; the server's next read replaces the set whole (review item 13, recorded in the amendment of docs/decisions/2026-11-24-a-starting-copy-carries-every-library-document-a-language-uses.md).

@@ -6,7 +6,7 @@ import {
 import type { NearbyVector, RevocationList } from '@langquest-next/core/nearby';
 import type { NearbyMaker, NearbyPart, NearbyPort } from './nearbyClient';
 import type { NearbyBatchPage, NearbyClaimsPage, NearbyGate, NearbyIntake, NearbyPage, NearbyReceipt, NearbySigned, NearbySigner } from './nearbyIntake';
-import type { EventStore, LocalEvent, StartingCopy, SyncInspection, Transport, WriteBatch } from './types';
+import type { CopyNeed, CopyReadiness, EventStore, LocalEvent, NearbyClaimableBound, StartingCopy, SyncInspection, Transport, WriteBatch } from './types';
 import { WriteQueue } from './writeQueue';
 import { ClientTooOldError, EventTooLargeError, NotAuthorizedError, OfflineError, UnrenewedError, NOT_LISTED_TEXT, rejectCodeOf, type RejectCode } from './types';
 import { downloadPieces, fetchSnapshot } from './snapshotFetch';
@@ -65,6 +65,20 @@ export interface Materializer<S> {
 }
 
 /** The default: a language's work (core `reducer.ts`). */
+/** The meta row that marks a stream's checkpoint as a teammate's starting copy, until the server's first download replaces it. */
+export function startingCopyKey(orgId: string, streamId: string): string {
+  return `startingCopy:${orgId}/${streamId}`;
+}
+
+/**
+ * Does this store hold a teammate's starting copy of the stream, with no client open (2026-11-24,
+ * review item 26)? The app holds over-the-air updates while one is held, since a build with
+ * another reducer cannot read it and offline only a teammate could give it again.
+ */
+export async function startingCopyHeldIn(store: Pick<EventStore, 'meta'>, orgId: string, streamId: string): Promise<boolean> {
+  return !!(await store.meta(startingCopyKey(orgId, streamId)));
+}
+
 export const LANGUAGE_MATERIALIZER: Materializer<LanguageState> = {
   empty: emptyLanguageState,
   apply: applyLanguageEvent,
@@ -281,6 +295,8 @@ export class SyncClient<S = LanguageState> {
   /** Per-client save tracking; the shared store owns database serialization. */
   private readonly writer = new WriteQueue();
   private revision = 0;
+  /** Writes committed through `commit` (`writeStamp`). */
+  private writes = 0;
   /** Elapsed-time clock for diagnostics; unlike `wall`, never shifted by a clock-ahead offset. */
   private readonly elapsed: () => number;
   /** Network waits in the current `sync()`, for diagnostics. */
@@ -320,6 +336,10 @@ export class SyncClient<S = LanguageState> {
   private readonly nearbyPart: NearbyPart | null;
   /** A teammate's starting copy is this client's checkpoint (`startingCopy:` row); null until read. */
   private copyHeld: boolean | null = null;
+
+  /** The organization and stream this client keeps (`SyncClientOptions`): a nearby session's phone glue reads them. */
+  get orgId(): string { return this.opts.orgId; }
+  get streamId(): string { return this.opts.streamId; }
 
   constructor(private readonly opts: SyncClientOptions<S>) {
     this.m = opts.materializer ?? (LANGUAGE_MATERIALIZER as unknown as Materializer<S>);
@@ -368,12 +388,14 @@ export class SyncClient<S = LanguageState> {
         this.clockOffsetMs = Number((await this.opts.store.meta(this.offsetKey())) ?? 0);
         this.clock = new HlcClock(this.opts.deviceId, this.wall, seed ?? null);
       }
-      await this.holdsStartingCopy();
+      const copyHere = await this.holdsStartingCopy();
       const checkpoint = await this.storedCheckpoint();
       const readMs = this.elapsed() - started;
       const staleSeq = checkpoint && !this.readable(checkpoint.reducerVersion) ? checkpoint.serverSeq : null;
       if (staleSeq !== null) {
-        await this.dropStaleCheckpoint();
+        // A teammate's starting copy that another reducer cannot read is lost, and offline only a teammate can give it
+        // again: marked, so the app takes one on Share nearby and while open (2026-11-24, review item 26).
+        await this.dropStaleCheckpoint(copyHere);
         this.reducerDropped = true;
       }
       const snapshot = staleSeq === null ? checkpoint : null;
@@ -482,17 +504,26 @@ export class SyncClient<S = LanguageState> {
     if (batch.batches?.length === 0) delete batch.batches;
     if (batch.dropBatches?.keys.length === 0) delete batch.dropBatches;
     if (batch.attests?.length === 0) delete batch.attests;
-    // An answer goes as prune passes it: its rows are gone, and so nothing can be claimed under it.
-    if (batch.prune) batch.dropAttests = { orgId: batch.prune.orgId, streamId: batch.prune.streamId, upToSeq: batch.prune.uptoSeq };
+    // An answer goes as prune passes it: its rows are gone, and so nothing can be claimed under it. A checkpoint that keeps
+    // its rows for claims (`claimable`) lets the store drop only answers whose rows it let go (2026-11-24, review item 18).
+    if (batch.prune && !batch.prune.claimable) batch.dropAttests = { orgId: batch.prune.orgId, streamId: batch.prune.streamId, upToSeq: batch.prune.uptoSeq };
     if (Object.keys(batch).length === 0) return Promise.resolve();
     // What the language keeps on disk changed: lookups cached from it are out of date. Lines alone change nothing they read.
     const keptChanged = batch.kept?.streamId === this.opts.streamId
       && (!!batch.kept.clear || batch.kept.replaceFrom !== undefined || (batch.kept.upsert ?? []).some((r) => r.kind !== LINE));
     // A write that fails is the store's failure, whichever step asked for it.
     return this.writer.run(() => this.opts.store.commit(batch)).then(
-      () => { if (keptChanged) this.kept?.changed(); },
+      () => { this.writes += 1; if (keptChanged) this.kept?.changed(); },
       (err: unknown) => { this.markFailed(err, 'store'); throw err; }
     );
+  }
+
+  /**
+   * Bumped by every write this client commits, with the fold's revision: what a nearby room's summary was worked out
+   * from has not changed while both stay the same (2026-11-24 review, P1).
+   */
+  get writeStamp(): string {
+    return `${this.revision}:${this.writes}`;
   }
 
   /** How many local writes are queued or in flight; zero means everything shown is on disk. */
@@ -674,9 +705,13 @@ export class SyncClient<S = LanguageState> {
    * The rows a language keeps on disk and every line came from this
    * checkpoint, so they go with it (decisions.md 143).
    */
-  private async dropStaleCheckpoint(): Promise<void> {
+  private async dropStaleCheckpoint(copyLost = false): Promise<void> {
     await this.commit({
-      meta: { [this.snapshotKey()]: '', [this.snapshotSeqKey()]: '', [this.redactionKey()]: '', ...(this.lines ? { [this.lines.owedKey()]: '' } : {}), ...(this.fill?.clear() ?? {}), ...(await this.copyGone(0)) },
+      meta: {
+        [this.snapshotKey()]: '', [this.snapshotSeqKey()]: '', [this.redactionKey()]: '', ...(this.lines ? { [this.lines.owedKey()]: '' } : {}), ...(this.fill?.clear() ?? {}), ...(await this.copyGone(0)),
+        // Back to the start: nothing here is the server's newest any more (2026-11-24, review item 27).
+        [this.downloadedKey()]: '0', ...(copyLost ? { [this.copyLostKey()]: '1' } : {})
+      },
       cursor: { orgId: this.opts.orgId, streamId: this.opts.streamId, seq: 0 },
       ...(this.kept ? { kept: { ...this.stream(), clear: true } } : {})
     });
@@ -691,7 +726,7 @@ export class SyncClient<S = LanguageState> {
    */
   private async saveSnapshot(
     snap: Snapshot,
-    o: { stateText?: string | undefined; kept?: WriteBatch['kept'] | undefined; meta?: Record<string, string> | undefined } = {}
+    o: { stateText?: string | undefined; kept?: WriteBatch['kept'] | undefined; meta?: Record<string, string> | undefined; own?: boolean } = {}
   ): Promise<number> {
     const { orgId, streamId } = this.opts;
     const seq = Math.max(snap.serverSeq, await this.opts.store.cursor(orgId, streamId));
@@ -700,7 +735,7 @@ export class SyncClient<S = LanguageState> {
       // The server's snapshot replaces a starting copy, in the same write.
       meta: { ...meta, ...(o.meta ?? {}), ...(await this.copyGone(seq)) },
       cursor: { orgId, streamId, seq },
-      prune: { orgId, streamId, uptoSeq: snap.serverSeq },
+      prune: { orgId, streamId, uptoSeq: snap.serverSeq, ...(o.own ? this.claimablePrune() : {}) },
       ...(o.kept ? { kept: o.kept } : {})
     });
     this.heldCopy(false);
@@ -1095,7 +1130,7 @@ export class SyncClient<S = LanguageState> {
       const { meta, chars } = this.snapshotMeta(snap);
       await this.commit({
         meta: { ...meta, ...owed },
-        prune: { orgId, streamId, uptoSeq: cursor },
+        prune: { orgId, streamId, uptoSeq: cursor, ...this.claimablePrune() },
         ...(kept ? { kept } : {})
       });
       // Memory lets go of what is on disk now and not open, unless something was folded meanwhile.
@@ -1116,11 +1151,22 @@ export class SyncClient<S = LanguageState> {
     this.m.compact(state);
     if (this.kept && this.lines) {
       const split = await this.kept.split(state as unknown as LanguageState, { tailOnly: true });
-      const chars = await this.saveSnapshot({ ...base, serverSeq: cursor, state: split.lite }, { kept: { ...this.stream(), upsert: split.rows }, meta: this.lines.owed() });
+      const chars = await this.saveSnapshot({ ...base, serverSeq: cursor, state: split.lite }, { kept: { ...this.stream(), upsert: split.rows }, meta: this.lines.owed(), own: true });
       this.kept.stored(split.placed);
       return { chars, path: 'slow' };
     }
-    return { chars: await this.saveSnapshot({ ...base, serverSeq: cursor, state: state as unknown as LanguageState }), path: 'slow' };
+    return { chars: await this.saveSnapshot({ ...base, serverSeq: cursor, state: state as unknown as LanguageState }, { own: true }), path: 'slow' };
+  }
+
+  /**
+   * A checkpoint of this phone's own log keeps the rows it drops for claims, on a phone that shares
+   * nearby and holds a certificate, so can be vouched for (2026-11-24, review item 18): every confirmed
+   * row from the last checkpoint to this one, so what the side table holds runs on unbroken. A server's
+   * snapshot keeps none, and nor does a checkpoint on a phone without a certificate, which clears it.
+   */
+  private claimablePrune(): { claimable?: NearbyClaimableBound } {
+    const bound = this.nearbyPart?.claimable;
+    return bound ? { claimable: bound } : {};
   }
 
   /**
@@ -1559,6 +1605,15 @@ export class SyncClient<S = LanguageState> {
     // A stream with nothing yet would ask for a snapshot on every sync; ask again after a while.
     // A starting copy takes the first-download route too, which replaces it (docs/nearby-sync-plan.md 14.1, 6).
     const copy = await this.holdsStartingCopy();
+    // A download from the start: until a pull here reaches the server's newest, what this stream holds is no copy to give
+    // (2026-11-24, review item 27). Marked before the first page moves the cursor, whether or not a starting copy is held:
+    // one a build before the mark took has none, and the first download that replaces it would count as downloaded between
+    // its slices, its cursor past 0 and no mark, and give what it held so far as a whole copy.
+    let downloaded = await this.opts.store.meta(this.downloadedKey());
+    if (after === 0 && downloaded !== '0') {
+      await this.commit({ meta: { [this.downloadedKey()]: '0' } });
+      downloaded = '0';
+    }
     if (after === 0 && this.elapsed() >= this.noSnapshotUntil && (copy || (await this.checkpointSeq()) === null)) {
       after = await this.adoptServerSnapshot(this.reducerDropped ? 'reducer' : 'cold');
     }
@@ -1652,11 +1707,15 @@ export class SyncClient<S = LanguageState> {
         await this.lines?.refresh().catch(() => { /* owed still; the next change tries again */ });
         this.revision += 1;
       }
+      // The last page: this stream now holds everything up to the server's newest (2026-11-24, review item 27), in the
+      // same write as the cursor, and a copy lost to an update is no longer missing.
+      const caughtUp = page.length < this.pullPageSize && downloaded !== '1' ? { [this.downloadedKey()]: '1', [this.copyLostKey()]: '' } : {};
       await this.commit({
         events: nearby ? [...writes, ...nearby.events] : writes,
         cursor: { orgId: this.opts.orgId, streamId: this.opts.streamId, seq: after },
-        meta: { ...this.clockMeta(), ...nearby?.meta }
+        meta: { ...this.clockMeta(), ...nearby?.meta, ...caughtUp }
       });
+      if (page.length < this.pullPageSize) downloaded = '1';
       this.opts.onPullProgress?.(total);
       // A language kept on disk checkpoints as it goes (decisions.md 143): its checkpoint is the small shared
       // part, and each one moves the passages folded so far onto disk and out of memory, so a pull of the whole
@@ -1843,7 +1902,31 @@ export class SyncClient<S = LanguageState> {
   // from the server: a phone with anything from it refuses one.
 
   private copyKey(): string {
-    return `startingCopy:${this.opts.orgId}/${this.opts.streamId}`;
+    return startingCopyKey(this.opts.orgId, this.opts.streamId);
+  }
+
+  /**
+   * `downloaded:<org>/<stream>` (2026-11-24, review item 27): '1' once a pull here reached the
+   * server's newest since the cursor last went back to 0, '0' from the start of a download from 0
+   * (and while a starting copy is held) until then. Absent on a stream from a build before it,
+   * which reads as downloaded once it holds anything from the server, as that build gave copies.
+   */
+  private downloadedKey(): string {
+    return `downloaded:${this.opts.orgId}/${this.opts.streamId}`;
+  }
+
+  /** `copyLost:<org>/<stream>`: '1' when a checkpoint another reducer could not read was a teammate's starting copy (review item 26). */
+  private copyLostKey(): string {
+    return `copyLost:${this.opts.orgId}/${this.opts.streamId}`;
+  }
+
+  /** Has this stream been downloaded right up to the server's newest (`downloadedKey`)? */
+  private async downloadedHere(): Promise<boolean> {
+    const mark = await this.opts.store.meta(this.downloadedKey());
+    if (mark === '1') return true;
+    if (mark === '0') return false;
+    // A build before the mark: anything from the server counts, as it did then.
+    return (await this.opts.store.cursor(this.opts.orgId, this.opts.streamId)) > 0;
   }
 
   /** While a copy is held, a fill reads only a teammate's link: never the server, whose rows would join a stand-in. */
@@ -1894,7 +1977,9 @@ export class SyncClient<S = LanguageState> {
       const claimed = this.nearbyKey('nearbyClaimed');
       let meta: Record<string, string> = {
         ...this.snapshotMeta(snap).meta, [this.copyKey()]: String(copy.serverSeq),
-        [claimed]: String(Math.max(Number((await store.meta(claimed)) ?? 0) || 0, copy.serverSeq))
+        [claimed]: String(Math.max(Number((await store.meta(claimed)) ?? 0) || 0, copy.serverSeq)),
+        // Not the server's: the first download that replaces it starts from 0 (review item 27). A copy lost is found again (item 26).
+        [this.downloadedKey()]: '0', [this.copyLostKey()]: ''
       };
       let kept: WriteBatch['kept'];
       if (copy.kept && this.lines && this.fill) {
@@ -1943,6 +2028,9 @@ export class SyncClient<S = LanguageState> {
   startingCopy(): Promise<StartingCopy | null> {
     return this.exclusive(async () => {
       const { store, orgId, streamId } = this.opts;
+      // A stream not yet downloaded to the server's newest (a first download cut short, or a checkpoint another reducer
+      // dropped) gives no copy, which would be part of it (2026-11-24, review item 27). A whole copy held here goes on.
+      if (!(await this.holdsStartingCopy()) && !(await this.downloadedHere())) return null;
       let base = await this.localSnapshot();
       if (this.kept) {
         if (this.fill?.active()) return null;
@@ -1986,6 +2074,62 @@ export class SyncClient<S = LanguageState> {
   }
 
   /**
+   * As `startingCopyRows`, with the seq of the checkpoint those rows belong to, read together in
+   * the stream's turn (2026-11-24, review item 4): a newcomer resumes a fill only from a teammate
+   * whose checkpoint is the one its copy came from. Null as there, and with no checkpoint.
+   */
+  startingCopyRowsAt(unitId: string): Promise<{ serverSeq: number; rows: KeptRecord[] } | null> {
+    return this.exclusive(async () => {
+      const serverSeq = await this.checkpointSeq();
+      if (serverSeq === null) return null;
+      const rows = await this.startingCopyRows(unitId);
+      return rows ? { serverSeq, rows } : null;
+    });
+  }
+
+  /**
+   * Whether `startingCopy` would give a copy now, without building one, for Let someone in before
+   * it shows the code (2026-11-24, review item 5): `filling`, the passages' rows still coming, with
+   * how far; `downloading`, not yet downloaded to the server's newest (`downloadedKey`); `nothing`,
+   * nothing from the server at all. Only the internet ends either, so the screen says so.
+   */
+  async canGiveCopy(): Promise<CopyReadiness> {
+    const held = await this.holdsStartingCopy();
+    if (this.fill?.active()) return { ok: false, why: 'filling', fill: this.fill.progress() };
+    if (held) return { ok: true };
+    if (await this.downloadedHere()) return { ok: true };
+    return { ok: false, why: (await this.opts.store.cursor(this.opts.orgId, this.opts.streamId)) > 0 ? 'downloading' : 'nothing' };
+  }
+
+  /**
+   * What a person let in offline still needs of a teammate's starting copy for this stream
+   * (2026-11-24, review items 6 and 26), or null: `filling`, a copy held whose passages' rows are
+   * still to come; `lost`, a copy another reducer could not read was dropped (`copyLostKey`) and
+   * nothing came since; `missing`, nothing here at all, from a teammate or the server. A stream
+   * with anything from the server needs none: a phone with that refuses a copy.
+   */
+  async copyNeed(): Promise<CopyNeed> {
+    if (await this.holdsStartingCopy()) return this.fill?.active() ? 'filling' : null;
+    if ((await this.opts.store.cursor(this.opts.orgId, this.opts.streamId)) > 0 || (await this.checkpointSeq()) !== null) return null;
+    return (await this.opts.store.meta(this.copyLostKey())) === '1' ? 'lost' : 'missing';
+  }
+
+  /**
+   * Drop a starting copy held here, its passages' rows and its lines with it, so a whole copy from
+   * another teammate takes its place (2026-11-24, review item 4): the fill resumes only from a
+   * teammate whose checkpoint is the one the copy came from. The log stays, unsent work and all, as
+   * when another reducer drops a checkpoint. Throws on a stream that holds no copy.
+   */
+  dropStartingCopy(): Promise<void> {
+    return this.exclusive(async () => {
+      if (!(await this.holdsStartingCopy())) throw new Error('only a starting copy is dropped for another');
+      this.fillRunning = false;
+      await this.dropStaleCheckpoint();
+      await this.refold('other');
+    });
+  }
+
+  /**
    * The organization stream has no snapshot, so a starting copy of it is replaced by a pull from 0
    * into a client aside on a `MemoryStore`, as reports.ts does, written here in one commit: a poor
    * link that drops part-way leaves the person the organization they had.
@@ -1999,7 +2143,11 @@ export class SyncClient<S = LanguageState> {
     const state = aside.getState();
     this.m.compact(state);
     const snap = { orgId, streamId, reducerVersion: this.m.version, serverSeq: seq, state } as unknown as Snapshot;
-    await this.commit({ meta: { ...this.snapshotMeta(snap).meta, ...(await this.copyGone(seq)) }, cursor: { orgId, streamId, seq }, prune: { orgId, streamId, uptoSeq: seq } });
+    // Pulled aside to the server's newest: this stream is downloaded in the same write (2026-11-24, review item 27).
+    await this.commit({
+      meta: { ...this.snapshotMeta(snap).meta, ...(await this.copyGone(seq)), [this.downloadedKey()]: '1', [this.copyLostKey()]: '' },
+      cursor: { orgId, streamId, seq }, prune: { orgId, streamId, uptoSeq: seq }
+    });
     this.heldCopy(false);
     await this.refold('snapshot');
     return seq;
@@ -2121,6 +2269,8 @@ export class SyncClient<S = LanguageState> {
   }
 
   signUnsigned(signer: NearbySigner): Promise<NearbySigned> { return this.near.signUnsigned(signer); }
+  /** Who this phone carries signed work of here, for a starting copy's names (review item 12); none on a client without nearby sharing. */
+  async nearbyAuthors(): Promise<ReadonlySet<string>> { return this.nearbyPart ? this.nearbyPart.nearbyAuthors() : new Set(); }
   nearbyHave(): Promise<{ cursor: number; claimedSeq: number; vector: NearbyVector }> { return this.near.nearbyHave(); }
   nearbyUncounted(them: NearbyVector): Promise<{ key: string; n: number }[]> { return this.near.nearbyUncounted(them); }
   nearbyBatchPage(key: string, n: number): Promise<NearbyBatchPage | null> { return this.near.nearbyBatchPage(key, n); }

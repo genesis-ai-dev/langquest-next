@@ -42,11 +42,18 @@ export function mayGoInStartingCopy(doc: LibraryDoc | null | undefined): boolean
  * carried build's file can never be one (Carl, 2026-11-24).
  */
 export const LIBRARY_FILE_FORMATS: ReadonlySet<string> = new Set(['m4a', 'mp3', 'ogg', 'aac', 'wav', 'jpg', 'png', 'webp', 'gif']);
+/**
+ * Formats a library file may take only where a document names audio: the web guide editor keeps
+ * recorded step audio as webm, which phones play. A webm elsewhere may be a film, so it never moves
+ * as a picture (2026-11-24).
+ */
+const LIBRARY_AUDIO_ONLY_FORMATS: ReadonlySet<string> = new Set(['webm']);
 
 /**
  * The files a library document names by hash that a phone reads as the app does, and that may go
  * between teammates' phones (docs/nearby-sync-plan.md 5.12, 2026-11-24): a team's guide's step and
- * word audio and the phone's copy of each picture, map and illustration (`study@2`), and a
+ * word audio (webm too, as the web editor records it) and the phone's copy of each picture, map and
+ * illustration (`study@2`), and a
  * key-word list's audio that has no address (`material@1`, as `useKeyWordAudio` reads it), and a
  * source book's chapter audio (`sourceBook@1`, `kind: 'source'`), which moves only for chapters a
  * phone's kept passages want. Not a film, and not a file named only by its address
@@ -54,17 +61,17 @@ export const LIBRARY_FILE_FORMATS: ReadonlySet<string> = new Set(['m4a', 'mp3', 
  */
 export function libraryFilesOf(doc: LibraryDoc): LibraryFile[] {
   const out = new Map<string, LibraryFile>();
-  const add = (f: LibraryFile | undefined) => {
-    if (f && isHash(f.hash) && LIBRARY_FILE_FORMATS.has(f.format)) out.set(f.hash, f);
+  const add = (f: LibraryFile | undefined, audio = false) => {
+    if (f && isHash(f.hash) && (LIBRARY_FILE_FORMATS.has(f.format) || (audio && LIBRARY_AUDIO_ONLY_FORMATS.has(f.format)))) out.set(f.hash, f);
   };
   switch (doc.format) {
     case 'study@2':
-      for (const s of doc.steps ?? []) add(mediaFileOf(s.audio, 'audio', true));
+      for (const s of doc.steps ?? []) add(mediaFileOf(s.audio, 'audio', true), true);
       for (const r of doc.resources ?? []) for (const m of r.media ?? []) if (m.kind !== 'video') add(mediaFileOf(m.file, 'image', true));
-      for (const t of doc.terms ?? []) add(mediaFileOf(t.audio, 'audio', true));
+      for (const t of doc.terms ?? []) add(mediaFileOf(t.audio, 'audio', true), true);
       break;
     case 'material@1':
-      for (const w of doc.terms ?? []) if (!w.audio?.url) add(mediaFileOf(w.audio, 'audio', false));
+      for (const w of doc.terms ?? []) if (!w.audio?.url) add(mediaFileOf(w.audio, 'audio', false), true);
       break;
     case 'sourceBook@1':
       // As the app keeps a chapter it downloads (sources/offlineModel.ts `audioFormatOf`): MP3 unless the document says m4a or wav.
@@ -123,6 +130,13 @@ export function libraryLinksOf(doc: LibraryDoc): string[] {
  * A document's head with the files it names (`libraryFilesOf`, `libraryLinksOf`), as a phone's
  * walk reads it: the web, which passes nothing between phones, never carries this.
  */
+/**
+ * The shape of `nearbyDocHeadOf`'s heads, which a phone keeps on disk (review P6): raised whenever
+ * what it or `docHeadOf` puts in a head changes, so heads kept by an older build are read again.
+ * 2: a guide set's `set` (review P13).
+ */
+export const NEARBY_HEAD_VERSION = 2;
+
 export function nearbyDocHeadOf(doc: LibraryDoc): DocHead {
   let files: LibraryFile[];
   let links: string[];
@@ -200,6 +214,13 @@ export function guidesThisLanguageOffers(org: OrgLibrary, state: LanguageState):
 }
 
 const GUIDES: ReadonlySet<string> = new Set(GUIDE_FORMATS);
+/** What a shared Bible's walk follows below it: its books, its numbering and its books' timings. */
+const SHARED_BELOW: ReadonlySet<string> = new Set(['sourceBook@1', 'versification@1', 'timing@1']);
+/**
+ * The most documents the shared Bibles put on a language's list, whatever their rows name: a few Bibles of 66 to 81
+ * books each, with their numbering and timings, fit (security review, 2026-11-24).
+ */
+export const SHARED_DOCS_MAX = 2_000;
 
 /**
  * The documents a starting copy for this language may carry: walked from
@@ -209,19 +230,22 @@ const GUIDES: ReadonlySet<string> = new Set(GUIDE_FORMATS);
  * `mayGoInStartingCopy` refuses, or one this build cannot read through, leaves the list and is not
  * walked. Any other stays, and what it refers to (a template's or a material's numbering, a
  * collection's guides) goes by the same rule. What the language names and what that refers to
- * come first, sorted, then the offered guides and theirs, sorted: a phone that can take only some
- * this time takes what the language chose first. The sender and the newcomer work out the same
- * list.
+ * come first, sorted, then other organizations' shared Bibles the team reads (`opts.shared`, only
+ * a `source@1` and its books; 2026-11-24 review, item 9), then the offered guides and theirs,
+ * sorted: a phone that can take only some this time takes what the language chose first. The
+ * sender and the newcomer work out the same list.
  */
 export function docsThisLanguageUses(
-  org: OrgLibrary, state: LanguageState, get: (hash: string) => DocHead | null | undefined, opts: { offered?: boolean } = {}
+  org: OrgLibrary, state: LanguageState, get: (hash: string) => DocHead | null | undefined, opts: { offered?: boolean; shared?: readonly string[] } = {}
 ): string[] {
   const seen = new Set<string>();
-  const walk = (roots: readonly string[], keep: (head: DocHead) => boolean): string[] => {
+  const walk = (
+    roots: readonly string[], keep: (head: DocHead, hash: string) => boolean, o: { below?: ReadonlySet<string>; max?: number } = {}
+  ): string[] => {
     const out = new Set<string>();
     const root = new Set(roots);
     const queue = [...roots];
-    while (queue.length > 0) {
+    while (queue.length > 0 && out.size < (o.max ?? Infinity)) {
       const hash = queue.pop()!;
       if (seen.has(hash)) continue;
       seen.add(hash);
@@ -230,8 +254,10 @@ export function docsThisLanguageUses(
         out.add(hash);
         continue;
       }
-      // A document this build cannot read through is left out, as a format it does not know is.
-      if (!formatMayGoInStartingCopy(head.format) || head.refs === null || (root.has(hash) && !keep(head))) continue;
+      // A document this build cannot read through is left out, as a format it does not know is; below a root, only the
+      // formats `below` names when it says.
+      if (!formatMayGoInStartingCopy(head.format) || head.refs === null || (root.has(hash) && !keep(head, hash))) continue;
+      if (!root.has(hash) && o.below && !o.below.has(head.format)) continue;
       out.add(hash);
       for (const r of head.refs) if (isHash(r) && !seen.has(r)) queue.push(r);
     }
@@ -242,5 +268,69 @@ export function docsThisLanguageUses(
   // Then the guides the app offers from the rest of the library: a guide counts, nothing else does, and what a guide refers to as ever.
   // `offered: false` (a phone under a cover taking documents) leaves them out: only what the language itself names.
   if (opts.offered === false) return named;
-  return [...named, ...walk(guidesThisLanguageOffers(org, state), (head) => GUIDES.has(head.format))];
+  // Other organizations' shared Bibles the team reads (`shared`, the app's list of them; 2026-11-24 review, item 9), and their books:
+  // a source counts, nothing else does. Before the guides: a team with no Bible of its own reads these.
+  // Named by a teammate's rows until the server's list replaces them (security review, 2026-11-24): a source's own books,
+  // numbering and timings only, and no more than `SHARED_DOCS_MAX` in all.
+  const shared = walk([...(opts.shared ?? [])].filter(isHash).sort(), (head) => head.format === 'source@1', { below: SHARED_BELOW, max: SHARED_DOCS_MAX });
+  // A guide set's languages the team did not choose stay out, as the app leaves them out (`chosenOnly`, review P13): once a
+  // language recommends one member of a set from a publisher, the set's other members from that publisher are not offered.
+  const views = libraryItems(org.library, 'material');
+  const originOf = new Map(views.flatMap((v) => (v.current ? [[v.current, v.subscription?.sourceOrgId ?? v.copiedFrom?.orgId ?? '']] as const : [])));
+  const chosenSets = new Set<string>();
+  for (const itemId of recommendedFor(org.recommendations, state).keys()) {
+    const current = chosen(org, itemId)?.current;
+    const head = current ? get(current) : null;
+    if (current && head?.set) chosenSets.add(`${originOf.get(current) ?? ''}|${head.set}`);
+  }
+  const offered = (head: DocHead, hash: string) => GUIDES.has(head.format) && !(head.set && chosenSets.has(`${originOf.get(hash) ?? ''}|${head.set}`));
+  return [...named, ...shared, ...walk(guidesThisLanguageOffers(org, state), offered)];
+}
+
+/**
+ * What a `labels@1` set names of this language's library (decision 195; 2026-11-24, review item
+ * 13): each item of the organization's library that follows another organization's item and
+ * whose current version, or any version it recorded, is among `used` (`docsThisLanguageUses`'
+ * list), as `${sourceOrgId}/${sourceItemId}`, the key a set's names go by. With no `used`, every
+ * item the organization follows. A phone passes a teammate only these of the names it keeps, so
+ * nothing says what another language chose. Sorted, with no repeats.
+ */
+export function labelKeysOf(org: Pick<OrgState, 'library'>, used?: Iterable<string>): string[] {
+  const hashes = used === undefined ? null : new Set(used);
+  const out = new Set<string>();
+  for (const itemId of Object.keys(org.library)) {
+    const view = libraryItemView(org.library, itemId);
+    const sub = view?.subscription;
+    if (!view || !sub) continue;
+    if (hashes === null || (view.current !== null && hashes.has(view.current)) || view.versions.some((v) => hashes.has(v.docHash))) out.add(`${sub.sourceOrgId}/${sub.sourceItemId}`);
+  }
+  return [...out].sort();
+}
+
+/** The older versions of one item a phone serves a teammate at most: a few, since a teammate behind is behind by one or two (review item 17). */
+export const OLDER_VERSIONS_SERVED = 4;
+
+/**
+ * The older versions of the items on a language's list (`docsThisLanguageUses`), as the
+ * organization's library records them, newest first and at most `perItem` an item: what a phone
+ * also serves a teammate whose organization data is behind, which asks for the version its own
+ * data names (2026-11-24, review item 17). An item this organization follows records only its
+ * newest pin, so its older versions come from what the phone noted of its earlier lists instead.
+ * Never one already on the list. Sorted, with no repeats.
+ */
+export function olderVersionsOf(org: Pick<OrgState, 'library'>, list: Iterable<string>, perItem = OLDER_VERSIONS_SERVED): string[] {
+  const on = new Set(list);
+  const out = new Set<string>();
+  for (const itemId of Object.keys(org.library)) {
+    const view = libraryItemView(org.library, itemId);
+    if (!view || !((view.current !== null && on.has(view.current)) || view.versions.some((v) => on.has(v.docHash)))) continue;
+    let n = 0;
+    for (const v of [...view.versions].reverse()) {
+      if (n >= perItem) break;
+      if (on.has(v.docHash) || !isHash(v.docHash)) continue;
+      out.add(v.docHash);
+      n += 1;
+    }
+  }
+  return [...out].sort();
 }

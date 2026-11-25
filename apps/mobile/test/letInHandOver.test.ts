@@ -101,7 +101,16 @@ const fake = vi.hoisted(() => ({
   calls: [] as string[],
   attempts: [] as Record<string, unknown>[],
   finish: null as null | ((out: unknown) => void),
-  noted: [] as string[]
+  noted: [] as string[],
+  /** The passes this phone holds for the language: their expiries. */
+  expiries: [Number.MAX_SAFE_INTEGER] as number[],
+  /** The open language's Hello clock (`nearbyHelloNow`); undefined reads as none, and the hook takes the wall. */
+  helloNow: undefined as number | undefined,
+  /** What the language's and the organization's `canGiveCopy` answer (review item 5). */
+  copy: { ok: true } as { ok: boolean; why?: string; fill?: { filled: number; total: number } },
+  orgCopy: { ok: true } as { ok: boolean; why?: string },
+  /** The language's nearby meta rows, where the people let in under each pass are kept (review item 7). */
+  meta: new Map<string, string>()
 }));
 
 vi.mock('react', () => ({
@@ -109,7 +118,7 @@ vi.mock('react', () => ({
 }));
 vi.mock('react-native', () => ({ AppState: { currentState: 'active', addEventListener: () => ({ remove: () => undefined }) } }));
 vi.mock('expo-keep-awake', () => ({ activateKeepAwakeAsync: async () => undefined, deactivateKeepAwake: async () => undefined }));
-vi.mock('../src/account/chainNames', () => ({ noteChainName: async () => undefined }));
+vi.mock('../src/account/chainNames', () => ({ noteChainNames: async () => undefined, readChainNames: async () => ({}) }));
 vi.mock('../src/diagnostics/report', () => ({ noteExpected: (where: string, e: unknown) => { fake.noted.push(`${where}: ${e instanceof Error ? e.message : String(e)}`); } }));
 vi.mock('../src/shell/useAppCovered', () => ({ useAppCovered: () => ({ covered: false, worn: false }) }));
 vi.mock('../src/nearby/useNearby.native', () => ({ useFocus: () => fake.focused }));
@@ -122,10 +131,10 @@ vi.mock('../src/nearby/nearbyPermissions.android', () => ({
   openNearbySettings: async () => undefined
 }));
 vi.mock('../src/nearby/nearbyPhone.native', () => ({
-  joinPassFor: async () => ({
+  joinPassesFor: async () => fake.expiries.map((expiresAt, i) => ({
     kind: 'pass@1', kid: 'k1', sig: 's',
-    body: { passId: 'p1', orgId: 'o1', languageId: 'l1', inviter: 'ana', inviterKey: 'K', roles: [{ roleId: 'tr', privileges: ['translate'] }], maxUses: 10, expiresAt: Number.MAX_SAFE_INTEGER }
-  })
+    body: { passId: `p${i}`, orgId: 'o1', languageId: 'l1', inviter: 'ana', inviterKey: 'K', roles: [{ roleId: 'tr', privileges: ['translate'] }], maxUses: 10, expiresAt }
+  }))
 }));
 vi.mock('../src/nearby/nearbyLink.native', () => {
   const radio = {
@@ -147,8 +156,14 @@ const org: OrgState = emptyOrgState();
 
 const ctx = {
   session: { actorId: 'ana', readOnly: false, isLocal: false },
-  language: { orgId: 'o1', languageId: 'l1', nearby: () => ({ client: {}, moves: null }) },
-  org: { state: org, inspect: async () => null, client: () => null }
+  language: {
+    orgId: 'o1', languageId: 'l1',
+    nearby: () => ({
+      client: { get nearbyHelloNow() { return fake.helloNow; }, canGiveCopy: async () => fake.copy, nearbyMeta: async (k: string) => fake.meta.get(k) ?? null },
+      moves: null
+    })
+  },
+  org: { state: org, inspect: async () => null, client: () => ({ canGiveCopy: async () => fake.orgCopy }) }
 } as unknown as Ctx;
 
 let handle: LetInHandle;
@@ -177,6 +192,11 @@ beforeEach(() => {
   fake.attempts = [];
   fake.finish = null;
   fake.noted = [];
+  fake.expiries = [Number.MAX_SAFE_INTEGER];
+  fake.helloNow = undefined;
+  fake.copy = { ok: true };
+  fake.orgCopy = { ok: true };
+  fake.meta = new Map();
 });
 
 describe('Give the app handed over to Let someone in', () => {
@@ -272,5 +292,73 @@ describe('Give the app handed over to Let someone in', () => {
     handle.actions.show();
     await settle();
     expect(fake.attempts.map((a) => a['giveHandedOver'] === true)).toEqual([true, false]);
+  });
+});
+
+// Carl, 2026-11-24 (decision 240 as amended): a pass ends with its window, so the screen says how long this phone can
+// still let people in, warns under 30 days, and checks on the clock Hello uses, which setting the date back cannot move.
+describe('how long this phone can let people in', () => {
+  const DAY = 86_400_000;
+
+  it('says the days left until its last pass expires, and warns under 30', async () => {
+    fake.helloNow = 1_000 * DAY;
+    fake.expiries = [1_010 * DAY];
+    await open();
+    expect(handle.whyNot).toBeNull();
+    expect(handle.daysLeft).toEqual({ days: 10, warn: true });
+    react.unmount();
+    // The next window's pass, held in this one's last 30 days: the days run to its end, and the current pass is the one used.
+    fake.expiries = [1_010 * DAY, 1_100 * DAY];
+    await open();
+    expect(handle.daysLeft).toEqual({ days: 100, warn: false });
+    react.unmount();
+  });
+
+  it('checks the pass on Hello\'s clock, not the wall, so a date set back does not bring it back', async () => {
+    fake.expiries = [Date.now() + DAY];
+    fake.helloNow = Date.now() + 2 * DAY;
+    await open();
+    expect(handle.whyNot).toBe('expired');
+    expect(handle.daysLeft).toBeNull();
+    react.unmount();
+  });
+});
+
+// The review of 2026-11-24, items 5 and 7: the code showed on a phone with no whole copy to give, and past the pass's count.
+describe('before the code is shown', () => {
+  it('shows no code while this phone\'s own copy is not whole, and says how far its fill has come', async () => {
+    fake.copy = { ok: false, why: 'filling', fill: { filled: 4, total: 12 } };
+    await open();
+    expect(handle.whyNot).toBe('copy-not-ready');
+    expect(handle.copyReady).toEqual({ ok: false, why: 'filling', fill: { filled: 4, total: 12 } });
+    handle.actions.show();
+    await settle();
+    expect(fake.attempts).toEqual([]);
+    react.unmount();
+    // The organization not downloaded to the server's newest: no code either.
+    fake.copy = { ok: true };
+    fake.orgCopy = { ok: false, why: 'downloading' };
+    await open();
+    expect(handle.whyNot).toBe('copy-not-ready');
+    react.unmount();
+  });
+
+  it('shows no code once this phone let in as many people as its pass allows, and offers the next pass with room', async () => {
+    fake.meta.set('nearbyLetIn:o1/l1', JSON.stringify([['p0', Array.from({ length: 10 }, (_, i) => `n${i}`)]]));
+    await open();
+    expect(handle.whyNot).toBe('used-up');
+    handle.actions.show();
+    await settle();
+    expect(fake.attempts).toEqual([]);
+    react.unmount();
+    // The next window's pass, held too: it is the one offered.
+    fake.expiries = [Number.MAX_SAFE_INTEGER - 1, Number.MAX_SAFE_INTEGER];
+    await open();
+    expect(handle.whyNot).toBeNull();
+    handle.actions.show();
+    await settle();
+    expect((fake.attempts[0]!['pass'] as { body: { passId: string } }).body.passId).toBe('p1');
+    fake.finish!({ report: null, why: 'stopped' });
+    react.unmount();
   });
 });

@@ -67,20 +67,27 @@ export interface NearbyRoom {
 }
 
 /** Library documents a session took from a teammate, and library files it got and served (2026-11-24): sessions and quiet rooms both total these. */
-export type NearbyLibraryField = 'docsKept' | 'docsRefused' | 'docsMissing' | 'docsCapped' | 'libGot' | 'libServed';
+export type NearbyLibraryField = 'docsKept' | 'docsRefused' | 'docsMissing' | 'docsCapped' | 'docsUnreadable' | 'libGot' | 'libServed';
+
+/**
+ * A join on Let someone in and any session that moved a starting copy (review of 2026-11-24, item 14): joins granted, those whose
+ * link went on to the ordinary steps, and what of a copy this phone took (`copy*` but `copyParts`, `copyNos`) or gave.
+ */
+export type NearbyCopyField = 'granted' | 'exchanged' | 'copyWhole' | 'copyFilled' | 'copyDocsKept' | 'copyDocsMissing' | 'copyDocsRefused' | 'copyParts' | 'copyNos'
+  | 'exchangeOlder' | 'exchangeNoPieces' | 'exchangeLeft' | 'copyDocsCut' | 'copyDocsUnreadable';
 
 /** What an install's Share nearby recorded over the window (`diag.install_summary`'s `nearby`). Counts and codes, never who. */
 export interface NearbySummary {
   rooms?: NearbyRoom[] | null;
   roomTotals?: Partial<Record<'ms' | 'heard' | 'echoed' | 'alone' | 'maybe' | 'taps' | 'pipeFails' | 'strangers' | 'busy' | 'noAnswer' | 'sessions' | 'done', number>> | null;
   sessionTotals?: Partial<Record<'count' | 'ms' | 'fallbacks' | 'events' | 'sent' | 'files' | 'served' | 'fileFails' | 'refused' | 'overBudget'
-    | 'keyRefused' | 'farAhead' | 'noRoom' | 'cutBackups' | 'older' | 'clockOff' | 'newerApp' | NearbyLibraryField | 'libHeld' | 'libTheirs', number>> | null;
+    | 'keyRefused' | 'farAhead' | 'noRoom' | 'cutBackups' | 'older' | 'clockOff' | 'newerApp' | NearbyLibraryField | 'libHeld' | 'libTheirs' | NearbyCopyField, number>> | null;
   /** Rooms while LangQuest was open (15.8): their totals, how many, and how many met anyone. Their finished sessions are summed here, not in `ends`. */
   openTotals?: Partial<Record<'count' | 'met' | 'openMin' | 'scanMin' | 'pauseMin' | 'syncMin' | 'heard' | 'sessions' | 'done' | 'events' | 'sent' | 'files' | 'served'
     | 'fileFails' | 'fallbacks' | 'viaDirect' | 'maxMeetMs' | NearbyLibraryField, number>> | null;
   /** `end` or `end:bye`. */
   ends?: Record<string, number> | null;
-  /** `mode:refusal`: why this phone turned phones away (window, revoked, org, expired, other). */
+  /** `mode:refusal`: why this phone turned phones away (window, revoked, org, expired, pass-expired, other). */
   refusals?: Record<string, number> | null;
   /** Delivering teammates' work to the server (section 6). */
   deliver?: Partial<Record<'count' | 'ms' | 'sent' | 'events' | 'refused' | 'farAhead' | 'keyRefused' | 'noAnswer' | 'done', number>> & { stopped?: Record<string, number> | null } | null;
@@ -224,6 +231,7 @@ const REFUSED: Record<string, string> = {
   revoked: 'its key was revoked (a lost phone reported, or a member removed)',
   org: 'its certificate is for another organization',
   expired: 'its certificate expired',
+  'pass-expired': 'they were let in offline, and their 90 days from being let in, or their inviter\'s pass, ran out',
   other: 'its proof or certificate did not check'
 };
 
@@ -286,13 +294,29 @@ export function nearbySignals(x: NearbySummary | null | undefined): { level: Sig
   }
   for (const [k, n] of Object.entries(x.refusals ?? {})) {
     const [mode, why] = k.split(':');
-    const where = mode === 'open' ? 'while LangQuest was open' : 'on Share nearby';
+    const where = mode === 'open' ? 'while LangQuest was open' : mode === 'join' ? 'on Let someone in' : 'on Share nearby';
     if (why === 'window') add('watch', `${mode === 'open' ? 'While LangQuest was open' : 'On Share nearby'} this phone turned a teammate away ${times(n)} because their certificate and the day they last met here were over two weeks old: they meet on Share nearby to share quietly again (15.8).`);
     else add(why === 'revoked' ? 'problem' : 'watch', `This phone turned away a phone ${where} ${times(n)}: ${REFUSED[why ?? ''] ?? why}.`);
   }
+  // A starting copy this phone took (review of 2026-11-24, item 14): one never whole leaves a newcomer short of what its inviter had.
+  if ('copyWhole' in s && !s.copyWhole) {
+    add('watch', `This phone took part of a starting copy but never a whole one (${s.copyFilled ?? 0} passages filled, ${s.copyDocsMissing ?? 0} documents not given): it finishes from any teammate with Share nearby open, or once online.`);
+  }
+  if (s.copyDocsRefused) add('watch', `${s.copyDocsRefused} document${s.copyDocsRefused === 1 ? '' : 's'} of a starting copy from a teammate's phone did not check: one of the two may need a newer app.`);
+  // Joins whose link never went on to the newest work after the copy, by why (review of 2026-11-24, item 14). Pieces that would
+  // not open are this phone's own fault, and the decision of 2026-11-24 on the join's link is reversed if they are common.
+  const joins = (n: number) => `${n} join${n === 1 ? '' : 's'} on Let someone in`;
+  if (s.exchangeOlder) add('info', `${joins(s.exchangeOlder)} ended with the starting copy, without the newest work after it, because the other phone's app is older: that work comes from the next teammate met, or online.`);
+  if (s.exchangeNoPieces) add('watch', `${joins(s.exchangeNoPieces)} came away with a whole starting copy, but this phone could not open its own language for the newest work after it: that work comes from the next teammate met, or online. An expected "join: own language" says why when it failed; if this is common, the decision of 2026-11-24 on the join's link is reversed.`);
+  if (s.exchangeLeft) add('info', `${joins(s.exchangeLeft)} ended after a whole starting copy, before the newest work followed, because the person left the screen: that work comes from the next teammate met, or online.`);
   // Library documents a teammate's phone sent that did not check (2026-11-24): not a weak link, a fault on one side.
   const docsRefused = (s.docsRefused ?? 0) + (o?.docsRefused ?? 0);
   if (docsRefused) add('watch', `${docsRefused} library document${docsRefused === 1 ? '' : 's'} from a teammate's phone did not check (its name, form or contents, or a format this build cannot take): one of the two may need a newer app.`);
+  // Whole and genuine, in a format a newer build added (review item 28): skipped, not refused, so no fault; this phone needs a newer app to use them.
+  const docsUnreadable = (s.docsUnreadable ?? 0) + (o?.docsUnreadable ?? 0) + (s.copyDocsUnreadable ?? 0);
+  if (docsUnreadable) add('info', `${docsUnreadable} library document${docsUnreadable === 1 ? '' : 's'} from a teammate's phone came whole in a format this app cannot read, and ${docsUnreadable === 1 ? 'was' : 'were'} skipped: this phone needs a newer app to use ${docsUnreadable === 1 ? 'it' : 'them'}.`);
+  // A copy whole before its names and documents, whose link went during them (review item 3): the person was set, and the rest comes later.
+  if (s.copyDocsCut) add('info', `${s.copyDocsCut} starting cop${s.copyDocsCut === 1 ? 'y was' : 'ies were'} whole, but the link went during the names or documents after: the rest comes from the next teammate met, or online.`);
   const d = x.deliver;
   if (d?.refused) add('watch', `Delivering teammates' work to the server, ${d.refused} event${d.refused === 1 ? ' was' : 's were'} refused here (${d.farAhead ?? 0} stamped too far ahead, ${d.keyRefused ?? 0} a revoked key's).`);
   return out;

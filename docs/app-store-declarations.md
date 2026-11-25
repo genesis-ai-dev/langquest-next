@@ -79,7 +79,11 @@ the first iPhone build with Share nearby goes to review. Nothing else in App
 Privacy changes: no location is read on an iPhone, and Bluetooth and Wi-Fi
 only carry the team's own work and the reference documents its language uses,
 with the pictures and audio its guides, key-word lists and library sources name,
-FIA's among them, which every member already reads (2026-11-24).
+FIA's among them, which every member already reads (2026-11-24). The same day's
+review added only more of what members already read: listener and review-link
+reviews, releases and v2 imports the server wrote, names checked certificates
+give, the names library items go by in the app's language, and the Bibles other
+organizations share that the team reads. No App Privacy answer changes.
 
 ## Encryption (export compliance)
 

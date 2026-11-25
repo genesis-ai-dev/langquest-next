@@ -76,6 +76,7 @@
       "filesIn": "Enregistrements reçus : {{n}}",
       "filesOut": "Enregistrements envoyés : {{n}}",
       "guideFilesIn": "Images et audios des guides reçus : {{n}}",
+      "guideFilesShort": "Images et audios des guides laissés faute de place : {{n}}",
       "refused": "Modifications non acceptées : {{n}}",
       "filesFailed": "Enregistrements non arrivés : {{n}}",
       "noRoom": "Ce téléphone n’a plus de place pour les enregistrements.",
@@ -90,6 +91,11 @@
     "clockOff": "L’horloge d’un coéquipier et celle de ce téléphone diffèrent de plus de cinq minutes. Vérifiez la date et l’heure sur les deux téléphones.",
     "newerApp": "L’application de ce téléphone et celle d’un coéquipier ont des versions trop éloignées pour partager. Mettez à jour la plus ancienne depuis le store, ou avec le fichier d’installation de l’autre téléphone.",
     "newerAppIphone": "L’application de ce téléphone et celle d’un coéquipier ont des versions trop éloignées pour partager. Mettez à jour la plus ancienne depuis le store.",
+    "copy": {
+      "lost": "Une mise à jour de l’application a effacé le travail de l’équipe que ce téléphone avait reçu d’un coéquipier. Restez près d’un coéquipier qui a ouvert Partager à proximité pour le recevoir à nouveau.",
+      "short": "Ce téléphone n’a pas encore tout le travail de l’équipe. Restez près d’un coéquipier qui a ouvert Partager à proximité pour recevoir le reste.",
+      "keepVersion": "Tant que ce téléphone ne s’est pas connecté à Internet, n’y installez pas une autre version de LangQuest. Le travail de l’équipe reçu d’un coéquipier serait effacé, et un coéquipier devrait le donner à nouveau."
+    },
     "tooOld": "Cette application est trop ancienne pour partager. Mettez-la à jour depuis le store.",
     "farAhead": "Le téléphone de {{name}} a une date très en avance. Son travail attend d’arriver au serveur.",
     "olderFromServer": "Le travail plus ancien viendra du serveur.",
@@ -145,8 +151,13 @@
         "noPass": "Ce téléphone ne peut faire entrer personne. Votre organisation doit l’avoir activé, vous devez pouvoir inviter des personnes dans cette langue, et ce téléphone doit s’être connecté à Internet depuis.",
         "expired": "L’autorisation de ce téléphone pour faire entrer des personnes a expiré. Connectez-vous une fois à Internet pour la renouveler.",
         "noRole": "Il n’y a aucun rôle que ce téléphone peut donner sans Internet. Un administrateur pourra donner des rôles quand la nouvelle personne se sera connectée à Internet.",
-        "wifiOff": "Activez le Wi-Fi dans les réglages du téléphone, puis revenez."
+        "wifiOff": "Activez le Wi-Fi dans les réglages du téléphone, puis revenez.",
+        "usedUp": "Ce téléphone a déjà fait entrer autant de personnes qu’il le peut sans Internet. Connectez-vous une fois à Internet pour en faire entrer d’autres.",
+        "copyNotReady": "Ce téléphone n’a pas fini de télécharger le travail de l’équipe, il ne peut donc pas encore donner de copie à une nouvelle personne. Connectez-vous à Internet jusqu’à la fin, puis revenez.",
+        "copyFilling": "Ce téléphone reçoit encore le travail de l’équipe : {{filled, number}} passages sur {{total, number}}. Connectez-vous à Internet jusqu’à la fin, puis revenez."
       },
+      "daysLeft": "Jours restants pour faire entrer des personnes depuis ce téléphone : {{n, number}}",
+      "renewSoon": "Connectez-vous une fois à Internet avant qu’ils s’écoulent, pour que ce téléphone puisse continuer à faire entrer des personnes. Les personnes déjà entrées ne sont pas concernées.",
       "role": "Son rôle",
       "roleHelp": "Le rôle que reçoit la nouvelle personne. Un administrateur peut le changer quand elle se sera connectée à Internet.",
       "asRole": "Elle rejoint en tant que {{role}}. Un administrateur peut le changer quand elle se sera connectée à Internet.",
@@ -209,6 +220,7 @@
         "refused": "Ce téléphone n’a pas pu faire entrer cette personne avec ce rôle. Connectez-vous une fois à Internet, puis réessayez.",
         "dropped": "La connexion a été coupée avant que la personne soit entrée. Créez un nouveau code.",
         "droppedAfter": "La personne est entrée, mais la connexion a été coupée. Tout coéquipier avec Partager à proximité ouvert peut terminer sa copie de départ.",
+        "droppedDocs": "La personne est entrée et peut commencer à travailler, mais la connexion a été coupée avant que tout arrive. Tout coéquipier avec Partager à proximité ouvert peut lui donner le reste.",
         "copyShort": "La personne est entrée, mais ce téléphone n'avait pas encore de copie de départ à lui donner. Tout coéquipier avec Partager à proximité ouvert peut la terminer.",
         "stopped": "Le code n’existe plus car vous avez quitté cet écran. Créez-en un nouveau.",
         "noCertificate": "Ce téléphone doit se connecter une fois à Internet avant de pouvoir faire entrer quelqu’un.",

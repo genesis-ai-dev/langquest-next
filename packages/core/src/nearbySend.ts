@@ -1,5 +1,5 @@
 import type { AnyEvent, LocalEventStatus } from './events';
-import { isServerEventId, NEARBY_NOT_CARRIED, nearbyCopy } from './nearbyDoor';
+import { isServerEventId, NEARBY_NOT_CARRIED, nearbyCopy, serverRowMayBeClaimed } from './nearbyDoor';
 import { isBase64url } from './nearbySigning';
 import { EVENT_PRIVILEGE, ORG_EVENT_TYPES } from './org';
 
@@ -139,13 +139,16 @@ export function batchRowsToSend(rows: readonly NearbyRow[], batch: { key: string
 /**
  * Should this row go to a teammate by claim? Only what the server confirmed, past
  * what they have been told of, and only up to what the Worker has vouched for in
- * order, so a failed page cannot push their mark past rows they never got.
+ * order, so a failed page cannot push their mark past rows they never got. A row
+ * the server wrote goes too when it is team work (`serverRowMayBeClaimed`: a
+ * listener's or a review link's review, a release, an import from LangQuest v2),
+ * never a file's record or a redaction (2026-11-24, review item 16).
  */
 export function shouldClaim(row: NearbyRow, them: { cursor: number; claimedSeq: number }, here: { attestedSeq: number; isRedacted: (id: string) => boolean }): boolean {
   const { event, status } = row;
   if (status !== 'confirmed' || event.serverSeq === undefined) return false;
   if (event.serverSeq <= Math.max(them.cursor, them.claimedSeq) || event.serverSeq > here.attestedSeq) return false;
-  if (isServerEventId(event.id) || EVENT_PRIVILEGE[event.type] === null) return false;
+  if ((isServerEventId(event.id) && !serverRowMayBeClaimed(event.type)) || EVENT_PRIVILEGE[event.type] === null) return false;
   if (NEARBY_NOT_CARRIED.includes(event.type) || (ORG_EVENT_TYPES as readonly string[]).includes(event.type)) return false;
   return !here.isRedacted(event.id);
 }

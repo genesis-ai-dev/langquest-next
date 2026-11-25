@@ -465,6 +465,44 @@ reset role;
 delete from diag.records where install_id = 'dg_dN';
 delete from diag.installs where install_id = 'dg_dN';
 
+-- A join on Let someone in (20261124233000_diag_nearby_join.sql): both phones' session records
+-- say `mode` `join`, the grant, the steps after the copy or why they did not run, and what of the copy moved; a word for
+-- why a teammate gave no more is kept only from its list.
+select set_config('request.jwt.claim.sub', 'dg_t1', false);
+do $$
+declare
+  v_now numeric := extract(epoch from now()) * 1000;
+begin
+  perform public.diag_ingest(
+    jsonb_build_object('installId', 'dg_dJ', 'os', 'android'),
+    jsonb_build_array(
+      jsonb_build_object('id', 'dgj1', 'kind', 'nearby', 'at', v_now - 1000, 'orgId', 'dg_org', 'streamId', 'dg_lang',
+        'n', jsonb_build_object('ms', 60000, 'granted', 1, 'exchanged', 0, 'copyWhole', 0, 'copyFilled', 7, 'copyDocsKept', 3, 'copyDocsMissing', 2, 'copyDocsRefused', 1),
+        't', jsonb_build_object('event', 'session', 'mode', 'join', 'role', 'i', 'end', 'dropped', 'copyNo', 'not-filled')),
+      jsonb_build_object('id', 'dgj2', 'kind', 'nearby', 'at', v_now - 900, 'orgId', 'dg_org', 'streamId', 'dg_lang',
+        'n', jsonb_build_object('ms', 90000, 'granted', 1, 'exchanged', 1, 'copyParts', 40, 'copyNos', 1),
+        't', jsonb_build_object('event', 'session', 'mode', 'join', 'role', 'r', 'end', 'done', 'copyNo', 'Sam''s copy')),
+      jsonb_build_object('id', 'dgj3', 'kind', 'nearby', 'at', v_now - 800, 'orgId', 'dg_org', 'streamId', 'dg_lang',
+        'n', jsonb_build_object('ms', 30000, 'granted', 1, 'exchanged', 0, 'exchangeNoPieces', 1, 'copyWhole', 1),
+        't', jsonb_build_object('event', 'session', 'mode', 'join', 'role', 'i', 'end', 'done')),
+      -- The review of the fixes, 2026-11-24: a teammate that moved, a copy cut during its documents, documents a build cannot read.
+      jsonb_build_object('id', 'dgj4', 'kind', 'nearby', 'at', v_now - 700, 'orgId', 'dg_org', 'streamId', 'dg_lang',
+        'n', jsonb_build_object('ms', 20000, 'copyWhole', 1, 'copyFilled', 4, 'copyDocsCut', 1, 'copyDocsUnreadable', 2, 'docsUnreadable', 1),
+        't', jsonb_build_object('event', 'session', 'mode', 'open', 'role', 'i', 'end', 'dropped', 'copyNo', 'moved'))
+    ));
+  if (select t from diag.records where id = 'dgj1') <> '{"end": "dropped", "mode": "join", "role": "i", "event": "session", "copyNo": "not-filled"}'::jsonb
+     or (select n from diag.records where id = 'dgj1') <> '{"ms": 60000, "granted": 1, "exchanged": 0, "copyWhole": 0, "copyFilled": 7, "copyDocsKept": 3, "copyDocsMissing": 2, "copyDocsRefused": 1}'::jsonb
+     or (select n->>'copyParts' from diag.records where id = 'dgj2') is distinct from '40' or (select t from diag.records where id = 'dgj2') ? 'copyNo'
+     or (select n->>'exchangeNoPieces' from diag.records where id = 'dgj3') is distinct from '1'
+     or (select t->>'copyNo' from diag.records where id = 'dgj4') is distinct from 'moved'
+     or (select n from diag.records where id = 'dgj4') <> '{"ms": 20000, "copyWhole": 1, "copyFilled": 4, "copyDocsCut": 1, "copyDocsUnreadable": 2, "docsUnreadable": 1}'::jsonb then
+    raise exception 'a join''s fields were dropped, or a word off the list kept: %', (select jsonb_agg(to_jsonb(r)) from diag.records r where id in ('dgj1', 'dgj2', 'dgj3', 'dgj4'));
+  end if;
+end $$;
+select set_config('request.jwt.claim.sub', '', false);
+delete from diag.records where install_id = 'dg_dJ';
+delete from diag.installs where install_id = 'dg_dJ';
+
 -- A person from v2 on Welcome back: where each of their projects stands (LAN-250).
 insert into v2_import.orgs (org_id, name) values ('dg_v2org', 'To be named');
 insert into v2_import.arrivals (profile_id, projects)

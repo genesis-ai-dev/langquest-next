@@ -155,6 +155,26 @@ describe.each(STORES)('a room on the %s store', (_name, make) => {
     expect(a!.radio.calls.startFind).toBe(2);
   });
 
+  // The 2026-11-24 review (P2): a reviewer plays clip after clip; each used to stop the room and build it again.
+  it('held for audio, it finds nobody and starts no session, and runs on; released, it meets its teammate', async () => {
+    const [a, b] = await rooms(2);
+    await unit(a!.phone, 'a1');
+    await unit(b!.phone, 'b1');
+    await a!.room.hold(false);
+    await b!.room.hold(false);
+    expect(a!.radio.find).toBeNull();
+    for (let i = 0; i < 20; i++) await turn(air, time, [a!, b!]);
+    expect(air.pipes).toEqual([]);
+    expect(a!.room.isRunning).toBe(true);
+    expect(stopped(a!)).toBeUndefined();
+    await a!.room.release();
+    await b!.room.release();
+    expect(a!.room.held).toBe(false);
+    for (let i = 0; i < 20; i++) await turn(air, time, [a!, b!]);
+    expect(air.pipes.length).toBe(1);
+    expect(await idsOf(a!.phone.store)).toEqual(await idsOf(b!.phone.store));
+  });
+
   it('a played-back advert draws no connection and shows nobody, and the screen offers a tap after a while', async () => {
     const [a, b] = await rooms(2);
     await unit(b!.phone, 'b1');

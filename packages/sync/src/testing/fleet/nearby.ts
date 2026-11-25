@@ -126,7 +126,8 @@ interface NearbyPhone {
 }
 
 export class FleetNearby {
-  readonly worker: FakeWorker = fakeWorker('fleet');
+  /** Signs at the fleet's simulated now, so certificates age as they would (the review of 2026-11-24, T2). */
+  readonly worker: FakeWorker;
   readonly shelf: MemoryFiles = new Map();
   readonly air: MemoryNearbyAir;
   readonly stats: NearbyStats = { pairings: 0, ended: {}, eventsSent: 0, eventsTaken: 0, refused: 0, overBudget: 0, filesGot: 0, bytes: {}, landed: new Map(), farAhead: 0, clockOff: 0 };
@@ -142,6 +143,7 @@ export class FleetNearby {
       budget: { ...NEARBY_BUDGET }, idleLimitMs: 300_000, delivery: false, iphone: () => false, taps: false, open: false, ...options
     };
     this.air = memoryNearbyAir({ time: ctx.time, files: this.shelf });
+    this.worker = fakeWorker('fleet', { now: () => ctx.time.now() });
   }
 
   /** The door's lookup: each person's fixed role, and every language listed. */
@@ -202,9 +204,14 @@ export class FleetNearby {
    * with nobody on it meet over a link a QR code started, the inviter taps once, and the starting
    * copy follows on the same link, as the app's own `NearbySession` does it. The inviter's
    * certificate holds Invite, as a language lead's would. `forge` changes the copy on its way, as
-   * a lying teammate would. Answers both reports and how long it took, in simulated ms.
+   * a lying teammate would. `passExpiresAt` gives the pass that expiry, as a pass fetched late in
+   * its window has. Answers both reports and how long it took, in simulated ms.
    */
-  async letIn(inviter: SimDevice, newcomer: SimDevice, o: { crypto: NearbyCrypto; idSalt: string; name: string; roleId: string; forge?: (copy: StartingCopy) => StartingCopy }): Promise<{ inviter: NearbySessionReport; newcomer: NearbySessionReport; ms: number }> {
+  async letIn(inviter: SimDevice, newcomer: SimDevice, o: {
+    crypto: NearbyCrypto; idSalt: string; name: string; roleId: string; forge?: (copy: StartingCopy) => StartingCopy; passExpiresAt?: number;
+    /** False: a newcomer on a build before 2026-11-24, whose join ends with the copy. */
+    exchange?: boolean;
+  }): Promise<{ inviter: NearbySessionReport; newcomer: NearbySessionReport; ms: number }> {
     const { time } = this.ctx;
     await this.enrol(inviter);
     const host = this.phones.get(inviter)!;
@@ -213,7 +220,7 @@ export class FleetNearby {
     const roles = passRoles([{ roleId: o.roleId, privileges: [...privilegesOfFixedRole(this.ctx.roleOf(newcomer.actorId))] }], held);
     const body = await joinPassBody({ orgId: this.ctx.orgId, languageId: this.ctx.streamId, inviter: inviter.actorId, inviterKey: host.crypto.publicKey, roles, nowMs: time.now() }, fakeSha256);
     if (!body) throw new Error('no role this inviter could grant');
-    const pass = await this.worker.signPass(body);
+    const pass = await this.worker.signPass(o.passExpiresAt !== undefined ? { ...body, expiresAt: o.passExpiresAt } : body);
     const pair = memoryNearbyPair({ time, kind: 'wifi-direct', files: this.shelf });
     const random = fakeSigner(`qr:${newcomer.id}`).randomBytes;
     const opening = { kSess: random(32), salt: random(6), kFind: random(32) };
@@ -226,6 +233,7 @@ export class FleetNearby {
       languageId: this.ctx.streamId, org: null,
       language: {
         keptOnDisk: newcomer.keepsOnDisk, holdsCopy: () => client().holdsCopy(), adoptStartingCopy: (c) => client().adoptStartingCopy(c), state: () => client().getState(),
+        dropCopy: () => client().dropStartingCopy(),
         ...(newcomer.keepsOnDisk ? { fillFromCopy: (rows: FillRows) => client().fillFromCopy(rows) } : {})
       }
     };
@@ -242,11 +250,21 @@ export class FleetNearby {
       session('i', newcomer, o.crypto, {
         join: {
           as: 'newcomer', idSalt: o.idSalt, profileId: newcomer.actorId, name: o.name, target,
-          granted: async (g) => { granted = g.chain; this.enrolWith(newcomer, o.crypto, g.chain); }
+          granted: async (g) => { granted = g.chain; this.enrolWith(newcomer, o.crypto, g.chain); },
+          // After a whole copy, the ordinary steps on the same link, on the newcomer's own pieces, as the app's are (2026-11-24).
+          ...(o.exchange === false ? {} : {
+            exchange: {
+              library: false,
+              open: async () => {
+                const own = this.phones.get(newcomer);
+                return own ? { port: this.port(newcomer), gate: { people: () => this.people }, signer: own.signer, files: own.files } : null;
+              }
+            }
+          })
         }
       }).run(),
       session('r', inviter, host.crypto, {
-        chain, copy,
+        chain, copy, files: host.files, signer: host.signer,
         join: { as: 'inviter', pass, discovery: { key: DISCOVERY, gen: 1, floor: 1 }, tap: async () => o.roleId }
       }).run()
     ]);

@@ -23,3 +23,5 @@ had. A claim is first-hand only in this release.
 Reverse if: attesting costs a phone's syncs more than the claims save
 teammates, or a receiver needs to pass a claim on (then an ability in
 Hello).
+
+Amended (2026-11-24, Carl Sauder): a checkpoint a phone takes of its own log keeps the rows it drops for claims, bounded, and an answer goes only once all its rows have, so a carrier back from town still claims what its pull checkpointed past (docs/decisions/2026-11-24-a-checkpoint-keeps-its-rows-for-claims.md, review item 18).

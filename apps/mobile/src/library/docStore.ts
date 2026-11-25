@@ -6,6 +6,8 @@ import { Platform } from 'react-native';
 import { noteExpected } from '../diagnostics/report';
 import * as server from '../server/library';
 import { webFiles } from '../web/webFiles';
+import { headsFromDisk, headsToDiskSoon } from './docHeads';
+import { RECORDING_RESERVE_BYTES } from '../sync/blobsModel';
 
 /**
  * Library documents on this phone (docs/library.md). A document is named by
@@ -28,7 +30,8 @@ const memory = new Map<string, LibraryDoc>();
  * refers to. A walk over every guide the language uses reads each once a run and keeps only this,
  * never the document: FIA's English guides alone are 1,525 documents, 65 MB (2026-11-24).
  */
-const heads = new Map<string, DocHead>();
+/** Heads read, by their shape (`heldDocHead`'s `keptAs`, '' for the plain one), then by hash. */
+const heads = new Map<string, Map<string, DocHead>>();
 /**
  * Formats that come by the hundred and are read one passage at a time: a teammate's are kept on
  * disk only, and a screen reads one when it needs it (`useLibraryDocs`), as `loadDocs` leaves a
@@ -103,6 +106,15 @@ async function fromDisk(hash: string, remember = true): Promise<LibraryDoc | nul
 }
 
 /** Keep a document's text; `made` (made here, not yet on the server) falls back to the page's saved keys on the web. */
+/** Less free than the room kept for recording; not known counts as not short. */
+function shortOfRoom(): boolean {
+  try {
+    return Paths.availableDiskSpace < RECORDING_RESERVE_BYTES;
+  } catch {
+    return false;
+  }
+}
+
 async function toDisk(hash: string, text: string, made = false): Promise<void> {
   if (WEB) {
     try {
@@ -127,8 +139,9 @@ export async function docText(hash: string): Promise<string | null> {
   const file = new File(DIR, `${hash}.json`);
   if (!file.exists) return null;
   const text = await file.text();
-  // Sent to a teammate, not shown here: it stays out of memory.
-  return (await admit(hash, text, false)) ? text : null;
+  // Sent to a teammate, not shown here: it stays out of memory. Only its hash is checked (review P6): it validated when it
+  // was kept, and the teammate checks it again whole.
+  return (await hashOf(text)) === hash ? text : null;
 }
 
 /** A document this phone holds, from memory or disk, never the server. */
@@ -141,15 +154,32 @@ export async function heldDoc(hash: string): Promise<LibraryDoc | null> {
  * whole (`heads`). `headOf` is the walk's own (core's `nearbyDocHeadOf`, with the files it names),
  * the same on every call.
  */
-export async function heldDocHead(hash: string, headOf: (doc: LibraryDoc) => DocHead = docHeadOf): Promise<DocHead | null> {
-  const known = heads.get(hash);
+export async function heldDocHead(hash: string, headOf: (doc: LibraryDoc) => DocHead = docHeadOf, keptAs?: string): Promise<DocHead | null> {
+  if (keptAs && DIR) {
+    const dir = DIR;
+    await headsFromDisk(keptAs, () => { ensureDir(); return dir; }, headsOf(keptAs));
+  }
+  // Each shape of head apart (the 2026-11-24 review, T5): a plain head read first never stands in for nearby's, with files and links.
+  const shape = headsOf(keptAs ?? '');
+  const known = shape.get(hash);
   if (known) return known;
   const doc = memory.get(hash) ?? (await fromDisk(hash, false));
   if (!doc) return null;
   const head = headOf(doc);
-  heads.set(hash, head);
+  shape.set(hash, head);
+  if (keptAs && DIR) {
+    const dir = DIR;
+    headsToDiskSoon(keptAs, () => { ensureDir(); return dir; }, hash, head);
+  }
   return head;
 }
+
+function headsOf(shape: string): Map<string, DocHead> {
+  let m = heads.get(shape);
+  if (!m) heads.set(shape, (m = new Map()));
+  return m;
+}
+
 
 /**
  * Keep a teammate's text as a fetched document: no outbox row, since this phone did not make it.
@@ -157,8 +187,14 @@ export async function heldDocHead(hash: string, headOf: (doc: LibraryDoc) => Doc
  * source's book or its timing goes to disk only (`READ_WHEN_NEEDED`): a teammate may hand over
  * every guide the language uses at once.
  */
-export async function keepFetchedDoc(hash: string, text: string): Promise<boolean> {
-  const doc = await admit(hash, text, false);
+export async function keepFetchedDoc(hash: string, text: string, checked = false): Promise<boolean> {
+  // A teammate's text nearby code already checked (`admitDoc`: its hash, canonical form and `validateDoc`) is read, not checked again (review P6).
+  let doc: LibraryDoc | null;
+  if (checked) {
+    // A teammate's document waits when the phone is short of the room it keeps for recording (security review, 2026-11-24).
+    if (DIR && shortOfRoom()) return false;
+    try { doc = JSON.parse(text) as LibraryDoc; } catch { doc = null; }
+  } else doc = await admit(hash, text, false);
   if (!doc) return false;
   await toDisk(hash, text);
   if (!READ_WHEN_NEEDED.has(doc.format)) memory.set(hash, doc);

@@ -44,3 +44,14 @@ with each teammate, worked out from those days and the certificates, so a team
 knows when to meet on Share nearby; it shows on screen roughly what the record
 holds. `nearbyPeers`, `nearbyToday` and Ready to carry are unchanged, and
 diagnostics still name no teammate.
+
+Amended (2026-11-24, Carl Sauder): Let someone in's join notes a meeting
+too, on both phones, on the same terms as Share nearby's Hello: the other's
+install key and person, and on a phone that may run the quiet mode the day
+(the newcomer by the grant's `features`). The newcomer's chain starts with
+the inviter's certificate, so it is exactly as old as the inviter's, and the
+quiet mode refused the two until they opened Share nearby together, which
+defeated handing `nearby_open` on in the grant (review of 2026-11-24, item
+8). The join happens on a screen with one tap, never quietly, so a taken
+phone still cannot keep itself in; nothing more is kept than a Share nearby
+meeting keeps.

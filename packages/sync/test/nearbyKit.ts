@@ -158,7 +158,11 @@ export interface TestRoom {
 
 export function roomFor(
   p: TestPhone, air: MemoryNearbyAir, time: VirtualTime,
-  o: { caps?: Partial<NearbyCapabilities>; knobs?: MemoryRadioKnobs; keys?: NearbyRoomKeys & { direct?: boolean; certOrgSeq?: number }; room?: Partial<NearbyRoomOptions>; orgSeqHere?: number; notesMetForMs?: number } = {}
+  o: {
+    caps?: Partial<NearbyCapabilities>; knobs?: MemoryRadioKnobs; keys?: NearbyRoomKeys & { direct?: boolean; certOrgSeq?: number }; room?: Partial<NearbyRoomOptions>; orgSeqHere?: number; notesMetForMs?: number;
+    /** More for every session the room opens: a copy to give or to take, say. */
+    session?: Partial<NearbySessionOptions>;
+  } = {}
 ): TestRoom {
   const radio = air.radio(p.who.deviceId, o.caps, o.knobs);
   const events: NearbyRoomEvent[] = [];
@@ -183,7 +187,7 @@ export function roomFor(
       return sessionFor(p, args.role, args.link, time, {
         opening: { kSess: args.kSess, salt: args.salt, kFind: args.kFind, ...(args.seen ? { seen: args.seen } : {}) },
         older: args.older, ...(args.heardTag !== undefined ? { heardTag: args.heardTag } : {}), ...(args.onOpened ? { onOpened: args.onOpened } : {}),
-        otherWaiting: args.otherWaiting, generations, ...(within !== undefined ? { notesMetForMs: within } : {})
+        otherWaiting: args.otherWaiting, generations, ...(within !== undefined ? { notesMetForMs: within } : {}), ...o.session
       });
     },
     ...o.room

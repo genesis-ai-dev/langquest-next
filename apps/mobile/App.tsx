@@ -18,6 +18,7 @@ import type { Ctx } from './src/shell/ctx';
 import { DevMenu } from './src/shell/DevMenu';
 import { UpdateBanner } from './src/shell/UpdateBanner';
 import { useFirstLaunchUpdate } from './src/shell/useFirstLaunchUpdate';
+import { useUpdateAtStart } from './src/shell/useUpdateAtStart';
 import { AppVersionPrompt } from './src/appVersion/AppVersionPrompt';
 import { useAppVersion } from './src/appVersion/useAppVersion';
 import { maySwitchPersona } from './src/session/dev';
@@ -352,6 +353,8 @@ export default function App() {
   useEffect(() => { installGlobalHandlers(); lockPhonesToPortrait(); }, []);
   // The first launch after install waits up to 5 s for the latest OTA update (decisions.md 153).
   const updateLooked = useFirstLaunchUpdate();
+  // Then at each start, unless a teammate's starting copy is held, once a store build stops expo-updates looking by itself (2026-11-24).
+  useUpdateAtStart(updateLooked);
   // Work people left unsent when they signed out of this phone goes as them (decisions.md 60).
   useHandOvers(auth === undefined ? undefined : auth?.user.id ?? null);
   // Who was signed in when supabase-js next speaks, for diagnostics of a sign-out the person did not choose.

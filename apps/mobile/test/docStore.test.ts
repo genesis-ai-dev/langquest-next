@@ -12,6 +12,10 @@ const fake = vi.hoisted(() => ({
   web: { files: new Map<string, Uint8Array>(), writes: true, reads: true },
   storage: new Map<string, string>(),
   disk: new Map<string, string>(),
+  /** Files read whole, by name. */
+  reads: [] as string[],
+  /** Free space on the phone; not known when undefined. */
+  free: undefined as number | undefined,
   put: vi.fn<(orgId: string, text: string) => Promise<{ data: string | null; error: { message: string } | null }>>(),
   get: vi.fn<(orgId: string, hashes: string[]) => Promise<{ data: { hash: string; body: string }[] | null; error: { message: string } | null }>>()
 }));
@@ -29,13 +33,14 @@ vi.mock('expo-crypto', () => ({
   digestStringAsync: async (_alg: string, text: string) => createHash('sha256').update(text).digest('hex')
 }));
 vi.mock('expo-file-system', () => ({
-  Paths: { document: 'doc' },
+  Paths: { document: 'doc', get availableDiskSpace() { if (fake.free === undefined) throw new Error('not known'); return fake.free; } },
   Directory: class { exists = true; constructor(..._p: unknown[]) {} create() {} },
   File: class {
     readonly path: string;
     constructor(_dir: unknown, name: string) { this.path = name; }
     get exists() { return fake.disk.has(this.path); }
-    async text() { return fake.disk.get(this.path)!; }
+    async text() { fake.reads.push(this.path); return fake.disk.get(this.path)!; }
+    textSync() { return fake.disk.get(this.path)!; }
     writeSync(text: string) { fake.disk.set(this.path, text); }
     delete() { fake.disk.delete(this.path); }
   }
@@ -49,6 +54,8 @@ vi.mock('../src/web/webFiles', () => ({
   })
 }));
 vi.mock('../src/diagnostics/report', () => ({ noteExpected: vi.fn() }));
+// A phone's heads kept on disk (the web keeps none).
+vi.mock('../src/library/docHeads', () => import('../src/library/docHeads.native'));
 vi.mock('../src/server/library', () => ({ putDocument: fake.put, getDocuments: fake.get }));
 
 const sha = (text: string) => createHash('sha256').update(text).digest('hex');
@@ -297,6 +304,54 @@ describe('documents from a teammate\'s phone', () => {
     // Sending its text keeps it out of memory too.
     expect(await s.docText(sha(tText))).toBe(tText);
     expect(s.cachedDoc(sha(tText))).toBeNull();
+  });
+
+  // The 2026-11-24 review (P6): the first walk after each launch read every document the language uses, 65 MB for FIA's English.
+  it('keeps the heads a walk read on disk, so the next launch reads them without the documents', async () => {
+    vi.useFakeTimers();
+    let s = await store();
+    const gText = canonicalJson(guide);
+    fake.disk.set(`${sha(gText)}.json`, gText);
+    expect(await s.heldDocHead(sha(gText), undefined, 'nearby2')).toEqual({ format: 'study@2', refs: [] });
+    vi.advanceTimersByTime(2_000);
+    expect(JSON.parse(fake.disk.get('heads-nearby2.json')!)).toEqual({ [sha(gText)]: { format: 'study@2', refs: [] } });
+    vi.useRealTimers();
+    s = await store();
+    fake.reads = [];
+    expect(await s.heldDocHead(sha(gText), undefined, 'nearby2')).toEqual({ format: 'study@2', refs: [] });
+    expect(fake.reads).toEqual(['heads-nearby2.json']);
+    // Another shape of head is read again from the documents.
+    expect(await s.heldDocHead(sha(gText), undefined, 'nearby3')).toEqual({ format: 'study@2', refs: [] });
+  });
+
+  // The 2026-11-24 review (T5): the summary cache was keyed by hash alone, so a plain head read first would stand in for nearby's.
+  it('keeps each shape of head apart: a plain head read first never stands in for one with the files a guide names', async () => {
+    const s = await store();
+    const gText = canonicalJson(guide);
+    fake.disk.set(`${sha(gText)}.json`, gText);
+    expect(await s.heldDocHead(sha(gText))).toEqual({ format: 'study@2', refs: [] });
+    const withFiles = (doc: unknown) => ({ format: (doc as { format: string }).format, refs: [], files: [{ hash: 'f'.repeat(64), format: 'jpg' }] });
+    expect(await s.heldDocHead(sha(gText), withFiles as never, 'nearby2')).toMatchObject({ files: [{ format: 'jpg' }] });
+  });
+
+  it('checks only the hash of a text it sends, and does not check again a teammate\'s text nearby code checked', async () => {
+    const s = await store();
+    // On disk under its name but not a valid document (as a newer build's format would be): sent all the same, its hash being right.
+    const odd = canonicalJson({ format: 'study@9' });
+    fake.disk.set(`${sha(odd)}.json`, odd);
+    expect(await s.docText(sha(odd))).toBe(odd);
+    fake.disk.set(`${'0'.repeat(64)}.json`, odd);
+    expect(await s.docText('0'.repeat(64))).toBeNull();
+    // A teammate's text nearby code already checked is kept as it is read.
+    const gText = canonicalJson(guide);
+    expect(await s.keepFetchedDoc(sha(gText), gText, true)).toBe(true);
+    expect(fake.disk.get(`${sha(gText)}.json`)).toBe(gText);
+    // Not with the phone short of the room it keeps for recording (security review, 2026-11-24).
+    fake.free = 1;
+    const wText = canonicalJson({ ...guide, title: 'Another' });
+    expect(await s.keepFetchedDoc(sha(wText), wText, true)).toBe(false);
+    expect(fake.disk.has(`${sha(wText)}.json`)).toBe(false);
+    fake.free = undefined;
   });
 
   it('keeps a guide on disk only, a key-words list in memory as well, and tells the screens once for both', async () => {

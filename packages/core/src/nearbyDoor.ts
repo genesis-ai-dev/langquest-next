@@ -58,6 +58,20 @@ export interface DoorRefusal {
 /** Never carried between phones: in the first release a redaction takes effect only from the server, and an external value belongs to the server's token. */
 export const NEARBY_NOT_CARRIED: readonly EventType[] = ['v1.Redacted', 'v1.ExternalValueSet'];
 
+/**
+ * May a row the server wrote in a language's stream (an id only it makes, `isServerEventId`) go
+ * between phones? Only as an attested claim, and only team work: a type this build knows whose
+ * privilege is not null, so never `v1.BlobStored` or `v1.BlobInvalidated`, and never what no
+ * phone carries (`NEARBY_NOT_CARRIED`, so never `v1.Redacted`) or an organization event
+ * (2026-11-24, review item 16). That takes in listener and review-link reviews (`api-`),
+ * releases (`api-release-`) and imports from LangQuest v2 (`v2:`). A batch never carries one: a
+ * phone cannot sign for the server.
+ */
+export function serverRowMayBeClaimed(type: string): boolean {
+  return hasPrivilegeEntry(type) && EVENT_PRIVILEGE[type as EventType] !== null
+    && !NEARBY_NOT_CARRIED.includes(type as EventType) && !(ORG_EVENT_TYPES as readonly string[]).includes(type);
+}
+
 export function peopleFromOrg(org: OrgState): NearbyPeople {
   return {
     privilegesIn: (profileId, languageId) => privilegesFor(org, profileId, languageId),
@@ -127,7 +141,8 @@ export function nearbyDoor(e: AnyEvent, ctx: NearbyDoorContext): DoorRefusal | n
   if (!isHlc(e.hlc)) return refuse('malformed clock');
   if (decodeHlc(e.hlc).nodeId !== e.deviceId) return refuse('clock is not this device\'s');
   // 6. A claim need not be bound, because the server already holds those ids. One that names someone else is still refused.
-  if (isServerEventId(e.id)) return refuse('an id only the server makes');
+  // A row the server wrote comes only as a claim, under the Worker's word for its digest, and only team work (review item 16).
+  if (isServerEventId(e.id) && !(ctx.claim && serverRowMayBeClaimed(e.type))) return refuse('an id only the server makes');
   for (const id of authoredIds(e)) {
     const author = idAuthor(id);
     if (author === null ? !ctx.claim : author !== e.actorId) return refuse(author === null ? 'id does not name its author' : 'id names someone else');

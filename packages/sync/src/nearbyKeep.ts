@@ -71,7 +71,25 @@ export interface NearbyKeep {
   met(fromDay: number): Promise<readonly NearbyMetRecord[]>;
   /** Notes this teammate's day, one line each, and forgets every day before `fromDay`. */
   noteMet(record: NearbyMetRecord, fromDay: number): Promise<void>;
+  /**
+   * `nearbyLetIn:<org>/<language>` (2026-11-24, review item 7): the people this phone let in under
+   * each of its passes, by id. This phone is a pass's only user, so the count is exact. It says
+   * who joined the team through this phone, so the app clears it at any sign-out, as `nearbyPeers`.
+   */
+  letIn(passId: string): Promise<readonly string[]>;
+  /** Notes this person under the pass, unless it has let in `max` others already: then false, and nothing is written. */
+  noteLetIn(passId: string, profileId: string, max: number): Promise<boolean>;
+  /**
+   * `nearbyListed:<org>/<language>` (2026-11-24, review item 17): the documents this language's list once named, newest
+   * first, at most `NEARBY_LISTED_KEPT`. A phone serves them too, so a teammate whose organization data is behind still
+   * gets the version of a followed guide its own data names. Only hashes of library documents: nothing of anyone.
+   */
+  listedDocs?(): Promise<readonly string[]>;
+  noteListedDocs?(list: readonly string[]): Promise<void>;
 }
+
+/** Documents of a language's earlier lists a phone keeps naming (`listedDocs`): far above the versions a team moves through between trips to town. */
+export const NEARBY_LISTED_KEPT = 2_000;
 
 /** The two calls `SyncClient` gives this: reads outside the stream's turn, and one commit under it. */
 export interface NearbyMeta {
@@ -84,6 +102,11 @@ const PEERS_KEPT = 64;
 
 /** Far above a team: the teammate met longest ago would only wait for their certificate or the next Share nearby. */
 const MET_KEPT = 256;
+
+/** Passes whose people are kept: a window's and the next's, with room; an older pass has expired and lets nobody in. */
+const LET_IN_PASSES_KEPT = 8;
+/** People kept under one pass, whatever its `maxUses` says: far above the 10 a pass allows (core `JOIN_PASS_USES`). */
+const LET_IN_PER_PASS_MAX = 256;
 
 const parsed = (raw: string | null): unknown => {
   if (raw === null) return null;
@@ -112,6 +135,18 @@ export function nearbyKeepOf(meta: NearbyMeta, at: { orgId: string; streamId: st
   const namesKey = `nearbyNames:${at.orgId}`;
   const revokedKey = `nearbyRevoked:${at.orgId}`;
   const metKey = `nearbyMet:${at.orgId}`;
+  const letInKey = `nearbyLetIn:${where}`;
+  const listedKey = `nearbyListed:${where}`;
+  const listed = async (): Promise<string[]> => {
+    const raw = parsed(await meta.nearbyMeta(listedKey));
+    return Array.isArray(raw) ? raw.filter((h): h is string => typeof h === 'string' && /^[0-9a-f]{64}$/.test(h)).slice(0, NEARBY_LISTED_KEPT) : [];
+  };
+  /** Each pass's people, oldest pass first: only lists of ids, so a row that cannot be read reads as nothing. */
+  const letInAll = async (): Promise<[string, string[]][]> => {
+    const raw = parsed(await meta.nearbyMeta(letInKey));
+    if (!Array.isArray(raw)) return [];
+    return raw.filter((e): e is [string, string[]] => Array.isArray(e) && e.length === 2 && typeof e[0] === 'string' && Array.isArray(e[1]) && e[1].every((x) => typeof x === 'string'));
+  };
   const allMet = async (): Promise<NearbyMetRecord[]> => {
     const raw = parsed(await meta.nearbyMeta(metKey));
     return Array.isArray(raw) ? raw.filter(isMet) : [];
@@ -173,6 +208,27 @@ export function nearbyKeepOf(meta: NearbyMeta, at: { orgId: string; streamId: st
     async noteMet(record, fromDay) {
       const rest = (await allMet()).filter((m) => m.day >= fromDay && (m.key !== record.key || m.profileId !== record.profileId));
       await meta.writeNearbyMeta({ [metKey]: JSON.stringify([...rest, { key: record.key, profileId: record.profileId, day: record.day }].slice(-MET_KEPT)) });
+    },
+    async letIn(passId) {
+      return (await letInAll()).find(([p]) => p === passId)?.[1] ?? [];
+    },
+    listedDocs: listed,
+    async noteListedDocs(list) {
+      const held = await listed();
+      const known = new Set(held);
+      const fresh = [...new Set(list)].filter((h) => !known.has(h) && /^[0-9a-f]{64}$/.test(h));
+      // Written only when the list named something new: most sessions write nothing.
+      if (fresh.length === 0) return;
+      await meta.writeNearbyMeta({ [listedKey]: JSON.stringify([...fresh, ...held].slice(0, NEARBY_LISTED_KEPT)) });
+    },
+    async noteLetIn(passId, profileId, max) {
+      const all = await letInAll();
+      const people = all.find(([p]) => p === passId)?.[1] ?? [];
+      if (people.includes(profileId)) return true;
+      if (people.length >= Math.min(max, LET_IN_PER_PASS_MAX)) return false;
+      const rest = all.filter(([p]) => p !== passId);
+      await meta.writeNearbyMeta({ [letInKey]: JSON.stringify([...rest, [passId, [...people, profileId]]].slice(-LET_IN_PASSES_KEPT)) });
+      return true;
     }
   };
   return keep;

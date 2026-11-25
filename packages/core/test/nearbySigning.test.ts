@@ -79,6 +79,9 @@ describe('the texts phones sign, as golden vectors', () => {
     expect(passText(pass)).toBe(`{"body":{"expiresAt":${v.PASS_EXPIRES_AT},"inviter":"${v.PROFILE}","inviterKey":"${v.PUBLIC_KEY}","languageId":"lang1","maxUses":3,"orgId":"org1","passId":"${v.PASS_ID}","roles":[{"privileges":["translate"],"roleId":"translator"}]},"kid":"k1","kind":"pass@1"}`);
     const invite = { kind: 'invite@1', body: { name: 'N' }, sig: 'ignored' } as unknown as InviteLink;
     expect(linkText(invite, 'PREV')).toBe('{"body":{"name":"N"},"kind":"invite@1","prev":"PREV"}');
+    // From 2026-11-24 the body carries when it was made, signed in its place; a body without it signs as before.
+    const made = { kind: 'invite@1', body: { name: 'N', madeAt: 5 }, sig: 'ignored' } as unknown as InviteLink;
+    expect(linkText(made, 'PREV')).toBe('{"body":{"madeAt":5,"name":"N"},"kind":"invite@1","prev":"PREV"}');
   });
 
   it('a pass\'s id and expiry follow from its window, on the Worker\'s own clock', async () => {

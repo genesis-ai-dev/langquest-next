@@ -107,3 +107,30 @@ not yet fetched again within the study folder's 256 MB spare room, needed or
 not, and only bytes that begin as a picture or audio of the address's kind.
 The address is written down before the file takes its name, so a crash
 between never leaves a teammate's bytes passing as the source's.
+
+Amended (2026-11-24, Carl Sauder): after the review of nearby sync that day
+(items 19 to 25, P12). The BSB's chapters are named by hash as well as by
+address once `npm run library:bsb-audio` has hashed each MP3 into
+`library/bsb-audio.json`, which the seed reads; a timing made from other bytes
+is left out. Before, the seed named them by address alone, so no phone could
+pass one on. A chapter a phone downloaded by its address moves to its hash's
+entry once its document names the hash, and is recorded as the library's. A
+team's own guide files are now downloaded ahead for kept passages, and a
+passage is ready only once they are here, so they are known by passage: they
+are asked for before other library files, and a phone under a cover takes
+those its kept passages need. Audio the web guide editor recorded as webm
+moves where a document names audio, never as a picture, which may be a film.
+FIA files a kept passage needs have a room of their own, 512 MB, besides the
+256 MB the rest share, and the rooms are worked out each session from the
+files present. Online, only those a kept passage needs are fetched again; the
+rest go once the wish list is whole. Library files no kept passage of any
+language needs (kept passages' guide files, as each language last listed them
+whole, and every source chapter the sources keep) are spare: a teammate's
+come only within 256 MB of them, and when the phone runs short they go after
+the server's copies and before teammates' recordings. A library file that
+waits for room is counted, and Share nearby says how many. An open guide
+shows what arrives without being reopened. Reverse if: the 512 MB room for
+FIA files a kept passage needs is found too small for a whole book kept
+offline (then it grows), or spare library files are found deleted while a
+language not opened since this build needs them (then each language's list
+is kept from the first run, as the study folder's is).

@@ -12,6 +12,7 @@ import * as server from '../server/library';
 import { cachedDoc, flushOutbox, heldDoc, keepNewDoc, loadDocs, onDocs, prepareDoc } from './docStore';
 import { adoptError } from './failureModel';
 import { copyOps, followOps, mayWriteLibrary, newItemId, publishOps, readRetryMs, subscribeOps, type LibraryOp, type SharedItem } from './model';
+import { SHARED_TEAMMATE_PREFIX } from './sharedKeys';
 
 /**
  * The organization's library for screens (docs/library.md): its items, the
@@ -238,6 +239,8 @@ export function useSharedItems(kind: LibraryKind, orgId: string, enabled = true)
         setError('');
         setLoaded(true);
         await AsyncStorage.setItem(key, JSON.stringify(list)).catch((e: unknown) => noteExpected('shared library', e));
+        // The server's list replaces any rows a teammate's phone gave (review item 9).
+        await AsyncStorage.removeItem(`${SHARED_TEAMMATE_PREFIX}${kind}`).catch((e: unknown) => noteExpected('shared library', e));
         return;
       } catch (e) {
         noteExpected('shared library', e);

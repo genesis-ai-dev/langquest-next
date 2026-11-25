@@ -81,9 +81,35 @@ export interface NearbyReceipt {
   counted: boolean;
   /** The page's newest stamp is far ahead of this phone's time, for one line on screen. The rows stand. */
   farAhead?: { actorId: string; hlc: string };
+  /** The name its chain gives someone let in offline, once the chain checked (`chainNameOf`, review item 12). */
+  named?: NearbyChainName;
 }
 
 export const nearbyDropped = (reason: string, extra: Partial<NearbyReceipt> = {}): NearbyReceipt => ({ outcome: 'dropped', reason, kept: 0, refused: [], counted: false, ...extra });
+
+/** A name someone let in offline goes by, from a chain that checked. */
+export interface NearbyChainName {
+  profileId: string;
+  name: string;
+}
+
+/** As a join takes a name (`joinName`): 1 to 80 characters once trimmed, with no control characters. */
+const CHAIN_NAME_MAX = 80;
+
+/**
+ * The name a checked two-link chain gives someone let in offline, which the inviter's phone
+ * signed (docs/nearby-sync-plan.md 14.1, 5 "Teammates"), as a join could have given it; null for
+ * a member's chain, or a name no join gives. From a batch or a holdings entry as well as from
+ * Hello, so a teammate's work shows under their name on every phone that carries it (2026-11-24,
+ * review item 12).
+ */
+export function chainNameOf(verdict: ChainVerdict): NearbyChainName | null {
+  if (!verdict.ok || verdict.links !== 2 || typeof verdict.holder.name !== 'string' || verdict.holder.name.length > 4 * CHAIN_NAME_MAX) return null;
+  const name = verdict.holder.name.trim().replace(/\s+/g, ' ');
+  // eslint-disable-next-line no-control-regex
+  if (name.length < 1 || name.length > CHAIN_NAME_MAX || /[\u0000-\u001f\u007f]/.test(name)) return null;
+  return { profileId: verdict.holder.profileId, name };
+}
 
 /** A page that passed its signature, with what is known of each event before the door. */
 interface Checked {

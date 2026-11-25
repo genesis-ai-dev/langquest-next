@@ -10,7 +10,7 @@ import { fileLedgerDriver, getStore } from '../storage/store';
 import type { BlobStore } from '../sync/blobs';
 import { currentHoldChoice, nearbyOrg } from './holdChoice';
 import { nobleSha256, nobleVerify, phoneCryptoOf } from './nearbyCryptoModel';
-import { parseCertKeys, parseChains, parsePasses, passFor, type HeldChains, type HeldPass, type SignedText } from './nearbyModel';
+import { parseCertKeys, parseChains, parsePasses, passesFor, type HeldChains, type HeldPass, type SignedText } from './nearbyModel';
 import type { NearbyFilesOptions } from './nearbyPhone';
 import { wornNow } from '../shell/appCovered';
 
@@ -94,13 +94,14 @@ export async function keepPasses(profileId: string, next: readonly HeldPass[]): 
 }
 
 /**
- * The pass Let someone in offers for the open language (14.1, 3), or null: none was issued, the
- * organization is off, or this person holds no chain for it. Whether it still lets anyone in by
- * this phone's fold is `joinPassStop`'s, which the screen asks with the chosen role.
+ * The passes Let someone in chooses from for the open language (14.1, 3; `passInEffect` picks one),
+ * or none: none was issued, the organization is off, or this person holds no chain for it. Whether
+ * one still lets anyone in by this phone's fold is `joinPassStop`'s, which the screen asks with the
+ * chosen role.
  */
-export async function joinPassFor(profileId: string, orgId: string, languageId: string): Promise<JoinPass | null> {
-  if (!(await readChains(profileId))[orgId]) return null;
-  return passFor(await readPasses(profileId), orgId, languageId);
+export async function joinPassesFor(profileId: string, orgId: string, languageId: string): Promise<JoinPass[]> {
+  if (!(await readChains(profileId))[orgId]) return [];
+  return passesFor(await readPasses(profileId), orgId, languageId) as unknown as JoinPass[];
 }
 
 /** Does this phone hold this person's certificate for this organization? Only then is there anyone to claim to. */
@@ -236,8 +237,8 @@ export function nearbyFetchFileOf(store: BlobStore): NearbyFetchFile {
 
 export async function nearbyFilesFor(orgId: string, actorId: string, languageId: string, files: BlobStore): Promise<NearbyFilesOptions> {
   // The study folder's nearby part and the sources' wanted chapters, read when a language's file moves are made, not with this module.
-  const [held, crypto, { nearbyStudyLinks }, { sourceAudioWanted }, origins] = await Promise.all([
-    nearbyMarks(), phoneCrypto(), import('../study/nearbyStudyFiles.native'), import('../sources/offline'),
+  const [held, crypto, { nearbyStudyLinks }, { sourceAudioWanted, sourceAudioKept }, { guideFilesWanted, guideFilesKeptAnywhere }, origins] = await Promise.all([
+    nearbyMarks(), phoneCrypto(), import('../study/nearbyStudyFiles.native'), import('../sources/offline'), import('../study/guideFilesAhead'),
     import('../library/libraryOrigins.native').then((m) => m.libraryOrigins()).catch(() => undefined)
   ]);
   return {
@@ -255,6 +256,13 @@ export async function nearbyFilesFor(orgId: string, actorId: string, languageId:
       worn: wornNow,
       // A source's chapter audio only for chapters this phone's kept passages want (2026-11-24).
       sourceAudioWanted,
+      // Kept passages' guide files first, and spare library files bounded and first to go (2026-11-24 review, items 20 and 24).
+      guideFilesWanted,
+      libraryFilesKept: () => {
+        const guides = guideFilesKeptAnywhere();
+        const sources = sourceAudioKept();
+        return guides && sources ? new Set([...guides, ...sources]) : null;
+      },
       // Only files known to have come from the library are passed on (security review, 2026-11-24).
       ...(origins ? { libraryOrigins: origins } : {})
     }),

@@ -43,6 +43,24 @@ describe('choosePartner', () => {
     expect(choosePartner(me, [{ ...finished, dueAnyway: true }])).toBeNull();
   });
 
+  // Review item 15: a session whose events named documents no ask covered leaves summaries that cannot say so.
+  it('a teammate with documents still to ask for is worth a session with equal summaries and a finished record, but never a listed one', () => {
+    const same = peer('000000000009', { summary: me.summary, hasWhatIWant: false, wantsWhatIHave: false, finished: { mine: me.summary, theirs: me.summary } });
+    expect(choosePartner(me, [same])).toBeNull();
+    expect(choosePartner(me, [{ ...same, docsAgain: true }])?.partner).toBe('000000000009');
+    expect(choosePartner(me, [{ ...same, docsAgain: true, listed: true }])).toBeNull();
+  });
+
+  // Review P3: one review mark made a session worth having, and nothing spaced out sessions with the same partner.
+  it('a teammate met a moment ago is met again so soon only for files, or for documents still to ask for', () => {
+    const changed = peer('000000000009', { hasWhatIWant: false, wantsWhatIHave: false });
+    expect(choosePartner(me, [changed])).not.toBeNull();
+    expect(choosePartner(me, [{ ...changed, recent: true }])).toBeNull();
+    expect(choosePartner(me, [{ ...changed, recent: true, hasWhatIWant: true }])).not.toBeNull();
+    expect(choosePartner(me, [{ ...changed, recent: true, wantsWhatIHave: true }])).not.toBeNull();
+    expect(choosePartner(me, [{ ...changed, recent: true, docsAgain: true }])).not.toBeNull();
+  });
+
   it('a refused pair recorded as finished is not picked again', () => {
     const refused = peer('000000000009', { finished: { mine: me.summary, theirs: 'bbbbbbbb' } });
     expect(choosePartner(me, [refused, peer('00000000000a', { position: 3 })])?.partner).toBe('00000000000a');

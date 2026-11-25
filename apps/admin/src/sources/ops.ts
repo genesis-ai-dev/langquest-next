@@ -235,7 +235,7 @@ export interface Nearby {
   };
   /** Sessions that did not finish, by `end` or `end:bye`. */
   unfinished: Record<string, number>;
-  /** Why this phone turned a phone away: window, revoked, org, expired, other. */
+  /** Why this phone turned a phone away: window, revoked, org, expired, pass-expired, other. */
   refusals: Record<string, number>;
   links: Record<string, number>;
   /** Teammates' work a phone carried to the server. */

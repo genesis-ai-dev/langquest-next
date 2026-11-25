@@ -33,3 +33,44 @@ export function studyEvictions(
   }
   return out;
 }
+
+/** Where an open guide's audio plays from: the address a step names, and the phone's copy or the web. */
+export interface StudySource {
+  address: string | undefined;
+  url: string | undefined;
+}
+
+/**
+ * The source an open guide's player uses now (2026-11-24 review, item 25). Another address starts
+ * over at once. The phone's copy of the same one arriving while the guide is open is taken up, but
+ * not while it plays: a clip playing from the web is not cut off by its own download.
+ */
+export function studySourceNow(src: StudySource, address: string | undefined, latest: string | undefined, playing: boolean): StudySource {
+  if (src.address !== address) return { address, url: latest };
+  if (src.url !== latest && !playing) return { address, url: latest };
+  return src;
+}
+
+/** A picture that could not load is shown as failed only for the source it failed on: a copy that arrived since is tried. */
+export function failedNow(failedFor: string | undefined, shown: string | undefined): boolean {
+  return failedFor !== undefined && failedFor === shown;
+}
+
+/**
+ * The files a team's own guide names by hash (`study@2`, the guide editor's): each step's audio,
+ * each picture and map (never a film, which phones show from its address), and each glossary
+ * entry's audio, once each. What a kept passage's guide needs on the phone, besides its addresses
+ * (2026-11-24 review, item 20).
+ */
+export function guideFilesOf(guide: {
+  steps: readonly { audio: { file?: { hash: string; format: string } } }[];
+  resources: readonly { media?: readonly { kind: string; file?: { hash: string; format: string } }[] }[];
+  glossary?: Record<string, { audioFile?: { hash: string; format: string } }>;
+}): { hash: string; format: string }[] {
+  const out = new Map<string, { hash: string; format: string }>();
+  const add = (f: { hash: string; format: string } | undefined) => { if (f && !out.has(f.hash)) out.set(f.hash, { hash: f.hash, format: f.format }); };
+  for (const s of guide.steps) add(s.audio.file);
+  for (const r of guide.resources) for (const m of r.media ?? []) if (m.kind !== 'video') add(m.file);
+  for (const g of Object.values(guide.glossary ?? {})) add(g.audioFile);
+  return [...out.values()];
+}

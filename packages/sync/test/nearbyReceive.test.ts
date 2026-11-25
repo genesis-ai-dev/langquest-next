@@ -736,6 +736,30 @@ describe.each(STORES)('receiving claims on the %s store', (_name, make) => {
     expect((await client.nearbyHave()).claimedSeq).toBe(5);
   });
 
+  it('team work the server wrote comes by claim, and never a file\'s record, a redaction or a batch (review item 16)', async () => {
+    const client = await myPhone();
+    // A listener's review given through the Worker, a release, a row imported from LangQuest v2: ids only the server makes.
+    const listener = eventBy(sam, 'v1.ReviewRecorded', { reviewId: 'listener-1', takeId: 't1', kindId: 'listener', outcome: 'looks_good', via: 'link', givenBy: 'Listener 1' } as never, { id: 'api-listener-1' });
+    const release = eventBy(sam, 'v1.VersionReleased', { takeId: 't1', channel: 'EL app', live: true }, { id: 'api-release-1' });
+    const imported = eventBy(sam, 'v1.UnitAdded', { unitId: 'u9', parentUnitId: null, kind: 'passage', label: 'u9', order: 'u9' }, { id: 'v2:org1:u9#1:UnitAdded' });
+    const blob = eventBy(sam, 'v1.BlobStored', { hash: 'c1', size: 5 } as never, { id: 'blob:c1' });
+    const redaction = eventBy(sam, 'v1.Redacted', { eventId: imported.id, reason: 'r' } as never, { id: 'removed:x' });
+    const receipt = await client.receiveNearby(await claimsOf([listener, release, imported, blob, redaction], (_e, at) => at + 1), intakeFor());
+    expect(receipt).toMatchObject({ outcome: 'taken', kept: 3 });
+    expect(receipt.refused.map((r) => r.id).sort()).toEqual([blob.id, redaction.id].sort());
+    expect((await rowOf(store, listener.id))!.status).toBe('nearby');
+    expect(stateOf(client).units['u9']).toBeDefined();
+    // The same rows in a teammate's batch: a phone cannot sign for the server, so the door refuses each.
+    const fresh = make();
+    const second = phone(server, fresh, mine);
+    await second.load();
+    const page = await pageOf(sam, 1, [listener, release, imported]);
+    const inBatch = await second.receiveNearby(page, intakeFor());
+    expect(inBatch.kept).toBe(0);
+    expect(inBatch.refused.map((r) => r.reason)).toEqual(expect.arrayContaining(['an id only the server makes']));
+    expect(await fresh.getMany([listener.id, release.id, imported.id])).toEqual([]);
+  });
+
   it('a row already here stays, whichever way it came', async () => {
     const client = await myPhone();
     const e = unitBy(sam, 'u1');
@@ -999,6 +1023,21 @@ describe.each(STORES)('the budget per signer on the %s store', (_name, make) => 
     const use = (await store.nearbyUse(ORG, LANG)).find((u) => u.who.startsWith('pass:'))!;
     expect(use).toMatchObject({ rows: 2 });
     expect(use.keys).toHaveLength(10);
+  });
+
+  it('a newcomer\'s batch says the name its chain gives, whatever becomes of its rows, and a member\'s says none (review item 12)', async () => {
+    const client = await myPhone();
+    const [one] = await newcomers(1);
+    expect((await client.receiveNearby(await pageOf(one!, 1, [unitBy(one!, 'n1')]), intakeFor())).named).toEqual({ profileId: one!.profileId, name: 'Newcomer 0' });
+    // Over its budget the rows wait, and the name still comes: the chain checked.
+    expect(await client.receiveNearby(await pageOf(one!, 2, units(one!, 2)), intakeFor({ budget: budget(1) }))).toMatchObject({ outcome: 'dropped', overBudget: true });
+    expect((await client.receiveNearby(await pageOf(sam, 1, [unitBy(sam, 's1')]), intakeFor())).named).toBeUndefined();
+    // A chain that does not check names nobody.
+    const forged = await client.receiveNearby(await pageOf(one!, 3, [unitBy(one!, 'n3')], { signer: fakeSigner('forger') }), intakeFor());
+    expect(forged).toMatchObject({ outcome: 'dropped' });
+    expect(forged.named).toBeUndefined();
+    // Who this phone carries signed work of: a starting copy's names may name them (review item 12).
+    expect([...await client.nearbyAuthors()].sort()).toEqual([one!.profileId, sam.profileId].sort());
   });
 
   it('does not keep a bare manifest from someone this phone no longer lets in, so it does not spread', async () => {

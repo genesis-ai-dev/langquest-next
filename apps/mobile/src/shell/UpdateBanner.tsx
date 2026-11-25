@@ -6,6 +6,7 @@ import { t } from '../i18n';
 import { noteExpected } from '../diagnostics/report';
 import { C, radius, space, type as T } from '../ui/theme';
 import { updateFailure, updateStatus } from './updateStatus';
+import { lookForUpdate } from './updatesHeld';
 import { isRecording } from '../recording/recorderState';
 import { useIsRecording } from '../recording/useIsRecording';
 
@@ -20,8 +21,15 @@ import { useIsRecording } from '../recording/useIsRecording';
  * restarts nothing: a restart would cut the take off (UI audit, finding 26).
  *
  * It also re-checks when the app comes back to the foreground: a device that
- * lives in a pocket between sessions may go days without a cold start, which
- * is the only moment expo-updates would otherwise look.
+ * lives in a pocket between sessions may go days without a cold start.
+ *
+ * Neither this look nor the app's own at each start (`useUpdateAtStart`) runs
+ * while the phone holds a teammate's starting copy the server has not replaced
+ * (`lookForUpdate`, review item 26, 2026-11-24): an update with another reducer
+ * would drop that copy at the next start, and offline only a teammate could
+ * give it again. expo-updates' own look at each start (app.json's
+ * `checkAutomatically` `ON_LOAD`) waits for nothing until a store build carries
+ * `NEVER` (updatesHeldModel.ts, `updatesLookByThemselves`).
  */
 export function UpdateBanner() {
   const u = Updates.useUpdates();
@@ -30,11 +38,7 @@ export function UpdateBanner() {
   const failure = updateFailure(u);
   useEffect(() => { if (failure) noteExpected('update check', failure); }, [failure]);
 
-  const check = useCallback(async () => {
-    if (!Updates.isEnabled) return;
-    const result = await Updates.checkForUpdateAsync();
-    if (result.isAvailable) await Updates.fetchUpdateAsync();
-  }, []);
+  const check = useCallback(() => lookForUpdate(), []);
 
   useEffect(() => {
     if (!Updates.isEnabled) return;

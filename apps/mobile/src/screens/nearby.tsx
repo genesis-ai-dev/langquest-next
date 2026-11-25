@@ -23,7 +23,7 @@ import { GiveAppScreen } from '../nearby/GiveAppScreen';
 import { ChosenPicture } from '../auth/patternPad';
 import { apkStep, installFileRow, joinRows, letInVersionsWords, type ApkStep } from '../nearby/carriedApkModel';
 import { joinGuideFilesLine, joinName, type JoinEnd, type NotEmptyWhy } from '../nearby/joinOfflineModel';
-import { codeLeft, letInGuideFilesLine, type LetInEnd, type LetInWhyNot } from '../nearby/letInModel';
+import { codeLeft, letInGuideFilesLine, type LetInCopyReady, type LetInEnd, type LetInWhyNot } from '../nearby/letInModel';
 import { useJoinOffline } from '../nearby/useJoinOffline';
 import { useCarriedApk } from '../nearby/useCarriedApk';
 import { useLetIn, useLetInOffered } from '../nearby/useLetIn';
@@ -242,7 +242,11 @@ function Warnings(props: { ctx: Ctx; view: NearbyView }) {
   const { view, ctx } = props;
   const lines = [
     ctx.language.tooOld ? t('nearby.tooOld') : null,
+    // A person let in offline whose copy is short or lost takes one here, from the next teammate it meets (review items 6, 26).
+    view.copyNeed === 'lost' ? t('nearby.copy.lost') : view.copyNeed !== null ? t('nearby.copy.short') : null,
     view.newerAppNeeded ? t(phoneWords(view).newerApp) : null,
+    // Another version could not read a teammate's copy: warned before the line above sends anyone for an install file.
+    view.newerAppNeeded && view.copyHeld ? t('nearby.copy.keepVersion') : null,
     view.clockOff ? t('nearby.clockOff') : null,
     ...view.farAhead.map((f) => t('nearby.farAhead', { name: ctx.name(f.actorId) }))
   ].filter((l): l is string => l !== null);
@@ -316,6 +320,7 @@ function CameAcross(props: { sessions: readonly NearbySessionLine[]; who: (p: st
             {l.filesFailed ? <Text style={txt.smMuted}>{t('nearby.came.filesFailed', { n: l.filesFailed })}</Text> : null}
             {ended ? <Text style={txt.smMuted}>{t(ended)}</Text> : null}
             {l.noRoom ? <Text style={[txt.sm, { color: TINT.amberText }]}>{t('nearby.came.noRoom')}</Text> : null}
+            {l.guideFilesShort ? <Text style={txt.smMuted}>{t('nearby.came.guideFilesShort', { n: l.guideFilesShort })}</Text> : null}
             {l.cutBackups ? <Text style={txt.smMuted}>{t('nearby.came.cutBackups')}</Text> : null}
             {l.olderFromServer ? <Text style={txt.smMuted}>{t('nearby.olderFromServer')}</Text> : null}
           </Card>
@@ -385,8 +390,20 @@ const LET_IN_WHY = {
   'expired': 'nearby.letIn.why.expired',
   'no-role': 'nearby.letIn.why.noRole',
   'read-only': 'nearby.letIn.why.noPass',
-  'wifi-off': 'nearby.letIn.why.wifiOff'
+  'wifi-off': 'nearby.letIn.why.wifiOff',
+  'used-up': 'nearby.letIn.why.usedUp',
+  'copy-not-ready': 'nearby.letIn.why.copyNotReady'
 } as const satisfies Record<Exclude<LetInWhyNot, 'permissions'>, string>;
+
+/**
+ * Why Let someone in cannot run, in words: a copy still being filled in says how far it has come
+ * (2026-11-24, review item 5), since only the internet finishes it.
+ */
+function letInWhyWords(whyNot: Exclude<LetInWhyNot, 'permissions'>, copyReady: LetInCopyReady | null): string {
+  const fill = copyReady && !copyReady.ok && copyReady.why === 'filling' ? copyReady.fill : null;
+  if (whyNot === 'copy-not-ready' && fill) return t('nearby.letIn.why.copyFilling', { filled: fill.filled, total: fill.total });
+  return t(LET_IN_WHY[whyNot]);
+}
 
 /** How a link with a newcomer ended, in words. */
 const LET_IN_END = {
@@ -399,6 +416,8 @@ const LET_IN_END = {
   'dropped': 'nearby.letIn.end.dropped',
   'dropped-after': 'nearby.letIn.end.droppedAfter',
   'copy-short': 'nearby.letIn.end.copyShort',
+  'dropped-docs': 'nearby.letIn.end.droppedDocs',
+  'used-up': 'nearby.letIn.why.usedUp',
   'stopped': 'nearby.letIn.end.stopped',
   'no-certificate': 'nearby.letIn.end.noCertificate',
   'failed': 'nearby.letIn.end.failed'
@@ -423,7 +442,7 @@ function TwoPictures(props: { pictures: [number, number] }) {
  * and its LangQuest finds this phone by itself (docs/nearby-sync-plan.md 14.5).
  */
 export function LetSomeoneIn(ctx: Ctx) {
-  const { whyNot, roles, state, code, secondsLeft, worn, permit, actions } = useLetIn(ctx);
+  const { whyNot, roles, state, code, secondsLeft, worn, permit, actions, daysLeft, copyReady } = useLetIn(ctx);
   const apk = useCarriedApk();
   const { stage } = state;
   const running = stage.t === 'starting' || stage.t === 'showing' || stage.t === 'connected' || stage.t === 'copying';
@@ -477,7 +496,7 @@ export function LetSomeoneIn(ctx: Ctx) {
         <Card>
           <View style={styles.line}>
             {whyNot === 'loading' ? <ActivityIndicator color={C.primary} /> : <Ico name="info" size={22} color={C.muted} />}
-            <Text style={[txt.body, { flex: 1 }]}>{t(LET_IN_WHY[whyNot])}</Text>
+            <Text style={[txt.body, { flex: 1 }]}>{letInWhyWords(whyNot, copyReady)}</Text>
           </View>
         </Card>
       ) : (
@@ -498,6 +517,12 @@ export function LetSomeoneIn(ctx: Ctx) {
             </>
           ) : null}
           {stage.t === 'choose' && roles.length === 1 ? <Text style={txt.sm}>{t('nearby.letIn.asRole', { role: roles[0]!.name })}</Text> : null}
+          {/* How long this phone can still let people in, and a warning under 30 days (Carl, 2026-11-24): its pass ends with its window. */}
+          {(stage.t === 'choose' || stage.t === 'ended' || stage.t === 'done') && daysLeft ? (
+            daysLeft.warn
+              ? <Banner icon="clock" tone="amber" title={t('nearby.letIn.daysLeft', { n: daysLeft.days })} body={t('nearby.letIn.renewSoon')} />
+              : <Text style={txt.smMuted}>{t('nearby.letIn.daysLeft', { n: daysLeft.days })}</Text>
+          ) : null}
           {stage.t === 'starting' ? <Waiting text={t('nearby.letIn.starting')} /> : null}
           {stage.t === 'showing' && code ? (
             <Card>
@@ -523,7 +548,7 @@ export function LetSomeoneIn(ctx: Ctx) {
           {stage.t === 'ended' ? (
             <Banner icon="info" tone="amber" title={stage.why === 'versions' ? versionsWords(apk.needed) : t(LET_IN_END[stage.why])} />
           ) : null}
-          {/* Once they are in: the starting copy carried their guides without pictures and audio (docs/nearby-sync-plan.md 5.12, Library files). */}
+          {/* Once they are in, unless the link sent them: the starting copy carries guides without pictures and audio (docs/nearby-sync-plan.md 5.12, Library files). */}
           {letInGuideFilesLine(stage) ? <Text style={txt.sm}>{t('nearby.letIn.guideFiles')}</Text> : null}
           {state.turnedAway ? (
             <View style={styles.line}>
@@ -654,7 +679,9 @@ export function JoinOffline(ctx: Ctx) {
       {(stage.t === 'unfinished' || stage.t === 'looking') && stage.otherVersion
         ? <Banner icon="info" tone="amber" title={t('nearby.join.otherVersion')} body={t('nearby.join.otherVersionLine')} /> : null}
       {stage.t === 'whole' ? <Banner icon="check" tone="green" title={t('nearby.join.whole')} body={t('nearby.join.installFile')} /> : null}
-      {/* From the grant on: the starting copy carries guides without pictures and audio (docs/nearby-sync-plan.md 5.12, Library files). */}
+      {/* Until the server replaces the copy, another version of the app cannot read it (2026-11-24, review item 26). */}
+      {stage.t === 'whole' ? <Text style={txt.sm}>{t('nearby.copy.keepVersion')}</Text> : null}
+      {/* Once the copy is left to finish or whole, unless the link brought them: the copy carries guides without pictures and audio (docs/nearby-sync-plan.md 5.12, Library files). */}
       {joinGuideFilesLine(stage) ? <Text style={txt.sm}>{t('nearby.join.guideFiles')}</Text> : null}
       {stage.t === 'ended' ? <Banner icon="info" tone="amber" title={t(JOIN_END[stage.why])} /> : null}
     </Screen>

@@ -76,6 +76,7 @@
       "filesIn": "Mga rekording na natanggap: {{n}}",
       "filesOut": "Mga rekording na naipadala: {{n}}",
       "guideFilesIn": "Mga larawan at audio ng gabay na natanggap: {{n}}",
+      "guideFilesShort": "Mga larawan at audio ng gabay na hindi nagkasya: {{n}}",
       "refused": "Mga pagbabagong hindi tinanggap: {{n}}",
       "filesFailed": "Mga rekording na hindi dumating: {{n}}",
       "noRoom": "Naubusan ng espasyo para sa mga rekording ang teleponong ito.",
@@ -90,6 +91,11 @@
     "clockOff": "Mahigit limang minuto ang pagkakaiba ng orasan sa telepono ng isang kasamahan at sa teleponong ito. Tingnan ang petsa at oras sa parehong telepono.",
     "newerApp": "Masyadong magkalayo ang bersiyon ng app sa teleponong ito at sa telepono ng isang kasamahan para makapagbahagi. I-update ang mas lumang app mula sa store, o mula sa install file ng kabilang telepono.",
     "newerAppIphone": "Masyadong magkalayo ang bersiyon ng app sa teleponong ito at sa telepono ng isang kasamahan para makapagbahagi. I-update ang mas lumang app mula sa store.",
+    "copy": {
+      "lost": "Binura ng isang update ng app ang gawa ng team na nakuha ng teleponong ito mula sa isang kasamahan. Manatili malapit sa kasamahang nakabukas ang Ibahagi sa malapit para makuha ito ulit.",
+      "short": "Wala pa sa teleponong ito ang lahat ng gawa ng team. Manatili malapit sa kasamahang nakabukas ang Ibahagi sa malapit para makuha ang natitira.",
+      "keepVersion": "Hangga’t hindi pa nakakakonekta sa internet ang teleponong ito, huwag mag-install ng ibang bersiyon ng LangQuest dito. Mabubura ang gawa ng team na nakuha nito mula sa isang kasamahan, at kailangan itong ibigay ulit ng isang kasamahan."
+    },
     "tooOld": "Masyadong luma ang app na ito para makapagbahagi. I-update ito mula sa store.",
     "farAhead": "Malayo sa hinaharap ang petsa sa telepono ni {{name}}. Maghihintay ang kanilang gawa hanggang makarating ito sa server.",
     "olderFromServer": "Manggagaling sa server ang mas lumang gawa.",
@@ -145,8 +151,13 @@
         "noPass": "Hindi makapagpapapasok ng kahit sino ang teleponong ito. Kailangang naka-on ito sa iyong organisasyon, kailangang makapag-imbita ka ng mga tao sa wikang ito, at kailangang nakakonekta na sa internet ang teleponong ito mula noon.",
         "expired": "Paso na ang pahintulot ng teleponong ito na magpapasok ng mga tao. Kumonekta sa internet nang isang beses para i-renew ito.",
         "noRole": "Walang tungkuling maibibigay ang teleponong ito nang walang internet. Makapagbibigay ng tungkulin ang isang admin kapag nakakonekta na sa internet ang bagong tao.",
-        "wifiOff": "I-on ang Wi-Fi sa settings ng iyong telepono, saka bumalik."
+        "wifiOff": "I-on ang Wi-Fi sa settings ng iyong telepono, saka bumalik.",
+        "usedUp": "Napapasok na ng teleponong ito ang lahat ng taong kaya nito nang walang internet. Kumonekta sa internet nang isang beses para makapagpapasok pa.",
+        "copyNotReady": "Hindi pa tapos i-download ng teleponong ito ang gawa ng team, kaya hindi pa ito makapagbibigay ng kopya sa bagong tao. Kumonekta sa internet hanggang matapos ito, saka bumalik.",
+        "copyFilling": "Tumatanggap pa ang teleponong ito ng gawa ng team: {{filled, number}} sa {{total, number}} na talata. Kumonekta sa internet hanggang matapos ito, saka bumalik."
       },
+      "daysLeft": "Natitirang araw para magpapasok ng mga tao mula sa teleponong ito: {{n, number}}",
+      "renewSoon": "Kumonekta sa internet nang isang beses bago maubos ang mga ito, para patuloy na makapagpapasok ng mga tao ang teleponong ito. Hindi apektado ang mga napapasok na.",
       "role": "Ang tungkulin niya",
       "roleHelp": "Ang tungkuling makukuha ng bagong tao. Mapapalitan ito ng isang admin kapag nakakonekta na siya sa internet.",
       "asRole": "Sasali siya bilang {{role}}. Mapapalitan ito ng isang admin kapag nakakonekta na siya sa internet.",
@@ -209,6 +220,7 @@
         "refused": "Hindi sila mapapasok ng teleponong ito sa tungkuling iyon. Kumonekta sa internet nang isang beses, saka subukan ulit.",
         "dropped": "Naputol ang koneksiyon bago sila nakapasok. Gumawa ng bagong code.",
         "droppedAfter": "Nakapasok na sila, pero naputol ang koneksiyon. Matatapos ang panimulang kopya nila ng sinumang kasamahang nakabukas ang Ibahagi sa malapit.",
+        "droppedDocs": "Nakapasok na sila at puwede nang magsimulang magtrabaho, pero naputol ang koneksiyon bago dumating ang lahat. Maibibigay sa kanila ang natitira ng sinumang kasamahang nakabukas ang Ibahagi sa malapit.",
         "copyShort": "Nakapasok na sila, pero wala pang panimulang kopyang maibibigay sa kanila ang teleponong ito. Matatapos ito ng sinumang kasamahang nakabukas ang Ibahagi sa malapit.",
         "stopped": "Nawala ang code dahil umalis ka sa screen na ito. Gumawa ng bago.",
         "noCertificate": "Kailangang kumonekta muna sa internet nang isang beses ang teleponong ito bago ito makapagpapasok ng kahit sino.",

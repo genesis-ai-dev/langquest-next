@@ -65,6 +65,10 @@ export const nearbyNewcomer: Scenario = {
       whole: letIn.newcomer.copy?.whole ?? false,
       passagesFilled: letIn.newcomer.copy?.filled ?? 0,
       partsSent: letIn.inviter.copyServed.parts,
+      // 2026-11-24: the ordinary steps ran on the join's link after the copy, and what they brought.
+      exchanged: letIn.newcomer.join?.exchange ?? false,
+      eventsAfterCopy: letIn.newcomer.got.events,
+      filesAfterCopy: letIn.newcomer.files.got,
       units: Object.keys(copied.units).length,
       inviterUnits: Object.keys((await inviter.wholeState()).units).length,
       forgedInCopy: forgedUnit in copied.units

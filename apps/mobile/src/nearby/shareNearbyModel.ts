@@ -158,7 +158,7 @@ export function endedWords(how: string) {
  * nobody, and draws no line (section 8).
  */
 export function linesShown(sessions: readonly NearbySessionLine[]): NearbySessionLine[] {
-  const moved = (l: NearbySessionLine) => l.eventsIn + l.eventsOut + l.filesIn + l.filesOut + l.guideFilesIn + l.refused + l.filesFailed > 0;
+  const moved = (l: NearbySessionLine) => l.eventsIn + l.eventsOut + l.filesIn + l.filesOut + l.guideFilesIn + l.guideFilesShort + l.refused + l.filesFailed > 0;
   return sessions.filter((l) => l.profileId !== null || moved(l)).reverse();
 }
 

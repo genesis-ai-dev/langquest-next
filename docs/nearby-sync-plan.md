@@ -96,7 +96,7 @@ in the same way.
 | 14 | Must every phone hold every teammate's voice? | No. A per-phone switch on Share nearby, "Hold teammates' recordings": on by default, off by default on a disguised phone. With it off a phone takes needed files and a small window of open-for-review passages in `upNextOf` order, sheds outside that set once the server has a file or another person is known to hold it, and keeps the last known copy. Ready to carry says so. On every phone, whatever the row says, a backup goes when the server confirms it. | Sections 5.6, 5.8, 5.11 |
 | 15 | Is Share nearby offered under a disguise? | Yes, with limits. Opening the screen does nothing, with no radios and no prompts, and a press starts it. Ten minutes, an argument from JavaScript, or "Up to date" stops it, with no listening bursts. Going to the background stops it for good, and only a new press after the code restarts it. One warning before any permission prompt. `radios.joinHotspot` is false. Code goes through a `.android` seam and the words stay in `src/disguise/i18n`. | Section 5.8 |
 | 16 | How far may a revoked key's backdated events go? | 50,000 events and 100 MB per revoked key, counted one by one on the `install_keys` row, with a reason that reads as `NOT_ALLOWED`, so the row is listed with Try again. A staff function raises one row's limit. Duplicates are not counted. No closing date. | Section 6 |
-| 17 | What is a pass's id? | One id per organization, language, inviter, key and 90-day window, derived by the Worker, expiring at the window's end. | Sections 5.12, 14.1 |
+| 17 | What is a pass's id? | One id per organization, language, inviter, key and 90-day window, derived by the Worker, expiring at the window's end. (2026-11-24: in a window's last 30 days an answer holds the next window's pass too, and someone let in is accepted for 90 days from their invite link, not to the pass's end.) | Sections 5.12, 14.1 |
 | 18 | May looked-after accounts hold join passes? | Yes. | Section 14.1 |
 | 19 | Do publishers' documents and `study@2` go in a starting copy? | No, both stay out, and the allowlist fails closed. Carl may confirm terms later and widen it. (2026-11-24: Carl confirmed the terms, and both go: a phone that joined offline does what its inviter's does.) | Section 14.1 |
 | 20 | What happens to other people on a lost shared phone? | Only the named person is revoked in the first release. No third helper question. A follow-up issue goes to Caleb. The list holds pairs. | Sections 6, 13 |
@@ -265,6 +265,15 @@ true:
    a teammate's holdings entry can lead it to shed a teammate's file it chose not to keep
    (section 5.6). Its own work carries no mark, so that never goes.
 
+   A row the server wrote in a language's stream (an id only it makes) travels only as an
+   attested claim, and only when it is team work: a type this build knows whose privilege
+   is not null, never `v1.BlobStored`, `v1.BlobInvalidated`, `v1.Redacted` or
+   `v1.ExternalValueSet` (2026-11-24, review item 16). That takes in listener and
+   review-link reviews (`api-`), releases (`api-release-`) and imports from LangQuest v2
+   (`v2:`), so a reviewer back in the village sees them. A batch never carries one: a phone
+   cannot sign for the server, and the door refuses one in a batch at step 6
+   (`serverRowMayBeClaimed`, `packages/core/src/nearbyDoor.ts`).
+
 A newcomer's starting copy keeps these rules: its cursor stays at 0 until the server moves
 it (section 14).
 
@@ -381,12 +390,22 @@ eight finer steps, and "step" there means those.
    across.
 
 The sender skips rejected rows, redacted events and files only they reference, and
-server-only events. It also skips a confirmed row at or below the other's `cursor`, or a
+server-only events other than team work it may claim (section 5.1). It also skips a confirmed row at or below the other's `cursor`, or a
 phone whose language came from a server snapshot would be sent its whole unpruned log:
 adopting a snapshot writes no events and no vector. A phone can send only what is still in
-its log. Older confirmed events were pruned into its checkpoint and arrive from the server
-later. That is safe: unconfirmed events are never pruned. When it happens the sender says
-so in its last events message, and the screen says older work will come from the server.
+its log, or what its own checkpoints kept for claims: since 2026-11-24 (review item 18,
+Carl's answer) a checkpoint this phone takes of its own log moves the confirmed rows it
+drops to a side table, `nearby_claimable`, which keeps the newest 10,000 rows and at most
+16 MB of them (`NEARBY_CLAIMABLE`), so a phone back from town whose pull checkpointed as it
+went can still claim a consultant's reviews to a teammate a little behind. Claims and
+attestations read the log, then that table (`claimableAfter`), and an answer goes only once
+all its rows have. A server snapshot keeps none, since rows below it may never have been on
+the phone. Nor does a checkpoint on a phone that holds no certificate for the organization
+(`NearbyPart.claimable` is null then): it asks for no attestation, so nothing it kept could be
+claimed, and its next checkpoint empties the table. Older confirmed events still arrive from the server later. That is safe:
+unconfirmed events are never pruned. When what a sender can claim starts past what the
+other was told of, it says so in its last events message, and the screen says older work
+will come from the server.
 
 ### 5.4 Taking events in
 
@@ -683,7 +702,9 @@ through someone whose identity already was (section 14).
   met nobody who has been online stays exposed.
 - **Expiry.** Hello checks a teammate's certificate against `max(wall, last hlc)`, with no
   not-before: `HlcClock.last` never goes back, so setting the date back does not revive an
-  expired certificate, and a phone with an old date does not refuse a fresh one. Batches
+  expired certificate, and a phone with an old date does not refuse a fresh one. A newcomer
+  let in offline is accepted for 90 days from when their invite link was made, on the
+  inviter's same clock (section 5.12, Expiry). Batches
   are carried for months, so a batch's chain is checked with expiry skipped, on phones and
   at the relay, and a retired Worker key stays listed.
 
@@ -1291,7 +1312,7 @@ route, a QR code or a native callback, such as `idSalt`, a discovery key, a salt
 | core | `validate.ts` | `idAuthor`, with a parity block in `scripts/record-parity-sql.ts`, and `sameEventBytes`: every client needs both (a command mints a bound id, and a pull compares). |
 | core | `commands.ts` | `newCommandId(actorId)`, the one way to mint a `commandId` (section 5.4, Bound ids). |
 | core | `org.ts` | Export `EventPrivilege`. In phase 6, `withChainMembership` and `newcomerOrgState`. |
-| core | `nearbyDoor.ts` | `NearbyPeople`, `DoorFacts`, `peopleFromOrg`, `nearbyDoor`, `nearbyCopy` (envelope only, no `serverSeq`), `isServerEventId` with its parity block. |
+| core | `nearbyDoor.ts` | `NearbyPeople`, `DoorFacts`, `peopleFromOrg`, `nearbyDoor`, `nearbyCopy` (envelope only, no `serverSeq`), `isServerEventId` with its parity block, `serverRowMayBeClaimed` (2026-11-24). |
 | core | `nearbySend.ts` | `NearbyVector`, `parseVector`, `countBatch`, `applyFloor`, `batchRowsToSend`, `shouldClaim`. |
 | core | `nearbyHoldings.ts` | `Holdings`, `mergeHoldings`, `withMyHolding`, `copiesOf`, `parseHoldings`, `summaryText`, `nearbyGroupOf`, `wantedFilesOf`. |
 | core | `nearbySigning.ts` | The texts below, `eventDigest`, the manifest and attestation types, the opening's bytes, `utf8Encode`, since core has no `TextEncoder`, `nearbyPayloadError`, and in phase 6 the two pictures from `th`. |
@@ -1427,7 +1448,8 @@ type Message =
       linesVersion: number; deviceId: string; wallMs: number; chain: ChainLink[]; proof: string }
   | { t: 'you-first' } // the initiator, in place of its hello, under an older generation
   | { t: 'discovery-key'; gen: number; key: string } // the hand-on, one hop: a newer generation of the session's language
-  | { t: 'arrange'; summary: string; radios: { directByName: boolean; band5: boolean; hotspot: boolean; joinHotspot: boolean /* false on a disguised phone */ } }
+  | { t: 'arrange'; summary: string; radios: { directByName: boolean; band5: boolean; hotspot: boolean; joinHotspot: boolean /* false on a disguised phone */ }; soon?: boolean } // `soon` only between phones that say files-when-wanted: a starting copy is coming now (2026-11-24)
+  | { t: 'wants'; files: boolean } // after the events, only between phones that say files-when-wanted: the link that moves files comes up only if either says true (2026-11-24)
   | { t: 'host'; attempt: number /* its place in the arranged plan */; kind: 'wifi-direct' | 'hotspot' | 'bluetooth'; ssid?: string; passphrase?: string; port?: number; band?: string; security?: string }
   | { t: 'ready' }
   | { t: 'have'; orgId: string; languageId: string; cursor: number; claimedSeq: number; revokedSeq: number;
@@ -1448,9 +1470,9 @@ type Message =
   | { t: 'bye'; reason: 'done' | 'nothing' | 'busy' | 'protocol' | 'identity' | 'not-member' | 'stopped' }
   // Phase 6, with the abilities let-in and starting-copy (section 14.1):
   | { t: 'join-ask'; installKey: string; idSalt: string; profileId: string; deviceId: string; name: string; proof: string } // the newcomer, first
-  | { t: 'join-grant'; chain: ChainLink[]; proof: string; discoveryKey: string; gen: number; floor: number; features?: string[] } // the inviter, after one tap; the pass is inside the chain
-  | { t: 'copy-ask'; part: 'state' | 'rows' | 'names' | 'doc' | 'held'; stream?: string; after?: string; hash?: string } // 'held' only to a phone that says copy-library
-  | { t: 'copy-part'; part: string; stream?: string; next: string | null; body: string } // body at most 900 KiB
+  | { t: 'join-grant'; chain: ChainLink[]; proof: string; discoveryKey: string; gen: number; floor: number; features?: string[]; revoked?: { text: string; kid: string; sig: string } } // the inviter, after one tap; the pass is inside the chain; `revoked` as a `revoked` message carries it (2026-11-24)
+  | { t: 'copy-ask'; part: 'state' | 'rows' | 'names' | 'doc' | 'held' | 'labels' | 'shared'; stream?: string; after?: string; hash?: string; lang?: string } // 'held' only to a phone that says copy-library; 'labels', with `lang`, only to one that says copy-labels; 'shared' only to one that says copy-shared (2026-11-24)
+  | { t: 'copy-part'; part: string; stream?: string; next: string | null; body: string; seq?: number } // body at most 900 KiB; `seq` on a `rows` part, the sender's checkpoint (2026-11-24)
   | { t: 'copy-no'; reason: 'versions' | 'not-filled' | 'not-allowed' | 'not-here' };
 ```
 
@@ -1461,14 +1483,35 @@ ability names, and one a phone does not know is ignored. The first release says 
 `starting-copy` on the same versions, and as any member on any versions (Documents a language
 uses, below). An older phone ends the session on a `copy-ask` part it does not know, so `held`
 goes only to a phone that says `copy-library`; `NEARBY_PROTOCOL` does not change, since abilities
-grow without a new version. `library-files` (2026-11-24) says a phone sends `lib-held` and serves
-and takes library files in step 7 (Library files, below); both must say it. `wallMs` lets each side warn about a clock over 5 minutes
+grow without a new version. `copy-labels` (2026-11-24, review item 13) says a phone answers
+`copy-ask` `labels` with `lang`: the names its language's library items go by in that
+language, from what it keeps (`library-labels:<lang>`), only for the followed items its list
+uses (`labelKeysOf`), as `[key, { name, description? }]`, at most 5,000 and 2 MB. `lang` is a
+language code and nothing else, since it names a saved key. `copy-shared` (2026-11-24, review
+item 9) says a phone answers `copy-ask` `shared`: the rows of the Bibles other organizations
+share that its team reads (Documents a language uses, below). `docs-after-events` (2026-11-24,
+review P4) says a phone takes documents after the events on a link that moves no files, and
+serves the other's asks until its `done`; when both say it on the Bluetooth pipe, both do, else
+documents come before Have. `files-when-wanted` (2026-11-24, review P3) says a phone over the
+Bluetooth pipe arranges the link that moves files before the events but brings it up only after
+them, if either phone's `wants` says files should move (it lacks a recording it needs or
+reviews, a backup the other holds or a library file its kept passages need, or holds a file the
+server lacks that the other is not known to hold), or at once if either's `arrange` says `soon`
+(a starting copy is coming); holdings then go over that link. Both must say it. `library-files` (2026-11-24) says a phone sends `lib-held` and serves
+and takes library files in step 7 (Library files, below); both must say it. `join-exchange`
+(2026-11-24) says a phone on a QR link runs steps 4 to 8 after a whole starting copy; both
+must say it, since an older inviter waits for `bye` after the copy and an older newcomer sends
+it. `wallMs` lets each side warn about a clock over 5 minutes
 off and refuse to let someone in (section 14.1). A link that cannot move files leaves out
 steps 5 and 7 and the `holdings` of step 8, so it costs only events. Parse `vector`,
 `holdings` and every other map into a `Map`, using `objectMemberNameIn`, because assigning
 a `__proto__` key on a plain object sets its prototype. Cap every list by size. A QR link has
 no step 3. `join-ask`, `join-grant` and the copy come between steps 2 and 4, and so does a
-copy asked of a teammate after an ordinary Hello, and the documents any member lacks.
+copy asked of a teammate after an ordinary Hello, and the documents any member lacks. On a QR
+link where both Hellos say `join-exchange` (2026-11-24), a whole copy is followed on the same
+link by steps 4 to 8: the newcomer sends `have`, and each side says `files` and `library-files`
+in its Hello for those steps, the newcomer before the grant by what it will bring (section 14.1,
+4, The newest work).
 
 **The batch counter.** `n` is a safe integer from 1, per install key and stream, kept in its
 own row, `nearbyCount:<org>/<stream>:<key>`, so a new key after a revocation counts from 1.
@@ -1540,19 +1583,22 @@ Try again does not bring those back.
 /api/nearby/attest` to vouch for what it pulled, so `syncNow` becomes push, deliver, pull,
 attest, sweep. It checks each answer against its own rows as it arrives, so a mismatch shows
 in diagnostics while it is still online, and keeps answers in `nearby_attests`, dropped as
-`prune` passes them. It attests in `serverSeq` order and claims only up to the contiguous
+`prune` passes them, or with a checkpoint of its own once the side table lets all their rows
+go (section 5.3). It asks from the oldest row it still holds, the side table's included, so
+rows a checkpoint moved there are vouched for at the next syncs. It attests in `serverSeq` order and claims only up to the contiguous
 attested seq, so a failed page cannot push `claimedSeq` past rows the receiver never got. It
 sends only attested rows, and Ready to carry counts the rest.
 
 Claims have their own mark. `nearbyClaimed:<org>/<stream>` is the highest `serverSeq` this
 phone has been sent by claim, and Have carries it as `claimedSeq`. `shouldClaim` is true
 for a `confirmed` row with `serverSeq` above `max(them.cursor, them.claimedSeq)`, attested
-here, not server-only, not `v1.Redacted`, not `v1.ExternalValueSet`, not of an organization
+here, not server-only unless it is team work (section 5.1), not `v1.Redacted`, not `v1.ExternalValueSet`, not of an organization
 type, not redacted. Claims go in `serverSeq` order, 200 to a page or 512 KiB. Receiving a
 `claims` page verifies `sig` against `rootKeys[kid]`, checks that `orgId` and `streamId` are
 the session's, and that each event's digest and `serverSeq` are in the attestation's rows. A
 claim with no valid attestation is refused. It runs the door with `claim: true`, which is
-steps 1 to 8 and 12, skipping 9 to 11 because the server already held the event, which also
+steps 1 to 8 and 12, with step 6 letting through a server-written row that is team work,
+skipping 9 to 11 because the server already held the event, which also
 means a reviewer added after the village went offline is not refused. It commits with `via: { claim: { key, seq } }`, `key`
 being Hello's, and the new mark. A row already here is left as it is, whichever way it came,
 because any difference is a pre-restamp clock and the pull's comparison settles it. If every
@@ -1580,7 +1626,7 @@ synchronous and already a dependency of `apps/mobile`, and on the Worker it is
 | Holdings entry | `lq-nearby-holdings-v2\n` | `canonicalJson({ v: 2, orgId, streamId, key, counter, filesHash, hold })`, `hold` true when the owner's "Hold teammates' recordings" row is on, `filesHash` being the lowercase hex SHA-256 of `utf8Encode(canonicalJson(files))`, files sorted, which the receiver works out itself | The owner's install key |
 | Newcomer's id | `lq-nearby-newcomer-v1\n` | The 32 decoded key bytes, then the 16 `idSalt` bytes (section 5.12, Chains) | Hashed, not signed |
 | Session proof | `lq-nearby-proof-v1\n` | `<i or r>\n<hex of th>` | The sender's install key |
-| Chain link | `lq-nearby-link-v1\n` | `canonicalJson({ kind, kid, body, prev })`, `prev` being the link before's `sig`, or `''`. An `invite@1` link has no `kid`, which canonicalizes as absent. | The Worker, or the key the link before names |
+| Chain link | `lq-nearby-link-v1\n` | `canonicalJson({ kind, kid, body, prev })`, `prev` being the link before's `sig`, or `''`. An `invite@1` link has no `kid`, which canonicalizes as absent; its body's `madeAt`, when there is one, is signed with the rest, and a body with none signs as before. | The Worker, or the key the link before names |
 | Join pass | `lq-nearby-pass-v1\n` | `canonicalJson({ kind, kid, body })` | The Worker |
 | Pass id | `lq-nearby-passid-v1\n` | `canonicalJson({ orgId, languageId, inviter, inviterKey, window })`, of which `passId` is the first 16 bytes of the SHA-256, in lowercase hex (The server's names, below) | Hashed, not signed |
 | Certificate request | `lq-nearby-certreq-v1\n` | `canonicalJson({ profileId, deviceId, publicKey })`. No time, since field clocks are wrong and this is useless without that person's token. | The install key |
@@ -1701,7 +1747,9 @@ whole when a certificate answer arrives, never merged, so a turned-off organizat
 except that an organization whose new chain this build cannot check (the Worker's key rotated
 past it) keeps the chain it held, and its discovery keys, while that chain still checks;
 in phase 6, `nearbyPasses:<profileId>`, that person's join passes, replaced whole the same
-way, and `startingCopy:<org>/<stream>`.
+way, and `startingCopy:<org>/<stream>`; from 2026-11-24, `nearbyLetIn:<org>/<language>`, the
+ids of the people this phone let in under each of its last 8 passes (14.1, 3, Uses), gone at
+any sign-out like `nearbyPeers`.
 
 The install key is in `secureStorage`, and so is `nearbyFindKeys:<profileId>`, the discovery
 keys of whoever is signed in, one entry per language (Generations, below). At sign-out they
@@ -1742,7 +1790,8 @@ interface JoinPass {
 interface InviteLink { // issued from phase 6; checked from phase 2
   kind: 'invite@1';
   body: { pass: JoinPass; installKey: string; idSalt: string; profileId: string; deviceId: string; name: string;
-          roleId: string; privileges: Privilege[] };
+          roleId: string; privileges: Privilege[];
+          madeAt?: number }; // ms, the inviter's Hello clock at the tap; from 2026-11-24, absent before
   sig: string; // by the installKey the link before names
 }
 type ChainLink = WorkerLink | InviteLink;
@@ -1774,8 +1823,10 @@ from the invite link's privileges at language scope, with the first link's `orgS
   `profileId`. Its chosen `roleId` is in `pass.roles` with the same privileges, none of
   them in core's `MANAGE_PRIVILEGES`. The link before holds `invite_members` and every one
   of those privileges in that language. That is `mayGrantRole`'s rule on signed
-  privileges, so it works with a stale fold. Uses are counted only by the server at first
-  contact.
+  privileges, so it works with a stale fold. Uses are counted by the server at first
+  contact, and by the inviter's phone, the pass's only user, before each grant (14.1, 1,
+  2026-11-24): a teammate cannot count them, and keeps at most `maxUses` newcomers' keys
+  under one pass.
 - **A newcomer's id follows from their key.** A newcomer who chose their own `profileId`
   could name an admin, or an imported v2 person who has not signed in yet, and the inviter's
   tap shows only a typed name. So an `invite@1` link's `profileId` must equal
@@ -1794,10 +1845,23 @@ from the invite link's privileges at language scope, with the first link's `orgS
   shared phone is not refused because of one person's lost phone (section 6). The list's
   highest `seq` wins, and an entry drops a year after `revokedAtMs`, when Hello's expiry
   covers it.
-- **Expiry.** With `now` a number, the `worker@1` link and the pass must not be past
-  `expiresAt`. Hello passes `max(wall, last hlc)`. Nothing has a not-before. Every batch's
-  chain and the relay pass `now: null`: batches are carried for months, and for the relay
-  the `install_keys` row is the truth.
+- **Expiry.** With `now` a number, the `worker@1` link must not be past `expiresAt`. Hello
+  passes `max(wall, last hlc)`. Nothing has a not-before. Every batch's chain and the relay
+  pass `now: null`: batches are carried for months, and for the relay the `install_keys` row
+  is the truth. A newcomer's life is counted from their link, not from the pass's window
+  (Carl, 2026-11-24, decision 240 as amended): every pass expires at its 90-day window's
+  end, the same date for every pass, so a newcomer let in the day before was refused by
+  every teammate the day after. The inviter's phone signs `madeAt`, its Hello clock at the
+  tap, into the link, and a link with `madeAt` must not have been made past the pass's
+  `expiresAt`, whatever `now` is (so `now: null` refuses it too), and with `now` a number,
+  `now` must be within `NEARBY_NEWCOMER_MS` (90 days) of `madeAt`. Every newcomer gets the
+  same 90 days, and an inviter whose clock runs ahead can give at most 90 days past the
+  pass's expiry. `madeAt` is optional rather than a new link kind, because a phone on an
+  older build reads the signed body whole and still accepts the newcomer, until the pass
+  expires, where it would refuse a kind it does not know; a link with none, from an older
+  inviter, is held to the pass's `expiresAt`, as before. The server applies the same rule at
+  first contact (`pass_refusal(pass, role, madeAt)`, section 14.1). A refusal is `pass
+  expired` either way, which field diagnostics record as `pass-expired` (section 15.8).
 - **Which door answer it gives.** `peopleWithChains(org, verdicts, orgSeqHere, revoked)` wraps
   a `NearbyPeople` and takes the `OrgState`, because it must tell no entry from a removed
   one. `orgSeqHere` is `max(store.cursor, the organization checkpoint's serverSeq)` on every
@@ -2189,6 +2253,7 @@ function choosePartner(me: { tag: string; summary: string }, inRange: {
   older: boolean; // heard under a generation below this phone's newest, so it cannot hear this phone
   listed: boolean; // its key is on the revocation list
   dueAnyway: boolean; // from the room's own timer, so this stays pure
+  docsAgain?: boolean; // its last session here ended docsAgain (14.1, review item 15)
 }[]): { partner: string; connect: boolean } | null;
 ```
 
@@ -2198,7 +2263,9 @@ not keep picking the same teammate, and a session that cut backups records none,
 pair can go on later. It drops one with an equal summary and nothing to swap either way,
 unless `dueAnyway` says the two have not exchanged for a set time, which overrides only
 this rule, because it rests on what others claim. That gives each pair at most one extra
-session, so five phones need 10 pairings at worst, not 6, and only after the wait. It
+session, so five phones need 10 pairings at worst, not 6, and only after the wait. A phone
+whose last session with it ended `docsAgain` keeps it whatever the summaries and `finished`
+say, a set number of times a run (14.1, Again after the events). It
 prefers one never met, then the lowest `position`, then the lowest tag. `connect` is
 `echoed && (older || me.tag < partner)`, and the other side waits with a time-out from
 JavaScript, then calls it again with connecting allowed. A phone that answers `busy`, or gives no
@@ -2350,7 +2417,13 @@ to disk only, so a walk over FIA's 1,525 English guides (65 MB) never holds them
   and one on the list that this phone lacks gets `not-here`. Otherwise it answers `copy-part` with a
   slice of the canonical text, `after` and `next` being character offsets in decimal, and drops the
   text once its last part has gone. So no other document leaves a phone, whatever hash is asked
-  for: not another language's template, and nothing the language does not use.
+  for: not another language's template, and nothing the language does not use. Besides the
+  list it serves, and says it holds, the older versions of the items on it (2026-11-24, review
+  item 17): those the organization's library records (`olderVersionsOf`, at most four an item),
+  and the documents this language's earlier lists named on this phone, which it keeps naming in
+  `nearbyListed:<org>/<language>` (at most 2,000, newest first, noted from every walk), since a
+  followed item records only its newest pin. So a teammate whose organization data is behind
+  still gets the version of a guide its own data names. Both are this language's own.
 - **The taker's check** (`takeLibraryDocs`). It works out the same list from its own state (a
   newcomer's from the adopted copy), and asks nothing when it lacks nothing. Of a phone that says
   `copy-library` it asks `held` once (at most `COPY_HELD_MAX_CHARS`) and then only for those;
@@ -2364,6 +2437,23 @@ to disk only, so a walk over FIA's 1,525 English guides (65 MB) never holds them
   documents and `COPY_DOCS_MAX_CHARS` (128 MB), so a forged collection cannot fill a newcomer's
   disk, and over the Bluetooth pipe a member's session takes `NEARBY_TOP_UP_PIPE_CHARS` (256 KB)
   and leaves the rest for the next, so events are not held up.
+- **Several at once** (2026-11-24, review P5). A phone keeps up to three asks out (`copyAsker`), and
+  every build answers them in the order they came, so no message changes: a newcomer's fill takes
+  up to 16 passages a page, three in flight, kept in one commit (a page cut short keeps the
+  passages that came in order before the failure, and the next page meets it), and over a link
+  that moves files the first parts of the next two documents are asked ahead, the rest of each in
+  its turn. Heads are kept on disk beside the documents (`heads-nearby<NEARBY_HEAD_VERSION>.json`),
+  so the first walk after a launch reads one file; documents are hashed by the phone's native
+  hash, a teammate's text is checked once, and a sent text by its hash alone (review P6).
+- **Over the Bluetooth pipe** (2026-11-24, review P4). When both phones say `docs-after-events`,
+  a member's documents come after the events, not before Have, so a slow link moves the work
+  first and an event that names a document in the same session is covered. The session's first
+  document may be as long as any (so a large one still comes in time); each one after it only
+  within what is left of the share, the rest waiting for the next session. `held` counts against
+  the share, and over the pipe is asked only when a phone lacks more than `HELD_WORTH_ASKING` (16)
+  documents; fewer are asked one by one, so a phone lacking a handful no teammate holds is not
+  sent the whole list every session. A phone that finishes first serves the other's asks while
+  it waits for its `done`.
 - **Any member** (2026-11-24). Every phone passes `library` to its sessions, Share nearby and
   while LangQuest is open, on Android and iPhone: it says `copy-library`, serves `held` and `doc`
   from its own state on any versions to whoever passed its read gate, and, after Hello as a copy
@@ -2371,6 +2461,52 @@ to disk only, so a walk over FIA's 1,525 English guides (65 MB) never holds them
   came short, or a guide one teammate read online, reaches the rest. While one phone asks, it
   answers the other's asks, so two phones asking at once both go on. Phones whose summaries are
   equal do not meet for documents alone: they come with the next exchange.
+- **Again after the events** (2026-11-24, review item 15). Documents are asked for before Have,
+  from the state as it was, so an event in the session can name a template, flow, book names or
+  material no ask covered. Once the events are in, a phone works out what it lacks again
+  (`docsLackingOf`); when that names a document the walk before them did not, or the top-up or copy
+  stopped at a bound, the session reports `docsAgain` and records no partner line. The summaries
+  cannot say so, and the other phone counts the pair finished, so the room of the phone that
+  reported it keeps that teammate worth a session (`PartnerInRange.docsAgain`), though the
+  summary it hears is one from before, and meets it again in the same run, after the usual wait
+  for the other to connect: that session asks for the rest, and then for their files. A run does
+  this at most `docsAgainMax` (3) times with one teammate, so a pair whose documents never settle
+  does not meet for ever. A later run meets the pair for documents only with new work or once
+  it is due (`dueAfterMs`), and a phone that stops at "Up to date" (a disguised one) may be gone
+  before the second session. Over the pipe between phones that say `docs-after-events` the
+  documents come after the events, so an event in the session that names one is covered then.
+- **A gap per teammate** (2026-11-24, review P3). A room meets a teammate it finished with less
+  than `partnerGapMs` (2.5 minutes) ago only when files wait either way (`hasWhatIWant`,
+  `wantsWhatIHave`) or documents do (`docsAgain`): a review mark alone waits. The room's summary
+  is worked out again only after a write (`SyncClient.writeStamp`) or a minute, and each find tag
+  once per key and generation (review P1).
+- **Names in the app's language** (2026-11-24, review item 13). Between phones that say
+  `copy-labels`, a member's top-up and a newcomer's copy also ask `labels` for the app's language
+  (`takeLabels`): the names other organizations give the followed items the language uses, from
+  what the sender keeps (`library-labels:<lang>`), filtered by the sender to its list's items
+  (`labelKeysOf`). A phone asks only while what it keeps there came from no server read
+  (`library-labels-teammate:<lang>` marks a teammate's), only for keys it lacks, and keeps none
+  over what it has. English asks for none. The server's next read replaces the set whole. A store
+  that cannot read or keep them gives none and tells the app (`NearbyLabels.failed`, noted as an
+  expected error, `nearby: labels`), and the session or copy goes on, as the names step does; a
+  sender holds one language's names at a time.
+- **Shared Bibles** (2026-11-24, review item 9; Carl: shared Bibles travel). A team whose
+  language recommends no Bible reads other organizations' shared ones, from the list a phone
+  keeps of what others share (`library-shared:material`). The list of documents a language uses
+  takes, after what the language names and before the offered guides, the shared Bibles the app
+  lists (`NearbyShared.hashes`: other organizations' `source@1` in the team's languages, and any
+  whose document is not here to tell) and their books; a phone under a cover takes none. Between
+  phones that say `copy-shared`, a member's top-up and a newcomer's copy first ask `shared`
+  (`takeShared`): the rows behind them, at most 200 and 512 KB, each a row of material naming a
+  document by hash. A phone keeps them only while its list came from no server read
+  (`library-shared-teammate:material` marks a teammate's; asked again just before it writes), and
+  only rows for items it has none for, never its own organization's, at most 200 in all; the
+  server's next read replaces the list and clears the mark. Below a shared Bible the walk follows
+  only its books, numbering and timings, at most `SHARED_DOCS_MAX` (2,000) documents, and a row
+  whose document came and is no Bible in the team's languages is dropped (security review,
+  2026-11-24). A teammate's document waits while the phone is short of the room it keeps for
+  recording. A store that cannot read or keep them gives none and tells the app (`nearby: shared
+  bibles`), and the session goes on.
 
 **Library files** (2026-11-24, docs/decisions/2026-11-24-library-files-move-between-teammates-as-reference-files.md).
 The files the documents on a language's list name go in step 7 as wanted files, never in the
@@ -2384,7 +2520,11 @@ starting copy, which comes before the person is set and partly over Bluetooth.
   carried build's file. A source book's (`sourceBook@1`) chapter audio by hash, as `kind: 'source'`,
   but taken only for chapters this phone's kept passages want and lack (`sourceAudioWanted`, from
   the sources' pass), within the sources' 1 GB share: never a stream-only source's, and never
-  Bible Brain's. The pass indexes such a chapter offline too.
+  Bible Brain's. The pass indexes such a chapter offline too. The BSB's chapters are named by
+  hash once `npm run library:bsb-audio` has hashed each MP3 (`library/bsb-audio.json`, which the
+  seed reads); a chapter a phone downloaded by its address moves to its hash's entry and is
+  recorded as the library's (2026-11-24, review item 19). Audio the web guide editor recorded as
+  webm counts where a document names audio, never as a picture (item 21).
 - **Named by address** (FIA's). `libraryLinksOf`, in the same heads: the https addresses of
   audio and pictures a guide names, as the app takes them along for a passage kept offline
   (`studyUrls`), never a film. A phone keeps them by address in its study folder
@@ -2396,9 +2536,12 @@ starting copy, which comes before the person is set and partly over Bluetooth.
   needs lasts. Each is at most 8 MB, all of them not yet fetched again stay within that spare
   room, needed or not, and only bytes that begin as a picture or audio of the address's kind are
   kept (security review, 2026-11-24). The address is written down before the file takes its
-  name. Each address is written down (`study-files:nearby`), and once online the phone
-  fetches each again from its address, replacing the teammate's word; one its source refuses
-  goes.
+  name. Each address is written down (`study-files:nearby`). What kept passages need has a room
+  of its own besides the spare room, `STUDY_LINK_NEEDED_BYTES` (512 MB), and both are worked out
+  each session from the files here, so one the folder's clearing deleted no longer counts (review
+  items 22 and 23). Once online the phone fetches again from its address each one a kept passage
+  needs, replacing the teammate's word, and lets the rest go once the wish list is whole (P12);
+  one its source refuses goes.
 - **Saying what is held.** When both Hellos name `library-files`, step 7 opens with each phone
   sending `lib-held`: the hashes of `libraryFilesNamed(library)` that its file moves say it
   holds (`reference.held`), sorted, at most `NEARBY_HOLDINGS_MESSAGE_FILES` a message and
@@ -2407,9 +2550,10 @@ starting copy, which comes before the person is set and partly over Bluetooth.
   files came from (`LibraryFileOrigins`, below).
 - **Asking.** After needed and review recordings and before backups, it asks with `file-ask`
   for those it lacks that the other holds, as group `reference` (the native hash check holds),
-  then those named by address, as group `link`; a source's chapters last, after backups. A phone
-  under a cover (decision 171) takes only what its kept passages need: no team guide file, and
-  only the FIA files and source chapters its kept passages want.
+  then those named by address, as group `link`; a source's chapters last, after backups. Of a
+  team's guide files, those its kept passages' guides name come first (`guideFilesWanted`, review
+  item 20). A phone under a cover (decision 171) takes only what its kept passages need: their
+  guide files, FIA files and source chapters.
 - **Serving.** A `file-ask` the language's recordings do not name falls through to a library
   file its documents name, in the format they say, only while it is here, is in the record of
   where library files came from, is not a teammate's recording marked here, and no `audio` row in
@@ -2420,16 +2564,34 @@ starting copy, which comes before the person is set and partly over Bluetooth.
   downloaded with its hash checked, and a library file taken from a teammate. A redacted
   recording, another language's unsent one, or Bible Brain's audio never enters it, so a document
   naming one never makes a phone pass it on.
-- **Landing.** With no nearby mark: nothing nearby deletes it, no holdings entry counts it, and it
-  never makes room by deleting. With less free than every file keeps, it waits and the rest go on.
+- **Landing.** With no nearby mark: no holdings entry counts it, and it never makes room by
+  deleting. With less free than every file keeps, it waits and the rest go on, and the session
+  says how many waited (`libraryFiles.short`; Share nearby: "Guide pictures and audio that did
+  not fit"). Library files no kept passage of any language on the phone needs
+  (`libraryFilesKept`: kept passages' guide files, as each language last listed them whole, and
+  every source chapter the sources keep) are spare: a teammate's comes only within
+  `LIBRARY_SPARE_BYTES` (256 MB) of them, and when the phone is short of room they go after level
+  1 and before teammates' recordings (review item 24). A phone that cannot say treats none as
+  spare.
+- **Ahead of time** (review item 20). A team's own guide's files, named by hash, are fetched for
+  kept passages while online (`study/guideFilesAhead.ts`), counted among the passage's study files
+  so it is not called ready without them, and an open guide shows a picture or plays audio that
+  arrives without being reopened (item 25).
 - **Report.** `report.libraryFiles`: how many this phone said it holds, how many of the other's it
   could use, and how many it got and served. Field diagnostics record them (`libHeld`, `libTheirs`,
   `libGot`, `libServed`), and the documents a session topped up (`docsKept` and the rest).
 - **On screen** (2026-11-24). Share nearby counts what came, apart from recordings, only when any
-  did: "Guide pictures and audio received" (`guideFilesIn`). Since a starting copy carries none,
-  Let someone in once the person is in (`letInGuideFilesLine`), and the new phone's progress
-  screen from the grant on (`joinGuideFilesLine`), each say in one line that guide pictures and
-  audio come the first time the new person uses Share nearby with a teammate over Wi-Fi.
+  did: "Guide pictures and audio received" (`guideFilesIn`). A starting copy carries none, but
+  since 2026-11-24 the join's link brings them after a whole copy when both phones run a build
+  from then (`join-exchange`, `library-files`). So Let someone in once the person is in
+  (`letInGuideFilesLine`), and the new phone's progress screen once the copy is left to finish
+  or whole (`joinGuideFilesLine`), each say in one line that guide pictures and audio come the
+  first time the new person uses Share nearby with a teammate over Wi-Fi, only when none came on
+  the link: the session did not end done, or its library files step moved none
+  (`letInGuideFilesWent`, `joinGuideFilesCame`). While the copy comes the progress screen says
+  nothing of them, since they may yet come on the link. When some came, neither says anything:
+  any the inviter's phone did not hold come in a later session, as for everyone (review of
+  2026-11-24, item 2).
 
 **Where the readers disagreed, and what was decided.**
 
@@ -3107,8 +3269,8 @@ export, and Maestro cannot run radios. New tests go where `docs/testing.md` says
 | Layer | What |
 | --- | --- |
 | Property (`packages/core`, `packages/sync`) | Any split of events among phones, any sequence of pairwise exchanges with drops, then any order of reaching the server: every phone ends equal to the server's fold. In `nearbyConverges.test.ts`, an async property, with fresh stores and `FakeServer` each run. Until phase 4, a lost phone's scenarios assert only that survivors hold the work and agree, since only the author can push. From phase 4: after a full round of exchanges, any one phone with "Hold teammates' recordings" on, alone reaching the server, leaves the server with every event and file, for authors within their budget. Runs also generate phones with the row off: any phone reaching the server still leaves it with every event, a file reaches the server once any phone holding it does, and no two phones with the row off shed the last copy between them. Merging holdings is commutative, associative and idempotent, and hostile keys do not change it. A vector entry never counts a batch this phone neither holds whole nor could get from the server, against a hostile sender too: a hostile `have`, an empty or subset replay of a real manifest, a certificate naming someone else's device and a signer with a huge `n` change no other signer's entry, and an honest phone relaying part of a batch closes it for nobody. |
-| Unit | Every trap in section 5.4. The door against hostile input over mangled fixtures: `__proto__` names, reserved ids, oversized payloads, depth, NUL, lone surrogates, server-only types, `v1.Redacted`, `v1.ExternalValueSet`, a bad clock, the wrong stream. It returns a refusal or null and never throws. Batches: forged, tampered, a subset still checks, the wrong key or author, a manifest with no events counts only when every id is already here. A number stays open while any id is missing, a digest mismatch never closes an id, a floor moves only its signer's mark, and ranges past their cap record nothing new. A restamp clears `via` and signs again in a later batch. A retry refusal leaves the number open. A manifest goes once no row needs it, and each signer's newest stays. Bound ids: another author's `by:` id or entity id is refused, an old unbound id behaves as today, every `Commands` method's result can be signed, and a pull cannot replace a pending bound row with another actor's event. Claims: one with no attestation or a digest not in it is refused, a door refusal at steps 9 to 11 cannot happen, and a row already here stays. Budget: a claim flood naming Sam does not stop Sam's batches, unknown types count, a `REDUCER_VERSION` re-run refuses no counted row, and the number stays open over budget and closes after settling. Revocation: a listed pair is refused at Hello, its earlier events pass and later ones are refused one by one, a newer list marks rows already taken, and another person on that key is not refused. The opening: golden vectors for both sides, no byte position constant across sessions, and random bytes, a wrong key, a replay, a reflection and a silent connection all drawing zero bytes and the same close, with rotation not held off. Find: a fake radio fails if a mask repeats under one salt, equal summaries compare equal under two salts, a recording draws no connection and no row on screen, and the slot changes at the same rate with or without a replay. Generations: a golden vector for the hash, a chain made from its far end agrees with core at any `g`, and a phone scans from its newest down to `floor` and no further than 16. A phone ahead hears a phone behind, is echoed through a salt no key matched, connects whatever the tags say, and sends `you-first`. A lure with no valid chain gets no name from it, and a chain this phone's fold has seen removed draws `bye`. The hand-on goes only from a `direct` entry whose `orgSeqHere` has reached the certificate's `orgSeq`, only after the other's `arrange`, and never from a key got by hand-on. `handedKeyHolds` refuses a wrong key, a lower `gen`, a jump over 1,000 and the wrong length, and a refusal ends nothing. A hand-on leaves `floor` alone, and a certificate answer moves it. Radios: a disguised phone opening the screen starts nothing and asks nothing, and a press starts it; a lock clears the press, a typed code is still refused, and a new press is allowed; a resume, focus and the continuation after a prompt all ask the gate; it stops at `runLimitMs` even during a session, and at "Up to date" with no bursts, and both latch; the warning comes before any prompt; `arrange` says `joinHotspot: false` and it may still host, and two such phones stay on Bluetooth with audio waiting. An undisguised phone resumes, a waiter outlasts a long swap, a stranger's connection does not extend the idle clock, waking does not restart the radios, and a latecomer is found after Look again. Golden vectors for each signing text. Store contract for `nearby` on both stores: excluded from pending queries, included in the fold, never pruned, `receive` never overwrites, `dropNearby` removes only nearby rows, a confirm clears `via`, the same id on another stream. Freeing space (section 5.6): an unmarked file is never deleted, a backup goes only once level 1 cannot free enough, a file open for review goes after every backup, the 2 GB cap alone deletes no nearby file, one pass does not over-delete, a confirmed backup goes at once with the row on or off, a confirmed file open for review falls to level 1, a confirmed needed file stays, a marked file no reference names goes first. The list and `upNextOf` agree on what is open for review. Hold teammates' recordings (section 5.6): with nothing written the row is on, and off when `worn`, and a pressed choice stays whatever the disguise does. Off, only needed files and the window are wanted, the window follows `upNextOf`'s order and holds to its size, and no backup is asked for. `nearbyShedOf` sheds a file the server has, or one held by another person with a lower key, and keeps a last known copy; another install of the signed-in person does not count; two phones with the row off cannot both shed one file; an unmarked file never goes, and neither does a file in the wanted set. Ready to carry says so. Teams (section 5.11): with the row on, every unconfirmed file is wanted and a confirmed one is not, level 1 gives way for a nearby file, the fewest copies are fetched first and the most copies deleted first, the time limit cuts only backups, only one of two phones connects, and two phones that finished unchanged do not reconnect. Holdings: a forged entry, a wrong key and an unknown chain are dropped alone, a counter near the top of the safe range pins nothing, and 50 chains from one person add one copy. A `not-member` bye does not make a phone pick the same teammate again. Chains (section 5.5): one link and two links are accepted, and an unknown link kind, an unknown `kid`, an expired pass, a wrong organization, a role the inviter could not grant, a role with a manage privilege, an id that does not derive from the key and a self-link are refused; `now: null` skips expiry. A removed entry refuses a two-link chain, a live one answers from the fold, a removed or demoted inviter or a retired role refuses at or above `orgSeq` and not below, and on a starting copy the fold beats an older one-link chain. A person in two organizations: no `hello`, `batch` or `join-grant` for one holds the other's id. Hello picks the newest protocol both speak. |
-| Joining (phase 6) | Any starting copy, any exchanges, then first contact with the server: the phone ends equal to the server's fold, with every pending event pushed under the newcomer's id. A forged starting copy does not survive first contact, whether or not the server has a snapshot. `docsThisLanguageUses`: a language's template, its template history, its flow and its book names are on the list, and a template's numbering follows. A recommended, linked or helping `material@1` is on it whether the organization owns, copied or follows it, and FIA's key words with it. Every `LibraryDoc` format may go; a format made up for the test, and a document a build cannot read through, are refused and not walked. A guide the wider library offers is on it, after what the language names; another kind of document it offers is not, nor a guide the language hid or an archived one. An item the language hid, or an archived recommendation, is not on it, and an archived help is. Another language's template is not. A sender answers `not-allowed` to any hash off the list, `not-here` to one it lacks, serves the rest in parts, and answers `held` with only what it holds of the list. A taker asks `held` once of a phone that says `copy-library` and then only those, asks each hash of an older phone, asks nothing when it lacks nothing, stops at 5,000 documents or 128 MB, and over the Bluetooth pipe at its share. Two members asking each other at once both finish and the session ends `done`; a phone that serves no documents is asked none. A taker's `keep` refuses a text that does not hash to its name, a failed `validateDoc` and a format off the table, even from a teammate who sent it. A teammate's guide goes to disk only, and a walk reads heads, never documents. Library files: a guide's audio and the phone's copy of each picture count, a film, a format that is not audio or a picture, a name that is not a hash and an address-only file do not; each phone says what it holds and asks for the rest before backups and not as recordings; a guide that names a recording's hash moves nothing as a library file; a phone that cannot take them is sent no `lib-held`; the Bluetooth pipe has no files step; one lands unmarked, counts for no one and makes no room; `keptIdsAnywhere` answers across organizations and streams on both stores. FIA's addresses: only https audio and pictures count, never a film, an install file or another scheme; a phone takes one on its teammate's word under the address's SHA-256, which is all `lib-held` says; one with no study folder lists none and is asked for none; the folder takes what a kept passage needs first and the rest while its spare room lasts, never with the phone short of room, never under another address's staging name, and online fetches each again, dropping one its source refuses. A pass: every answer in a window gives the same `passId`, a new key or window gives a new one, `expiresAt` is the window's end, a golden vector holds it, and a first use's row holds the fields section 14.1 lists. A looked-after account holds a pass, and a helper's code with `lost` then stops it at the join route and the relay. The join route is safe to repeat, and refuses a pass past expiry or uses, one from an inviter who lost Invite or that role, a retired role, a role raised to a manage privilege, a revoked inviter's key, an organization turned off, and a key that does not match, and a refused join leaves no `auth.users` row unless one existed before the call. A chain naming an imported person's id, a v2 id not yet imported, another newcomer's id, a shared phone's other person or an upper-case id is refused, and none makes an account. A role widened with no manage privilege still redeems. A repeat by someone already in still answers the organization after the uses run out, the flag goes off or the key is revoked, a retry after `createUser` with no key row recovers, and a refused first use leaves no `v1.InviteIssued`. Key sign-in stops at the key's first session: a certified key on an ordinary account gets no session, no redemption and no `v1.MemberAdded`, nor does another person on a shared key; a revoked row gets no session; a lost reply retried hours later succeeds; sign-in is refused after the certificate call and after a helper's code on another phone; and a chain person's old batch still passes after their first session. A pass cannot be reached by a token: `redeem_invite_v2` and `preview_invite` refuse tokens built from a pass's fields, `issue_invite_v3` refuses a `pass:` hash, and neither new function is callable by an API role. A second newcomer with another role gets that role. A QR holder who is refused, or never tapped, ends with no pass, chain, discovery key, inviter device id, copy part or event, and nothing sent before the tap holds any of them. A second phone is refused and the inviter told. A copy from a sender in two organizations with organization-level Invite and a pending join request holds only this organization's live members, and only this language. A starting copy moves only between phones on the same reducer and lines versions, and a mismatch names the file needed. A merge that changes those versions, the protocol range or the Android fingerprint makes a carried build, and `play-review.mjs` never promotes one. |
+| Unit | Every trap in section 5.4. The door against hostile input over mangled fixtures: `__proto__` names, reserved ids, oversized payloads, depth, NUL, lone surrogates, server-only types, `v1.Redacted`, `v1.ExternalValueSet`, a bad clock, the wrong stream. It returns a refusal or null and never throws. Batches: forged, tampered, a subset still checks, the wrong key or author, a manifest with no events counts only when every id is already here. A number stays open while any id is missing, a digest mismatch never closes an id, a floor moves only its signer's mark, and ranges past their cap record nothing new. A restamp clears `via` and signs again in a later batch. A retry refusal leaves the number open. A manifest goes once no row needs it, and each signer's newest stays. Bound ids: another author's `by:` id or entity id is refused, an old unbound id behaves as today, every `Commands` method's result can be signed, and a pull cannot replace a pending bound row with another actor's event. Claims: one with no attestation or a digest not in it is refused, a door refusal at steps 9 to 11 cannot happen, and a row already here stays. A listener's review, a release and a v2 import the server wrote pass as claims and are refused in a batch; a file's record, a redaction and a server row of a type this build does not know are refused either way (review item 16). A checkpoint of a phone's own keeps the rows it drops for claims, newest first within 10,000 rows and 16 MB, read after the log, an id in both read once, an answer dropped only once all its rows have gone, and a server snapshot, or a phone without a certificate, keeps none; a teammate a little behind is claimed what the checkpoint pruned (review item 18). Budget: a claim flood naming Sam does not stop Sam's batches, unknown types count, a `REDUCER_VERSION` re-run refuses no counted row, and the number stays open over budget and closes after settling. Revocation: a listed pair is refused at Hello, its earlier events pass and later ones are refused one by one, a newer list marks rows already taken, and another person on that key is not refused. The opening: golden vectors for both sides, no byte position constant across sessions, and random bytes, a wrong key, a replay, a reflection and a silent connection all drawing zero bytes and the same close, with rotation not held off. Find: a fake radio fails if a mask repeats under one salt, equal summaries compare equal under two salts, a recording draws no connection and no row on screen, and the slot changes at the same rate with or without a replay. Generations: a golden vector for the hash, a chain made from its far end agrees with core at any `g`, and a phone scans from its newest down to `floor` and no further than 16. A phone ahead hears a phone behind, is echoed through a salt no key matched, connects whatever the tags say, and sends `you-first`. A lure with no valid chain gets no name from it, and a chain this phone's fold has seen removed draws `bye`. The hand-on goes only from a `direct` entry whose `orgSeqHere` has reached the certificate's `orgSeq`, only after the other's `arrange`, and never from a key got by hand-on. `handedKeyHolds` refuses a wrong key, a lower `gen`, a jump over 1,000 and the wrong length, and a refusal ends nothing. A hand-on leaves `floor` alone, and a certificate answer moves it. Radios: a disguised phone opening the screen starts nothing and asks nothing, and a press starts it; a lock clears the press, a typed code is still refused, and a new press is allowed; a resume, focus and the continuation after a prompt all ask the gate; it stops at `runLimitMs` even during a session, and at "Up to date" with no bursts, and both latch; the warning comes before any prompt; `arrange` says `joinHotspot: false` and it may still host, and two such phones stay on Bluetooth with audio waiting. An undisguised phone resumes, a waiter outlasts a long swap, a stranger's connection does not extend the idle clock, waking does not restart the radios, and a latecomer is found after Look again. Golden vectors for each signing text. Store contract for `nearby` on both stores: excluded from pending queries, included in the fold, never pruned, `receive` never overwrites, `dropNearby` removes only nearby rows, a confirm clears `via`, the same id on another stream. Freeing space (section 5.6): an unmarked file is never deleted, a backup goes only once level 1 cannot free enough, a file open for review goes after every backup, the 2 GB cap alone deletes no nearby file, one pass does not over-delete, a confirmed backup goes at once with the row on or off, a confirmed file open for review falls to level 1, a confirmed needed file stays, a marked file no reference names goes first. The list and `upNextOf` agree on what is open for review. Hold teammates' recordings (section 5.6): with nothing written the row is on, and off when `worn`, and a pressed choice stays whatever the disguise does. Off, only needed files and the window are wanted, the window follows `upNextOf`'s order and holds to its size, and no backup is asked for. `nearbyShedOf` sheds a file the server has, or one held by another person with a lower key, and keeps a last known copy; another install of the signed-in person does not count; two phones with the row off cannot both shed one file; an unmarked file never goes, and neither does a file in the wanted set. Ready to carry says so. Teams (section 5.11): with the row on, every unconfirmed file is wanted and a confirmed one is not, level 1 gives way for a nearby file, the fewest copies are fetched first and the most copies deleted first, the time limit cuts only backups, only one of two phones connects, and two phones that finished unchanged do not reconnect, unless one's session ended `docsAgain`, when its room meets the other again that run and takes the document, at most three times (review item 15). Holdings: a forged entry, a wrong key and an unknown chain are dropped alone, a counter near the top of the safe range pins nothing, and 50 chains from one person add one copy. A `not-member` bye does not make a phone pick the same teammate again. Chains (section 5.5): one link and two links are accepted, and an unknown link kind, an unknown `kid`, an expired pass (a link with `madeAt` lasts 90 days from it, past the pass's expiry, and one made past the pass's expiry is refused even with `now: null`), a wrong organization, a role the inviter could not grant, a role with a manage privilege, an id that does not derive from the key and a self-link are refused; `now: null` skips expiry. A removed entry refuses a two-link chain, a live one answers from the fold, a removed or demoted inviter or a retired role refuses at or above `orgSeq` and not below, and on a starting copy the fold beats an older one-link chain. A person in two organizations: no `hello`, `batch` or `join-grant` for one holds the other's id. Hello picks the newest protocol both speak. |
+| Joining (phase 6) | Any starting copy, any exchanges, then first contact with the server: the phone ends equal to the server's fold, with every pending event pushed under the newcomer's id. A forged starting copy does not survive first contact, whether or not the server has a snapshot. `docsThisLanguageUses`: a language's template, its template history, its flow and its book names are on the list, and a template's numbering follows. A recommended, linked or helping `material@1` is on it whether the organization owns, copied or follows it, and FIA's key words with it. Every `LibraryDoc` format may go; a format made up for the test, and a document a build cannot read through, are refused and not walked. A guide the wider library offers is on it, after what the language names; another kind of document it offers is not, nor a guide the language hid or an archived one. An item the language hid, or an archived recommendation, is not on it, and an archived help is. Another language's template is not. A sender answers `not-allowed` to any hash off the list, `not-here` to one it lacks, serves the rest in parts, and answers `held` with only what it holds of the list. A taker asks `held` once of a phone that says `copy-library` and then only those, asks each hash of an older phone, asks nothing when it lacks nothing, stops at 5,000 documents or 128 MB, and over the Bluetooth pipe at its share. Two members asking each other at once both finish and the session ends `done`; a phone that serves no documents is asked none. A taker's `keep` refuses a text that does not hash to its name, a failed `validateDoc` and a format off the table, even from a teammate who sent it. A teammate's guide goes to disk only, and a walk reads heads, never documents. Library files: a guide's audio and the phone's copy of each picture count, a film, a format that is not audio or a picture, a name that is not a hash and an address-only file do not; each phone says what it holds and asks for the rest before backups and not as recordings; a guide that names a recording's hash moves nothing as a library file; a phone that cannot take them is sent no `lib-held`; the Bluetooth pipe has no files step; one lands unmarked, counts for no one and makes no room; `keptIdsAnywhere` answers across organizations and streams on both stores. FIA's addresses: only https audio and pictures count, never a film, an install file or another scheme; a phone takes one on its teammate's word under the address's SHA-256, which is all `lib-held` says; one with no study folder lists none and is asked for none; the folder takes what a kept passage needs first and the rest while its spare room lasts, never with the phone short of room, never under another address's staging name, and online fetches each again, dropping one its source refuses. A pass: every answer in a window gives the same `passId`, a new key or window gives a new one, `expiresAt` is the window's end, a golden vector holds it, an answer in a window's last 30 days also holds the next window's pass, which is the one the next window gives, and a first use's row holds the fields section 14.1 lists. Let someone in offers the pass in effect on Hello's clock, says the days left and warns under 30. A newcomer let in an hour before their pass expired still shares with every teammate in the days after, until 90 days from their link. A looked-after account holds a pass, and a helper's code with `lost` then stops it at the join route and the relay. The join route is safe to repeat, and refuses a pass past expiry (for a link with `madeAt`, one made past it or over 90 days ago, while one made before it is let in past it) or uses, one from an inviter who lost Invite or that role, a retired role, a role raised to a manage privilege, a revoked inviter's key, an organization turned off, and a key that does not match, and a refused join leaves no `auth.users` row unless one existed before the call. A chain naming an imported person's id, a v2 id not yet imported, another newcomer's id, a shared phone's other person or an upper-case id is refused, and none makes an account. A role widened with no manage privilege still redeems. A repeat by someone already in still answers the organization after the uses run out, the flag goes off or the key is revoked, a retry after `createUser` with no key row recovers, and a refused first use leaves no `v1.InviteIssued`. Key sign-in stops at the key's first session: a certified key on an ordinary account gets no session, no redemption and no `v1.MemberAdded`, nor does another person on a shared key; a revoked row gets no session; a lost reply retried hours later succeeds; sign-in is refused after the certificate call and after a helper's code on another phone; and a chain person's old batch still passes after their first session. A pass cannot be reached by a token: `redeem_invite_v2` and `preview_invite` refuse tokens built from a pass's fields, `issue_invite_v3` refuses a `pass:` hash, and neither new function is callable by an API role. A second newcomer with another role gets that role. A QR holder who is refused, or never tapped, ends with no pass, chain, discovery key, inviter device id, copy part or event, and nothing sent before the tap holds any of them. A second phone is refused and the inviter told. A copy from a sender in two organizations with organization-level Invite and a pending join request holds only this organization's live members, and only this language. A starting copy moves only between phones on the same reducer and lines versions, and a mismatch names the file needed. A merge that changes those versions, the protocol range or the Android fingerprint makes a carried build, and `play-review.mjs` never promotes one. Before any phone reaches the server (2026-11-24): with `join-exchange` on both sides, the newcomer leaves the join holding every unit, recording, take and note its inviter's phone held, confirmed past the copy's checkpoint, unsent or carried, and the files it wants, also when its pieces are the language opened idle on the copy's store; an older newcomer, an older inviter (sent no `have`), pieces that cannot open or a person who left end with the copy, both phones say done, and the newcomer says which; the inviter waits past its minute while the newcomer opens its language after the copy, and not while the copy's state is still to come; a record marked when the copy came whole sets the person at the next start with no teammate; a newcomer whose grant answers no keep of the person's goes on, holding the list for the session. The join notes the other as met on both phones, so the quiet mode takes the two though the inviter's certificate is older than its window, and notes nothing where the phone may not share while open. The grant's revocation list is kept before the copy, so the newcomer turns a listed phone away at its first Hello; a list the Worker did not sign is dropped and counted; a chain the list names is refused. Both phones record the join in field diagnostics. The review of 2026-11-24, items 3 to 7 and 26 to 28: a link that goes during the names or documents leaves the copy whole, said once and before them, with what came kept (`docs.cut`), and a drop before the passages are filled says nothing whole; every rows part says its checkpoint's seq, rows from another checkpoint fill no passage, the newcomer then drops its part-filled copy and takes that teammate's whole, a teammate at the same checkpoint finishes it, and with no way to drop it the copy is refused; a teammate that cannot give a passage's rows refuses the copy and the session ends done; a stream whose first download was cut short gives no copy, and says `downloading`, until a pull reaches the server's newest, and one still filling says how far; Let someone in shows no code until both streams can give a whole copy, nor once the pass has let in its count; the inviter counts each person once per pass, offers a pass with room first, and turns the next away before the tap; a copy another reducer dropped is marked lost and needed, a copy taken again or the first download clears the mark, and a phone that downloaded from the server marks nothing; Share nearby and the quiet room take a copy only for the local person of that organization and language, and ask nobody once it is whole; no update is looked for while a copy is held, and expo-updates never looks by itself; a document this build cannot read, listed first, is skipped and remembered, every readable one after it is taken, the next session asks for none of it, and a wrong hash still ends the asking. Items 12, 13, 15 and 17: a session reports the names the chains of the newcomers' batches and holdings entries it took give, and a copy's names hold the authors whose batches the language holds and none from another team; the names followed items go by in the app's language come with the copy and a top-up from a phone that says `copy-labels`, only those the language uses, only what the taker lacks, never while what it keeps came from the server, and a phone that says none is never asked; a document an event in the session names leaves the pair unfinished, and the next session takes it, as does a top-up cut short over the pipe; a sender serves an older version of an item on its list, and one its earlier lists named, and a phone behind takes it. The rest of the review (2026-11-24): after the join the newcomer holds the inviter's documents and the guide and key-word files they name, each known to have come from the library; members on different versions top each other up; every key the app saves says what a newcomer gets of it (`savedKeysInventory`); a guide's screen plays and shows only files and addresses that move (a property test); a copy's texts split and join exactly, and the walk's shortcut ends where the walk would (property tests); a sender drops each passage's rows after its last part and holds a few at most; a newcomer's fill takes several passages a page; documents go three at a time over Wi-Fi and one over the pipe, a held list counted against the share; only events stay on the pipe with no group formed; a held room finds nobody and meets its teammate once released; a teammate met a moment ago is met again only for files; shared Bibles' rows and documents move; source chapters named by hash in the seed are library files, and a chapter downloaded by its address moves under its hash. |
 | Parity | Nearby events through `keptLanguage.test.ts`: a kept phone agrees with a memory phone, across checkpoints, restarts and a reducer bump. The `phone()` helper needs a materializer option first. The door against SQL's rules, and `isServerEventId` against `_server_event_id`, in `scripts/record-parity-sql.ts`'s style. |
 | Flag | Organization off: no Share nearby, no radios, no key, no prompt and no new server call, and the Worker's certificate answer holds no chain, key or pass for it. Turned off after use: nearby events still settle and nearby files still upload, except a newcomer's with no account yet. A certificate that does not name the language's organization is refused at Hello. With `nearby_join` off, no pass is issued, and the join route refuses, and likewise with `nearby` off and `nearby_join` on. No file an iPhone or the web bundles imports `modules/nearby-link`. |
 | Fleet | New scenarios: a village team with no server for a month, one phone with a wrong date, one phone lost (`Fleet.lose`), five phones in one room (pairings and time to level, with chosen partners against plain rotation, and again with one phone behind after a trip to town), a batch stamped ten years ahead whose author never returns, where a phone reaching the server ends equal to the server's fold with `unconfirmedCount` at 0, an honest restamp arrives by pull and a lost author's row is delivered once its date passes, a phone 45 days behind that still folds its teammates' work, one phone back from town with a newer generation that moves the room in one trip while a removed member's phone stays on the old key and draws nothing, a room with the row off on two phones, (phase 4) one phone carrying everyone's work to the server and a trip to town, and (phase 6) a newcomer joining with no server. The village scenario also reports load and fold times, and again with one member at the budget. Fleet phones run with the row on unless a scenario turns it off. |
@@ -3414,7 +3576,7 @@ belongs: section 2 for Carl's answers, and sections 5 to 14 for the rest.
 | A teammate holding any of the Worker's attestations can push a phone's claim mark past rows it never got. Fix it, or accept it? | Carl | Open (security review, 2026-11-10). Honest teammates then send that phone no claims below the mark, so work confirmed in town reaches it only from the server; nothing is lost or wrongly confirmed. A fix signs `afterSeq` into the attestation and moves the mark only over rows held or on the page, which changes the Worker's answer, so it waits for his word. |
 | Smaller items the pre-merge security review left open | Carl, after the first release | A certificate call racing a revocation could sign a fresh key within about 100 ms (both could take one lock on the person). A phone serves a file by hash from any language whose fold names it, looser than the server's rule per stream, though the asker must know the hash. A member could backdate one-event batches so every carrier delivers theirs first, 25 a sync. Teammates' certificates show a newcomer their other languages before first contact, as the organization stream shows members. Left open by the review of 2026-11-24 (library documents and files): a phone holds one document store and one file store for every organization and person on it, so a document an organization's library names is served if held, whichever organization fetched it (the one naming it must know its hash); a study file's name is a 52-bit FNV hash of its address, so a guide could name an address made to share an FIA file's name; and the join grant's `features` are the inviter's unsigned word, which turns on sharing while LangQuest is open until first contact. |
 | Follow-up issue, "A lost shared phone: other people's keys stay good" (section 6). Should a helper's code say a shared phone is gone? | Carl raises it with Caleb, after the first release | Only the named person is revoked for now (answer 20), and the list holds pairs. A taken shared phone's private key is gone for all of its people, but the others' rows stay good. A third question in a new `issue_sign_in_code_v3`, "Was the shared phone lost too?", with v2 left as no, would revoke every row with that key. It changes the helper flow (decision 59), so it needs Caleb. The issue does not exist yet. |
-| A pass fetched late in its 90-day window has little time left, so should an answer also hold the next window's pass in that window's last 30 days? | Carl | Answer 17 is built as worded, so a phone that last reached the server near a window's end can hold a pass with days left, and every pass ends on the same date. Holding the next window's too would keep a team leaving town able to let someone in, at the cost of up to 20 uses in that time. Not built unless he says so (section 14.1). |
+| A pass fetched late in its 90-day window has little time left, so should an answer also hold the next window's pass in that window's last 30 days? | Carl | Answered (2026-11-24): yes. An answer in a window's last 30 days holds the next window's pass too, and Let someone in says the days left and warns under 30. A newcomer now lasts 90 days from their invite link, not to the pass's end (section 14.1, decision 240 as amended). |
 | What ends the experiment? | Carl, later | A follow-up issue, as decision 53 asks. A suggested test: teams have used it offline for a month, the test's numbers hold in the field, and no work was lost or wrongly confirmed. |
 | When admins get the toggle, may they turn it on without staff? | Later | Yes, once it is no longer experimental. Until then, staff choose who tries it. |
 | Can an iPhone that already has the app join offline? | Later | Optional, as phase 5's last step (answer 25). Only the install is impossible, and with no carried build the reducer version is the real limit. |
@@ -3442,9 +3604,19 @@ it does today (decision 54).
    language, inviter and inviter's key, the roles allowed, 10 uses and an expiry (section 5.12).
    **One pass to a window** (Carl's answer 17). The Worker derives its `passId` from the
    organization, language, inviter, key and 90-day window, and it expires at the window's end,
-   so the daily refresh makes no new uses. A pass fetched late in a window has little time left,
-   and Let someone in says when this phone's pass has run out and that it needs the server again
-   (section 13 asks about this).
+   so the daily refresh makes no new uses. A pass's expiry ends only who may be let in: a
+   newcomer is accepted for 90 days from when their invite link was made (section 5.12,
+   Expiry). In a window's last 30 days the answer holds the next window's pass too, after this
+   one's (core's `passWindowTimes`, Carl, 2026-11-24, answering section 13). It is the very
+   pass the next window's own answers give, so it adds no third id, but up to 10 more uses in
+   those 30 days. A phone offers the pass in effect (`passInEffect`): of those not past their
+   expiry, the one that ends soonest, so this window's uses go first; a build before then takes
+   the first a language has, which is this window's. Let someone in checks it on the clock
+   Hello checks with (`nearbyHelloNow`), which setting the date back does not move, as the
+   session that signs the link does. It says how many days this phone can still let people
+   in, to the last of its passes' expiries, and under 30 warns that it needs the internet
+   once before they run out, and that people already let in are not affected; past them it
+   says the pass has run out and that it needs the server again.
    **Nothing is written at issue.** An invites row could not be refreshed this way,
    because `issue_invite_v3` appends `v1.InviteIssued` for each one, so one per inviter,
    language, role and sync would grow the immutable log without end. The first use at the
@@ -3463,6 +3635,23 @@ it does today (decision 54).
      the key's revocation is the stop that holds. Every account can now reach it: one with an
      email through New password, a looked-after one through a helper's code with `lost`, and
      anyone through staff (section 6).
+   - **Uses, on the inviter's phone** (2026-11-24, review item 7). A pass is used only by
+     the phone that holds it, so that phone counts exactly whom it let in under each pass,
+     by id (`nearbyLetIn:<org>/<language>`, at most 8 passes kept), written before the grant
+     is sent, so a grant that never arrives costs a use here and never one past the count.
+     It says who joined the team through this phone, so it goes at any sign-out with
+     `nearbyPeers` and `nearbyMet` (`nearbySignOut.ts`); a pass's count starts again only if
+     the same person signs in again while that pass still holds, and the server still
+     refuses past the count at first contact.
+     The same person again (a link that dropped, another code) is still one use. At
+     `maxUses` the session turns the newcomer away before the tap (`join.refused` `pass used
+     up`, `bye` `stopped`, which the newcomer reads as not let in), and Let someone in shows
+     no code and says the phone has let in as many people as it can without internet. Before,
+     nothing counted: an eleventh newcomer was let in, then cut by teammates, each keeping the
+     first ten keys it met, so differently on each phone, and refused by the server at first
+     contact. Of the passes held, Let someone in offers one with room first (`passInEffect`),
+     so the next window's pass, held in this one's last 30 days, takes over when this one is
+     used up.
 2. **The app.** A coordinator or teammate carries a universal APK file in one piece, built
    from the team's latest JavaScript (Carl's choice, 2026-11-06, section 14.4), and sends
    it by Quick Share or copies it by SD card or USB. The newcomer has to allow installing
@@ -3512,12 +3701,29 @@ it does today (decision 54).
      and that key's generation and `floor`. The newcomer runs `checkChain`, checks the proof
      against the first link's key and that the invite link names the key, profile, device and name it asked
      with, and only then stores the key.
+   - **A copy to give** (2026-11-24, review item 5). Before it shows the code, Let someone
+     in asks the language and the organization whether each would give a whole copy now
+     (`canGiveCopy`): not while the language's passages are still being filled in, and not
+     before the stream was downloaded right up to the server's newest (step 4, Only from a
+     whole download). Otherwise it shows no code and says why, with how far the fill has come,
+     and that only the internet finishes it. Before, an inviter whose own download never
+     finished let the newcomer in with only the organization (`copy-short`), and so did every
+     teammate who downloaded the same way.
    - **How long.** A QR nobody has used dies at two minutes, and "New code" is one tap
      that keeps the chosen role and makes a new secret, group and opening. So does a No.
      After the first opening a longer deadline covers the ask and the tap. After the grant
-     the link stays up until the session ends, because the starting copy runs over it. A
+     the link stays up until the session ends, because the starting copy runs over it, and
+     after a whole copy the newest work (step 4, The newest work). A
      drop before the grant needs a new code. A drop after it resumes through ordinary
      Find, because the newcomer now holds the chain and key.
+   - **A meeting** (2026-11-24, review item 8). The join counts as a meeting on both
+     phones, as Share nearby's Hello does (section 15.8, Noting): each notes the other's
+     install key and person (`nearbyNames`), and where it may share while LangQuest is open
+     (`notesMetOf`; the newcomer by the grant's `features`) the day, `nearbyMet:<org>`. The
+     newcomer's chain starts with the inviter's certificate, so it is exactly as old as the
+     inviter's, and the quiet mode refused the two until they opened Share nearby together.
+     The join happens on a screen with a tap, never quietly, so a taken phone still cannot
+     keep itself in.
 4. **The starting copy** (Carl's answer, 2026-11-06). The inviter's phone, or any
    teammate's whose read gate passes the chain as Hello's does and that runs the same
    reducer and lines versions as the newcomer, sends the following. A newcomer looking for
@@ -3539,7 +3745,34 @@ it does today (decision 54).
      events, and one the server has no snapshot of pulls every event, so a young language
      has none: asked for a copy, the sender takes one then, which holds only confirmed work
      and prunes as any checkpoint does. Without it every copy of such a language stopped
-     after the organization (found on two emulators, 2026-11-09). The
+     after the organization (found on two emulators, 2026-11-09).
+     **Only from a whole download** (2026-11-24, review item 27). A stream gives a copy only
+     once a pull on this phone reached the server's newest since its cursor last went back to
+     0 (`downloaded:<org>/<stream>`, written with the last page's cursor; `startingCopy`
+     answers null without it), or while it holds a whole copy itself. A first download cut
+     short, or a checkpoint another reducer dropped and a pull from 0 not yet finished, gave
+     whatever was there: an organization missing roles, members or library items, which the
+     newcomer kept for good, since it asks for the organization only while it holds none. A
+     stream from a build before the mark counts as downloaded once it holds anything from the
+     server, as that build gave copies.
+     **One checkpoint** (2026-11-24, review item 4). Every `rows` part says the seq of the
+     sender's checkpoint its rows belong to (`copy-part` `seq`, read with the rows in the
+     stream's turn), and a fill takes rows only of the checkpoint its copy came from. A
+     teammate at another checkpoint, or one that says none (a build before then) when the copy
+     was not taken from it in the same session, finishes no passage: the newcomer asks for
+     that teammate's whole copy, and only once it has come and been read drops its part-filled
+     language copy (`dropStartingCopy`, which keeps the log and its unsent work) and takes the
+     new one in its place, both on the phone (`fillAgain`), so a link that goes during the ask,
+     many parts on Bluetooth, leaves the filled passages as they were. A teammate whose rows
+     and state came from two checkpoints, or whose checkpoint moved during the fill that
+     follows, refuses the copy (`CopyRefused` `moved`), and the session goes on; a teammate from
+     before then (no seq) whose state is at the copy's own checkpoint holds the same copy, so
+     the fill goes on from it with nothing dropped. Before, a copy the inviter began and
+     an older teammate finished filled passages with the older rows, or none, and said it was
+     whole; claims start above the copy, so the gap never closed until first contact. A
+     teammate whose own fill is unfinished answers a passage's rows `copy-no` `not-filled`,
+     which refuses the copy (`copyRefused`) and lets the session go on, where it was a drop
+     that ended the session. The
      organization part is `newcomerOrgState(state, languageId)`, a pure function in core
      that starts empty and copies an allowlist: the organization, `roles`, `license`,
      `library`, `recommendations`, this language, and live members at organization scope
@@ -3553,7 +3786,21 @@ it does today (decision 54).
      caller belongs to and, for someone with Invite, everyone with a pending join request,
      so unfiltered it would give a stranger the inviter's other team. A name the fold has
      not caught up with shows as "someone" until first contact. The chain's name is merged
-     in on teammates' phones.
+     in on teammates' phones. Since 2026-11-24 (review item 12) the sender lays its chain
+     names under the directory and keeps the authors of the signed batches its language
+     holds as well as the cut's members, so people let in offline show by name; at most
+     4 MB, 256 characters a name.
+   - **Names in the app's language** (2026-11-24, review item 13). From a sender that says
+     `copy-labels`, after the member names: the names the followed items of the language go by
+     in the newcomer's app language, as the sender's phone keeps them (section 5.12,
+     Documents a language uses), so a newcomer whose app is in French sees the names its
+     inviter sees. The server's first read replaces them.
+   - **Spoken help** (decision 81) stays out until the first sync (2026-11-24, review item 10,
+     Carl's answer). Help recordings come only from the Worker, on an unmetered network, and
+     neither the copy nor a teammate carries them: a phone that joined offline shows help mode's
+     words without the play button until it reaches the internet. Bundling them into the app,
+     or moving them as files checked against an index the Worker signs, was weighed and not
+     taken.
    - **Library documents this language uses,** checked by hash: a document's name is the
      SHA-256 of its canonical text (`library/docStore.ts`). `library_get_documents` is
      signed-in only, so without these a screen such as `map_home` has nothing to read.
@@ -3564,7 +3811,8 @@ it does today (decision 54).
        on a check; the guides the app offers it from the rest of the organization's library,
        not archived and not hidden by the language (2026-11-24, Carl: everything the app
        shows); and what those refer to, such as a template's numbering or a collection's
-       guides. Nothing else of the library counts, nor what other organizations share. The
+       guides. Nothing else of the library counts. What other organizations share counts only
+       as the Bibles the team reads (2026-11-24, review item 9: Shared Bibles, section 5.12). The
        sender and the newcomer work out the same list.
      - **What may go** (2026-11-24, Carl confirmed the terms: a phone that joined offline
        does what its inviter's does). Every format this build reads, on a table in core over
@@ -3586,7 +3834,20 @@ it does today (decision 54).
      - **Only what the sender holds, within bounds** (2026-11-24). A sender that says
        `copy-library` answers `held`, and the newcomer asks only for those, not one round trip
        per guide of a 1,525-guide collection. One copy keeps at most 5,000 documents and 128 MB.
-       Setting the person never waits on documents.
+       Setting the person never waits on documents (2026-11-24, review item 3): the copy is
+       whole once its passages are filled, before the names and documents, which are the
+       longest part, one round trip each. The session says so then (`whole`, and
+       `report.copy`), so a drop or a stall during them leaves the copy whole and the person
+       set, with what came kept and `docs.cut`; the rest is asked of the next teammate, or at
+       first contact.
+     - **A document this build cannot read** (2026-11-24, review item 28). A text that hashes
+       to its name and is in canonical form, but in a format this build does not know or does
+       not take (one a newer build added, as `labels@1` was without a reducer change), is no
+       forgery: it is skipped, counted (`unreadable`), remembered under this build
+       (`library-unreadable`, at most 1,000) so no session asks for it again, forgotten when
+       the app updates, and the rest are still taken. Only a wrong hash, or a text not in
+       canonical form, is a forgery that ends the asking. Before, one such document listed first
+       stopped every later document from that teammate, every session.
      - **Any teammate finishes it.** After the join, every member's phone tops up the
        documents its language uses from any teammate, on any versions and over any link
        (section 5.12, Documents a language uses), so what one sender lacked comes from another.
@@ -3596,19 +3857,78 @@ it does today (decision 54).
      `nearby_open` (`nearbyOpenOrgs:<profile>`) until its first contact replaces it, so it
      shares while LangQuest is open as its inviter does. An older inviter sends none, and an
      older newcomer ignores the field.
+   - **The revocation list** (2026-11-24, review item 11). The grant carries the Worker's list
+     as the inviter's phone holds it (`join-grant` `revoked`, exactly a `revoked` message's
+     text, `kid` and signature). The newcomer checks it against the Worker's keys for the
+     granted organization, checks the grant's chain against it, and keeps it in its own keep
+     (`nearbyRevoked:<org>`) before it asks for the copy, unless it holds a newer one. A list
+     that does not check is dropped and counted (`revokedDropped`), as a `revoked` message's
+     is, and the join goes on. So from the start the newcomer turns away a stolen phone still
+     signed in, which before took it for a teammate until it met an honest one. A list too long
+     to ride in one message with the chain goes as before, after `have`. An older inviter sends
+     none, and an older newcomer ignores the field.
+   - **The newest work** (2026-11-24, review item 2). The copy is the sender's last checkpoint,
+     up to 1,999 confirmed events old on a language kept on disk, and the session used to end
+     straight after it, so the newcomer started behind the phone beside it: without what that
+     phone had pulled since, its unsent work, the teammates' work it carries, and their files.
+     Where both Hellos say `join-exchange`, once the copy is whole the newcomer sends `have` and
+     the two run steps 4 to 8 on the same link (have, holdings, events, files and library files
+     when both say so, done), exactly as any session does. The newcomer runs them on its own
+     pieces (`exchange.open`): its language opened as the app opens it but idle, with no server,
+     sync or transfer worker, on the store the copy went into, so the session moves each file
+     itself; its door, its signer with the granted chain, and its own keep. It is closed when the
+     session ends, before the person is set, since setting the person starts the app over as
+     them and the app then opens the language itself. Setting the person waits on these steps,
+     on the progress screen the copy already shows; a drop, leaving or a stop during them still
+     sets the person, since the copy is whole, and the inviter's screen says done
+     (`join.exchange`). A phone that dies during them, or an app swiped away, is covered too:
+     the session says the copy is whole (`whole`) before the steps, the app marks the record
+     (`copyWhole`, still `filling`, so `Shell` does not remount), and the join screen's check
+     at the next start sets the person from that mark with no teammate (`wholeAtStart`). Once
+     the inviter has answered the names or a document, every state part is given, and it waits
+     for the newcomer's `have` a file's time (`fileStallMs`) rather than a message's, since the
+     newcomer keeps its documents and opens its language meanwhile and the link shows none of
+     it. A copy that is not whole, a newcomer whose pieces cannot open, a newcomer whose person
+     left, or a phone on an older build ends with the copy, as before, and the next session
+     brings the rest; the report says which (`join.exchangeSkip`: `older`, `no-pieces`,
+     `left`). A newcomer whose `granted` answers no keep of the person's (the app always
+     answers one) holds the grant's list for the session alone, notes no meeting and runs no
+     steps after the copy, rather than writing to `joinOnlyKeep`, which refuses. No QR link
+     knows a find tag, so its pair is never recorded in `nearbyPeers`.
+   - **Field diagnostics** (2026-11-24, review item 14). Only rooms wrote session records, and
+     the join runs outside a room on both phones, so a newcomer who came away short showed only
+     as a complaint. Both phones now record the join as a `nearby` `session` with `mode` `join`,
+     `granted` and `exchanged` and, when the steps after a whole copy did not run, why, as one count
+     of `exchangeOlder`, `exchangeNoPieces` and `exchangeLeft` (the inviter says `exchangeOlder`
+     only once the newcomer has ended a copy it gave whole), so the newcomer's own language
+     failing to open is told apart from an older app; and any session that moved a copy says what of it: the taker
+     `copyWhole`, `copyFilled` and the documents kept, missing and refused, the giver the parts
+     it sent and refused, and either why a teammate gave no more (`copyNo`). Counts and words,
+     never who (decision 235). The inviter's record goes with the rest of its queue; the
+     newcomer's waits in its queue until its person is set and it is online. A quiet room's
+     finished session that moved a copy writes its own record rather than adding to the room's
+     sums (`docs/diagnostics.md`, `20261124233000_diag_nearby_join.sql`).
 
    `adoptStartingCopy` writes it in one commit with the cursor at 0, a marker,
    `startingCopy:<org>/<stream>` (section 5.1), and `nearbyClaimed` set to the copy's
-   `serverSeq`, so claims resume above what the copy already holds. The ordinary exchange
-   then brings everything newer as `nearby`, and audio follows section 5.6. Only a newcomer takes an
+   `serverSeq`, so claims resume above what the copy already holds. The steps after the copy,
+   and every ordinary exchange after them, then bring everything newer as `nearby`, and audio
+   follows section 5.6. Only a newcomer takes an
    organization state from a phone; everyone else still gets it only from the server. A
    link's row source throws `OfflineError` on a drop and never answers null, or `KeptFill`
    reads it as a gone cut and drops the language. A sender that gives no organization or
    language (`copyServed.stateRefused`: its own download still running, or nothing from the
    server yet) still lets the person in, and its screen says so (`copy-short`): they are in,
-   and any teammate with Share nearby open can finish the copy. Once the copy has committed, the progress
+   and any teammate with Share nearby open can finish the copy. A link that goes after the
+   newcomer asked for names or documents (on a build that names `join-exchange`, which sets
+   the person once the passages are filled) cut only those and what follows: the inviter's
+   report says the copy was whole (`join.copyWhole`), and its screen says they are in and can
+   start working, and any teammate gives the rest (`dropped-docs`), rather than that their copy
+   needs finishing (`dropped-after`, 2026-11-24, review item 3). Once the copy has committed, the progress
    screen says one line, to everyone: "This phone no longer needs the install file. You can
-   delete it, unless you will pass it on."
+   delete it, unless you will pass it on." and a second: until the phone reaches the internet,
+   install no other version of LangQuest on it, since the copy would be removed and a teammate
+   would have to give it again (2026-11-24, review item 26).
 5. **Working.** The app runs with a *local person*: an actor id and no server session, in
    `secureStorage` (`src/server/localPerson.ts`). Only one per install, because a local
    person cannot sign out and Sign In is unreachable for them.
@@ -3623,6 +3943,33 @@ it does today (decision 54).
      first contact makes their account, and the server's first download fills in what
      the copy did not. Found on two emulators: such a person sat online on that screen and
      never reached the server, since first contact runs only once the person is set.
+   - **A copy short or lost, after the person is set** (2026-11-24, review items 6 and 26).
+     A person never goes back a stage, so the join screen's Look, which finishes a copy only
+     while the person is `filling`, cannot help once they are set: by `goOnOnline` with the
+     signal gone before the first download, by a join the server refused, or with a copy an
+     update dropped. Share nearby and the quiet room (section 15.6) therefore pass a copy
+     target (`roomCopyTargetFor`) whenever the local person's organization or language needs
+     one (`SyncClient.copyNeed`: `missing`, `filling`, or `lost`), and every session with a
+     teammate on the same versions takes it, asking nobody once it is whole (`wanted`). A
+     stream with anything from the server counts as held, since it refuses a copy. Share
+     nearby says the copy is short, or that an update removed it, and the quiet room serves
+     copies on Android as Share nearby does, only to a phone that asks.
+   - **Updates while a copy is held** (2026-11-24, review item 26). A build on another
+     reducer cannot read the copy's checkpoint, so at its next start it was dropped, with the
+     copy's marker, and offline the organization was empty and the language held only events
+     above the copy. A checkpoint dropped that way that was a starting copy leaves a mark
+     (`copyLost:<org>/<stream>`, cleared by a copy taken again or the first download), which is
+     how Share nearby tells `lost` from `missing`. The app's own looks for an update, on coming
+     back to the front and at the first launch, do not run while the phone holds a starting copy
+     the server has not replaced (`startingCopyHere`, `startingCopyHeldIn`), nor does its own look
+     at each start (`useUpdateAtStart`), which runs only once a build stops expo-updates looking
+     by itself (`updatesLookByThemselves`). That is app.json's `checkAutomatically: NEVER`, a
+     native setting that changes the fingerprint, so it lands with the next store build, not in
+     a change that must reach phones by update; until then expo-updates' own look at each start
+     (`ON_LOAD`) can still fetch an update while a copy is held. An install file is a person's
+     choice, so it is warned of, not held: Share nearby's line that the two apps are too far
+     apart says, on a phone holding a copy, to install no other version until it reaches the
+     internet, and so does the progress screen once the copy is whole.
    - **Membership.** An overlay of the chain's membership (`withChainMembership`) on
      `org.state` at `Workspace` means nothing below it changes, and `privilegesFor` gives
      real answers. It gives the link's signed privileges, not the fold's role of that id,
@@ -3644,6 +3991,12 @@ it does today (decision 54).
      chain only), so does the inviter's tap, and the app keeps it under
      `chain-names:<actorId>`, laid under the directory, which a read from the server
      replaces whole, so the server's name wins once it has one (`chainNamesModel.ts`).
+     Since 2026-11-24 (review item 12) a session also reports the names the checked chains
+     of the batches and holdings entries it took give (`report.names`, at most 64, each as a
+     join gives a name), so a phone that never met them shows their work by name too; and a
+     starting copy's names take the sender's chain names under its directory, for its
+     members and for the authors of the batches its language holds (`nearbyAuthors`), and the
+     newcomer keeps those its copy's organization does not list as chain names too.
      Teammates see them by name only until first contact,
      and cannot ask them for work yet. Account changes wait in the account outbox
      (`durableOutbox.ts`), which already gives a retryable error with no session.
@@ -3671,10 +4024,15 @@ it does today (decision 54).
         between the two calls recovers on retry. Anything else is refused.
      2. A deleted id is refused, from `deleted_profile_ids`, a small table `_delete_account`
         writes, because `accountdeleted:` events are written only for live memberships.
-     3. `pass_refusal(pass, role)` is asked before any Auth call, unless this person has
-        already redeemed this pass. It is read-only and shares its checks with
+     3. `pass_refusal(pass, role, madeAt)` is asked before any Auth call, unless this person
+        has already redeemed this pass. It is read-only and shares its checks with
         `redeem_pass_for`, so a dead pass makes no account at all, and `createUser` is not
-        an unlimited factory.
+        an unlimited factory. `madeAt` is the invite link's, after `checkChain` checked its
+        signature, and is left out for a link with none: the pass then stops a first use
+        made past its `expiresAt`, or, with `madeAt`, a link made past it or more than 90
+        days ago (2026-11-24, `20261124230000_nearby_newcomer_life.sql`). A pass's own
+        invites row keeps the pass's expiry and no longer refuses by it, since
+        `pass_refusal` has just decided under the same `now()`.
      4. `createUser` with the phone's own id and `app_metadata: { managed: true, chain_key }`,
         which is atomic with the account and only the service role can write. Today's retry on
         "already" errors is wrong with a fixed id, so it does not copy that.
@@ -4421,6 +4779,7 @@ owner's own store, read by Share nearby alone, so nothing ticks in `ctx`.
 | An iPhone joins Wi-Fi | After a system prompt | Never: events over Bluetooth, audio waits (`radiosFor` gains `quiet`, as it has `worn`) |
 | When "Up to date" | Listening bursts, then stops at the idle limit (5 minutes) | Keeps advertising; scans in short bursts; no idle stop |
 | What moves | Events, then needed files, open for review, backups | The same between two Androids on Wi-Fi Direct; otherwise events only |
+| A starting copy (2026-11-24, review items 6 and 26) | Given on Android, to a teammate whose read gate passes; taken whenever this person's copy is missing, short or lost | The same: an Android gives one only to a phone that asks, and a person let in offline takes one whenever theirs is missing, short or lost |
 | Shows | Progress, teammates, What was shared | Nothing while it runs; section 15.4's fold after |
 
 - **No hotspot.** A local-only hotspot's server listens on every network the phone is on
@@ -4607,7 +4966,9 @@ check it:
   the switch, no cover), Share nearby's Hello notes the day it met each teammate, after their
   proof and read gate pass: `nearbyMet:<org>`, one line a teammate with the install key,
   `profileId` and the day by Hello's clock, nothing else (`noteMet`, `notesMetForMs`). A quiet
-  meeting never notes one, so a taken phone cannot keep itself in.
+  meeting never notes one, so a taken phone cannot keep itself in. Let someone in's join notes
+  one on both phones once the grant has gone or checked (2026-11-24, section 14.1, 3, A
+  meeting), on the same terms, the newcomer's by the grant's `features`.
 - **Checking.** Hello in the quiet mode takes a teammate whose certificate is older than the
   window if this phone met that key and person on Share nearby on a day that began within it
   (`recent`); a day counts from its start, so never longer. The revocation list still refuses
@@ -4650,7 +5011,9 @@ mode; a refusal said `identity` whether the window or a lost phone caused it; no
 pause, the greetings, the rests or how long a teammate waited to be met; a phone syncing quietly
 all day wrote a record each session, so weeks offline could drop the start of a trip from its
 queue of 3,000; and the only reading was per install, with delivery left out. Now a session says
-its `mode` and a `refusal` reason (`window`, `revoked`, `org`, `expired`, `other`); a room says
+its `mode` and a `refusal` reason (`window`, `revoked`, `org`, `expired`, `other`, and from
+2026-11-24 `pass-expired`, a newcomer whose pass or 90 days ran out, which was `other`,
+`20261124230500_diag_nearby_pass_expired.sql`); a room says
 `greets`, `maxMeetMs`, `stop` `rest`, and while open `pauseMin` and the sums of its finished
 sessions, which write no record each (`packages/sync/src/nearbyDiag.ts`); the install summary
 keeps the modes apart with refusals and delivery; and `diag.nearby_summary`, read by
@@ -4790,7 +5153,9 @@ what the security review settled; the draft below is kept as it was proposed.
 > background work. While LangQuest is in front none of that applies. So one owner per open
 > language runs the room in two modes, `screen` and `open`, and `openMayRun` opens the second
 > only with the feature, the person's switch, permissions already granted, no cover, the app
-> active, the language offline, nothing recording or playing and no nearby screen open. In
+> active, the language offline, nothing recording or playing (2026-11-24, review P2: once running,
+> audio holds the room rather than stopping it, recording cuts its session, and it finds again after
+> 15 seconds of quiet) and no nearby screen open. In
 > `open` it never asks, taps, keeps the screen awake or touches a hotspot, an iPhone joins no
 > Wi-Fi (events over Bluetooth, audio waiting), and at "Up to date" it keeps advertising and
 > scans in bursts with no idle stop, because the screen going off is the limit. The bound in

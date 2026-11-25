@@ -1,8 +1,8 @@
 import type { AnyEvent, EventPayloads, EventType } from '../src/events';
 import { HlcClock } from '../src/hlc';
-import type { LibraryDoc } from '../src/libraryDocs';
+import type { DocHead, LibraryDoc } from '../src/libraryDocs';
 import { docHeadOf, mediaFileOf } from '../src/libraryDocs';
-import { docsThisLanguageNames, libraryFilesOf, libraryLinkFormat, libraryLinksOf, nearbyDocHeadOf, docsThisLanguageUses, guidesThisLanguageOffers, mayGoInStartingCopy, STARTING_COPY_FORMATS } from '../src/libraryInUse';
+import { docsThisLanguageNames, labelKeysOf, libraryFilesOf, olderVersionsOf, libraryLinkFormat, libraryLinksOf, nearbyDocHeadOf, docsThisLanguageUses, guidesThisLanguageOffers, mayGoInStartingCopy, SHARED_DOCS_MAX, STARTING_COPY_FORMATS } from '../src/libraryInUse';
 import { foldOrg } from '../src/org';
 import { emptyLanguageState, type LanguageState } from '../src/state';
 
@@ -152,6 +152,76 @@ describe('docsThisLanguageUses', () => {
     expect(docsThisLanguageUses(library, s, get)).not.toContain(offeredGuides);
   });
 
+  // The 2026-11-24 review (item 9): other organizations' shared Bibles the team reads travel too, after what it chose and before the guides.
+  it('takes the shared Bibles the app lists, and their books, after what the language chose and before the offered guides; never under a cover', () => {
+    const bible = h('51');
+    const book = h('52');
+    const notBible = h('53');
+    const heads = new Map<string, DocHead>([
+      [bible, { format: 'source@1', refs: [book] }], [book, { format: 'sourceBook@1', refs: [] }], [notBible, { format: 'study@2', refs: [] }]
+    ]);
+    const read = (x: string) => heads.get(x) ?? get(x);
+    const uses = docsThisLanguageUses(library, language(), read, { shared: [notBible, bible, 'not a hash'] });
+    const named = docsThisLanguageUses(library, language(), read, { offered: false });
+    expect(uses.slice(0, named.length)).toEqual(named);
+    expect(uses.slice(named.length, named.length + 2)).toEqual([bible, book].sort());
+    expect(uses).not.toContain(notBible);
+    expect(docsThisLanguageUses(library, language(), read, { shared: [bible], offered: false })).toEqual(named);
+    // One not held here stays on the list, so a teammate is asked for it.
+    expect(docsThisLanguageUses(library, language(), get, { shared: [h('54')] })).toContain(h('54'));
+  });
+
+  // The security review of 2026-11-24: a teammate's rows name the roots, so what lies below them is bounded too.
+  it('below a shared Bible follows only its books, numbering and timings, and puts no more than SHARED_DOCS_MAX on the list', () => {
+    const bible = h('71');
+    const guide = h('72');
+    const book = h('73');
+    const heads = new Map<string, DocHead>([
+      [bible, { format: 'source@1', refs: [book, guide] }], [book, { format: 'sourceBook@1', refs: [] }], [guide, { format: 'study@2', refs: [] }]
+    ]);
+    const read = (x: string) => heads.get(x) ?? get(x);
+    const uses = docsThisLanguageUses(library, language(), read, { shared: [bible] });
+    expect(uses).toEqual(expect.arrayContaining([bible, book]));
+    expect(uses).not.toContain(guide);
+    // A source naming thousands of books puts at most SHARED_DOCS_MAX on the list.
+    const many = Array.from({ length: SHARED_DOCS_MAX + 500 }, (_, i) => i.toString(16).padStart(64, '0'));
+    const huge = h('74');
+    const big = new Map<string, DocHead>([[huge, { format: 'source@1', refs: many }]]);
+    const named = docsThisLanguageUses(library, language(), get, { offered: false });
+    const withHuge = docsThisLanguageUses(library, language(), (x) => big.get(x) ?? get(x), { shared: [huge], offered: false });
+    expect(withHuge).toEqual(named);
+    const listed = docsThisLanguageUses(library, language(), (x) => big.get(x) ?? get(x), { shared: [huge] });
+    expect(listed.length - docsThisLanguageUses(library, language(), get).length).toBeLessThanOrEqual(SHARED_DOCS_MAX);
+  });
+
+  // Review P13: the app leaves a guide set's other languages out once a language chose one (`chosenOnly`); so does the walk.
+  it('leaves out the other languages of a guide set the language chose, from that publisher only', () => {
+    const french = h('61');
+    const english = h('62');
+    const elsewhere = h('63');
+    const sets = org((emit) => {
+      for (const [itemId, docHash, orgId] of [['fia-fra', french, 'fia'], ['fia-eng', english, 'fia'], ['other-eng', elsewhere, 'other']] as const) {
+        emit('v1.LibraryItemDefined', { itemId, kind: 'material', name: itemId, description: '', copiedFrom: { orgId, orgName: orgId, itemId, docHash } });
+        emit('v1.LibraryVersionPublished', { itemId, kind: 'material', docHash });
+      }
+      emit('v1.ReferenceRecommended', { itemId: 'fia-fra', recommended: true });
+    });
+    const collection = (language: string, title: string) => ({ format: 'collection@1', title, language, pattern: 'FIA', entries: [] }) as unknown as LibraryDoc;
+    const heads = new Map([[french, collection('fra', 'FIA French')], [english, collection('eng', 'FIA English')], [elsewhere, collection('eng', 'Other FIA')]]);
+    const read = (x: string) => { const d = heads.get(x); return d ? docHeadOf(d) : null; };
+    expect(read(english)?.set).toBe('FIA');
+    const uses = docsThisLanguageUses(sets, emptyLanguageState(), read);
+    expect(uses).toContain(french);
+    expect(uses).not.toContain(english);
+    expect(uses).toContain(elsewhere);
+    // Before anything is chosen, every language of the set is offered.
+    const none = org((emit) => {
+      emit('v1.LibraryItemDefined', { itemId: 'fia-eng', kind: 'material', name: 'x', description: '', copiedFrom: { orgId: 'fia', orgName: 'fia', itemId: 'x', docHash: english } });
+      emit('v1.LibraryVersionPublished', { itemId: 'fia-eng', kind: 'material', docHash: english });
+    });
+    expect(docsThisLanguageUses(none, emptyLanguageState(), read)).toContain(english);
+  });
+
   it('a document the language chose counts though the wider library also offers it', () => {
     const s = language();
     s.passageLinks = { ...s.passageLinks, u2: { unused: reg(true) } };
@@ -250,6 +320,17 @@ describe('libraryFilesOf: the files a document names that may go between phones'
     expect(libraryFilesOf(book)).toEqual([{ hash: H('b'), format: 'mp3', kind: 'source' }, { hash: H('c'), format: 'm4a', kind: 'source' }]);
   });
 
+  it('takes audio the web editor recorded as webm, but never a webm named as a picture, which may be a film', () => {
+    const guide = {
+      format: 'study@2', steps: [{ id: 's', title: 'T', text: 't', audio: { hash: H('1'), format: 'webm' } }],
+      resources: [{ ref: 'MRK 1:1', kind: 'media', title: 'R', media: [{ id: 'p', kind: 'photo', title: 'P', caption: '', file: { hash: H('2'), format: 'webm' } }] }],
+      terms: [{ id: 't', term: 'water', body: '', audio: { hash: H('3'), format: 'webm' } }]
+    } as unknown as LibraryDoc;
+    expect(libraryFilesOf(guide)).toEqual([{ hash: H('1'), format: 'webm' }, { hash: H('3'), format: 'webm' }]);
+    const words = { format: 'material@1', kind: 'key_terms', terms: [{ id: 'a', term: 'a', gloss: '', audio: { hash: H('4'), format: 'webm' } }] } as unknown as LibraryDoc;
+    expect(libraryFilesOf(words)).toEqual([{ hash: H('4'), format: 'webm' }]);
+  });
+
   it('never a file of another format, a name that is not a hash, or anything of a document that names none', () => {
     const odd = { format: 'study@2', steps: [{ id: 's', title: 'T', text: 't', audio: { hash: H('a'), format: 'apk' } }, { id: 'x', title: 'X', text: 'x', audio: { hash: '../x' } }], resources: [], terms: [] } as unknown as LibraryDoc;
     expect(libraryFilesOf(odd)).toEqual([]);
@@ -285,5 +366,29 @@ describe('libraryLinksOf: the addresses a guide names that a phone keeps', () =>
     const team = { format: 'study@2', steps: [{ id: 's', title: 'T', text: 't', audio: { url: 'https://team.org/s.m4a', hash: h('1') } }], resources: [], terms: [] } as unknown as LibraryDoc;
     expect(libraryLinksOf(team)).toEqual(['https://team.org/s.m4a']);
     expect(libraryLinksOf(docs.get(h('8'))!)).toEqual([]);
+  });
+});
+
+describe('the names a labels set gives this language\'s items (decision 195; review item 13)', () => {
+  it('are the followed items whose version the language uses, by their source, and with no list every followed item', () => {
+    expect(labelKeysOf(library, [h('e')])).toEqual(['pub/words']);
+    // A copy keeps its own name, and an item not used names nothing.
+    expect(labelKeysOf(library, [h('d'), h('c')])).toEqual([]);
+    expect(labelKeysOf(library, [])).toEqual([]);
+    expect(labelKeysOf(library)).toEqual(['pub/words']);
+  });
+});
+
+describe('older versions a phone serves a teammate whose organization data is behind (review item 17)', () => {
+  it('are the recorded versions of items on the list, newest first and a few an item, never one on the list or of an item off it', () => {
+    // The template's first version, its second being on the list; the other template is not on it.
+    expect(olderVersionsOf(library, [h('2'), h('3')])).toEqual([h('1')]);
+    expect(olderVersionsOf(library, [h('1')])).toEqual([h('2')]);
+    expect(olderVersionsOf(library, [h('c')])).toEqual([]);
+    const many = org((emit) => item(emit, 'tpl', 'template', h('1'), h('2'), h('3'), h('4'), h('5'), h('6'), h('7')));
+    expect(olderVersionsOf(many, [h('7')])).toEqual([h('3'), h('4'), h('5'), h('6')]);
+    expect(olderVersionsOf(many, [h('7')], 1)).toEqual([h('6')]);
+    // A followed item records only its newest pin.
+    expect(olderVersionsOf(library, [h('e')])).toEqual([]);
   });
 });

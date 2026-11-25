@@ -40,6 +40,12 @@ export interface LocalPerson {
   stage: LocalStage;
   /** The two-link chain from `join-grant`, from `filling` on. */
   chain: unknown[] | null;
+  /**
+   * `filling` only: the starting copy came whole, and the join's link went on to the steps after it
+   * (2026-11-24). The person is set when those end; a phone that died first sets them at its next
+   * start from this mark, with no teammate.
+   */
+  copyWhole?: true;
   /** First contact's request id, made once and sent with every try, so a repeat is a repeat. */
   requestId?: string;
   /** The join route refused (410): the person and their work stay, and a screen says why. */
@@ -91,7 +97,7 @@ export function parseLocalPerson(raw: string | null | undefined): LocalPerson | 
   let v: unknown;
   try { v = JSON.parse(raw); } catch { return null; }
   if (!isObject(v) || v['v'] !== 1) return null;
-  const { profileId, idSalt, installKey, deviceId, name, stage, chain, requestId, refused, needsCode } = v;
+  const { profileId, idSalt, installKey, deviceId, name, stage, chain, requestId, refused, needsCode, copyWhole } = v;
   if (!isText(profileId) || !isB64(idSalt, 22) || !isB64(installKey, 43) || !isText(deviceId) || typeof name !== 'string' || name.length > 200) return null;
   if (!LOCAL_STAGES.includes(stage as LocalStage)) return null;
   const out: LocalPerson = { v: 1, profileId, idSalt, installKey, deviceId, name, stage: stage as LocalStage, chain: null };
@@ -103,6 +109,7 @@ export function parseLocalPerson(raw: string | null | undefined): LocalPerson | 
     if (!isText(requestId)) return null;
     out.requestId = requestId;
   }
+  if (copyWhole === true && out.stage === 'filling') out.copyWhole = true;
   if (isObject(refused) && isText(refused['status']) && isTime(refused['at'])) out.refused = { status: refused['status'], at: refused['at'] };
   if (isObject(needsCode) && typeof needsCode['signInName'] === 'string' && isTime(needsCode['at'])) out.needsCode = { signInName: needsCode['signInName'], at: needsCode['at'] };
   return out;

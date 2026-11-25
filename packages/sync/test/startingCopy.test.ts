@@ -5,10 +5,10 @@ import {
 import { bytesToHex, newcomerOrgState, utf8Encode } from '@langquest-next/core/nearby';
 import { PART_KINDS } from '../src/keptLanguage';
 import { MemoryStore } from '../src/memoryStore';
-import { rowsOverLink, StartingCopySender, takeStartingCopy, type CopyAsker, type NearbyDocs } from '../src/nearbyCopy';
+import { CopyRefused, OtherCheckpoint, rowsOverLink, StartingCopySender, takeStartingCopy, type CopyAsker, type NearbyDocs, type StartingCopyTarget } from '../src/nearbyCopy';
 import { ORG_MATERIALIZER } from '../src/orgSession';
 import { SqliteStore, type SqlDriver } from '../src/sqliteStore';
-import { SyncClient } from '../src/syncClient';
+import { LANGUAGE_MATERIALIZER, SyncClient, type Materializer } from '../src/syncClient';
 import { FakeServer } from '../src/testing/fakeServer';
 import { fakeSha256 } from '../src/testing/memoryNearbyLink';
 import { OfflineError, type EventStore, type StartingCopy, type Transport } from '../src/types';
@@ -52,13 +52,14 @@ const comparable = (s: Lang) => ({ ...s, appliedEventIds: {} });
 const plain = (l: unknown) => JSON.parse(JSON.stringify(l)) as unknown;
 
 describe.each([['memory', () => new MemoryStore() as EventStore], ['SQLite', sqlite]] as const)('on the %s store', (_name, makeStore) => {
-  function phone(server: FakeServer, deviceId: string, actorId: string, o: { keepOnDisk?: boolean; store?: EventStore; online?: () => boolean } = {}) {
+  function phone(server: FakeServer, deviceId: string, actorId: string, o: { keepOnDisk?: boolean; store?: EventStore; online?: () => boolean; materializer?: Materializer<Lang>; pullPageSize?: number } = {}) {
     const store = o.store ?? makeStore();
     const transport = o.online ? gated(server.transportFor(), o.online) : server.transportFor();
     const client = new SyncClient({
       orgId: 'org1', streamId: 'p1', actorId, deviceId, store, transport,
       clock: new HlcClock(deviceId, () => ++ids), newId: () => `${deviceId}-${++ids}`,
-      ...(o.keepOnDisk ?? true ? { keepOnDisk: true } : {}), fillPageRows: 6, fillAtOnceRows: 0
+      ...(o.keepOnDisk ?? true ? { keepOnDisk: true } : {}), fillPageRows: 6, fillAtOnceRows: 0,
+      ...(o.materializer ? { materializer: o.materializer } : {}), ...(o.pullPageSize ? { pullPageSize: o.pullPageSize } : {})
     });
     return { client, store };
   }
@@ -109,6 +110,18 @@ describe.each([['memory', () => new MemoryStore() as EventStore], ['SQLite', sql
     return typeof got === 'string' ? { t: 'copy-no', reason: got } : { t: 'copy-part', ...got };
   };
 
+  /**
+   * As a sender from before 2026-11-24, which says no checkpoint seq on its rows: a forged copy's
+   * seq is not the sender's, and these tests fill it from that sender as one session would
+   * (`rowsOverLink`'s `sameSender`), to see first contact replace it.
+   */
+  const unsaid = (a: CopyAsker): CopyAsker => async (ask) => {
+    const got = await a(ask);
+    if (got.t !== 'copy-part') return got;
+    const { seq: _seq, ...rest } = got;
+    return rest;
+  };
+
   /** A teammate with the whole language from the server, kept on disk and filled in. */
   async function teammate(server: FakeServer) {
     const t = phone(server, 'dT', 'r1');
@@ -124,7 +137,7 @@ describe.each([['memory', () => new MemoryStore() as EventStore], ['SQLite', sql
     const sender = new StartingCopySender({ language: from }, 'p1');
     const copy = (await from.startingCopy())!;
     await n.client.adoptStartingCopy(forge ? forge(structuredClone(copy)) : copy);
-    await n.client.fillFromCopy(rowsOverLink(asker(sender), 'p1'));
+    await n.client.fillFromCopy(forge ? rowsOverLink(unsaid(asker(sender)), 'p1', true) : rowsOverLink(asker(sender), 'p1'));
     return n;
   }
 
@@ -215,6 +228,53 @@ describe.each([['memory', () => new MemoryStore() as EventStore], ['SQLite', sql
     });
   });
 
+  // The 2026-11-24 review (P8, T6): a sender held every passage's rows text for the whole session, 50 MB for 100,000 rows.
+  describe('what a sender holds while it gives a copy', () => {
+    it('drops each passage\'s rows once its last part has gone, and holds a few at most for a newcomer that asks only first parts', async () => {
+      const server = new FakeServer();
+      server.serverCut = true;
+      await language(server, 12);
+      server.makeSnapshot('org1', 'p1');
+      const t = await teammate(server);
+      const sender = new StartingCopySender({ language: t.client }, 'p1');
+      const rowsHeld = () => [...(sender as unknown as { texts: Map<string, unknown> }).texts.keys()].filter((k) => k.startsWith('rows:')).length;
+      const units = Array.from({ length: 12 }, (_, i) => `u${String(i).padStart(2, '0')}`);
+      // Every passage whole, one after another: none is held after its last part.
+      for (const u of units) {
+        for (let after = JSON.stringify([u, 0]); ;) {
+          const got = await sender.answer({ t: 'copy-ask', part: 'rows', stream: 'p1', after });
+          if (typeof got === 'string') throw new Error(got);
+          if (got.next === null) break;
+          after = got.next;
+        }
+      }
+      expect(rowsHeld()).toBe(0);
+      // A newcomer that asks the first part of every passage and no more pins at most a few.
+      const again = new StartingCopySender({ language: t.client }, 'p1');
+      const heldThen = () => [...(again as unknown as { texts: Map<string, unknown> }).texts.keys()].filter((k) => k.startsWith('rows:')).length;
+      for (const u of units) await again.answer({ t: 'copy-ask', part: 'rows', stream: 'p1', after: JSON.stringify([u, 0]) });
+      expect(heldThen()).toBeLessThanOrEqual(4);
+    });
+
+    it('a newcomer fills its passages several to a page, so it keeps them in fewer commits than passages', async () => {
+      const server = new FakeServer();
+      server.serverCut = true;
+      await language(server, 12);
+      server.makeSnapshot('org1', 'p1');
+      const t = await teammate(server);
+      const n = phone(server, 'dN', 'new-1', { online: () => false });
+      await n.client.load();
+      await n.client.adoptStartingCopy((await t.client.startingCopy())!);
+      const sender = new StartingCopySender({ language: t.client }, 'p1');
+      let pages = 0;
+      const fill = rowsOverLink(asker(sender), 'p1');
+      const counting: typeof fill = async (...a) => { pages += 1; return fill(...a); };
+      const filled = await n.client.fillFromCopy(counting);
+      expect(filled.filling).toBe(false);
+      expect(pages).toBeLessThan(12);
+    });
+  });
+
   describe('the documents a kept language uses', () => {
     it('sender and newcomer count a material linked to a passage whose links are kept on disk, and it goes', async () => {
       const server = new FakeServer();
@@ -284,6 +344,405 @@ describe.each([['memory', () => new MemoryStore() as EventStore], ['SQLite', sql
       expect(kept).toHaveLength(10);
       // The collection, offered by the wider library, came first: it is how the guides were found.
       expect(kept[0]).toBe(cHash);
+    });
+  });
+
+  /** Where a copy goes on a newcomer's phone, as the app's target has it, with the drop a copy from another checkpoint needs. */
+  const targetOf = (c: SyncClient, o: { drop?: boolean } = {}): StartingCopyTarget => ({
+    languageId: 'p1', sha256: fakeSha256,
+    language: {
+      holdsCopy: () => c.holdsCopy(), adoptStartingCopy: (x) => c.adoptStartingCopy(x), fillFromCopy: (r) => c.fillFromCopy(r), keptOnDisk: true, state: () => c.getState(),
+      ...(o.drop === false ? {} : { dropCopy: () => c.dropStartingCopy() })
+    },
+    org: null
+  });
+
+  // The review of 2026-11-24, item 4: the join dropped while passages were filled, and a teammate at an older checkpoint
+  // finished the copy. Its rows were labelled with the copy's seq, so passages worked on between the two checkpoints got its
+  // older rows, or none, were marked filled, and the copy said it was whole. Claims start above the copy, so the gap stayed.
+  describe('a fill resumes only from a teammate at the checkpoint the copy came from', () => {
+    async function twoCheckpoints() {
+      const server = new FakeServer();
+      server.serverCut = true;
+      const lead = await language(server, 12);
+      server.makeSnapshot('org1', 'p1');
+      const older = await teammate(server);
+      const olderSeq = (await older.client.startingCopy())!.serverSeq;
+      // Work between the two checkpoints, on passages the older one holds too.
+      for (let i = 0; i < 12; i += 1) {
+        const u = `u${String(i).padStart(2, '0')}`;
+        await lead.client.append('v1.NoteAdded', { noteId: `later-${i}`, unitId: u, anchor: { kind: 'passage' }, text: 'between the checkpoints' });
+      }
+      await lead.client.sync();
+      server.makeSnapshot('org1', 'p1');
+      const newer = phone(server, 'dA', 'r2');
+      await newer.client.load();
+      await settle(newer.client);
+      const newerSeq = (await newer.client.startingCopy())!.serverSeq;
+      expect(newerSeq).toBeGreaterThan(olderSeq);
+      return { server, older, newer, olderSeq, newerSeq };
+    }
+
+    /** A newcomer that took the newer copy and filled part of it before the link dropped. */
+    async function partFilled(server: FakeServer, from: SyncClient) {
+      const n = phone(server, 'dN', 'new-1', { online: () => false });
+      await n.client.load();
+      await n.client.adoptStartingCopy((await from.startingCopy())!);
+      const sender = new StartingCopySender({ language: from }, 'p1');
+      let asks = 0;
+      const dropping: CopyAsker = async (ask) => {
+        if (++asks === 3) throw new OfflineError('link dropped');
+        return asker(sender)(ask);
+      };
+      await expect(n.client.fillFromCopy(rowsOverLink(dropping, 'p1'))).rejects.toThrow(OfflineError);
+      expect(n.client.fillProgress()!.filled).toBeGreaterThan(0);
+      return n;
+    }
+
+    it('every rows part says the seq of the checkpoint its rows belong to', async () => {
+      const { older, olderSeq } = await twoCheckpoints();
+      const sender = new StartingCopySender({ language: older.client }, 'p1');
+      const got = await sender.answer({ t: 'copy-ask', part: 'rows', stream: 'p1', after: JSON.stringify(['u00', 0]) });
+      expect(got).toMatchObject({ part: 'rows', seq: olderSeq });
+    });
+
+    it('rows from an older checkpoint go into no passage: the fill stops, and filled passages keep the newer rows', async () => {
+      const { server, older, newer } = await twoCheckpoints();
+      const n = await partFilled(server, newer.client);
+      const before = n.client.fillProgress()!.filled;
+      const fromOlder = rowsOverLink(asker(new StartingCopySender({ language: older.client }, 'p1')), 'p1');
+      await expect(n.client.fillFromCopy(fromOlder)).rejects.toThrow(OtherCheckpoint);
+      expect(n.client.fillProgress()!.filled).toBe(before);
+    });
+
+    it('a newcomer meeting a teammate at another checkpoint drops its part-filled copy and takes that teammate\'s whole copy', async () => {
+      const { server, older, newer, olderSeq } = await twoCheckpoints();
+      const n = await partFilled(server, newer.client);
+      const sender = new StartingCopySender({ language: older.client }, 'p1');
+      const taken = await takeStartingCopy(asker(sender), targetOf(n.client));
+      expect(taken.whole).toBe(true);
+      expect(await n.store.meta('startingCopy:org1/p1')).toBe(String(olderSeq));
+      // One teammate's copy, whole: never the newer state with the older rows.
+      expect(comparable(await whole(n.client, n.store))).toEqual(comparable(await whole(older.client, older.store)));
+      expect(n.client.fillProgress()).toBeNull();
+      // Claims resume above the copy taken, never above the dropped one's newer seq, which would leave the gap between them.
+      expect(await n.store.meta('nearbyClaimed:org1/p1')).toBe(String(olderSeq));
+    });
+
+    // The review of the fixes, 2026-11-24: the copy was dropped before its replacement was asked for, which may take many parts
+    // on Bluetooth, and a teammate whose checkpoint moved after the drop threw `OtherCheckpoint`, which ended the session failed.
+    it('asks for the replacement before dropping anything: a link that goes then leaves the part-filled copy and its passages', async () => {
+      const { server, older, newer, newerSeq } = await twoCheckpoints();
+      const n = await partFilled(server, newer.client);
+      const before = n.client.fillProgress()!.filled;
+      const fromOlder = asker(new StartingCopySender({ language: older.client }, 'p1'));
+      const goesAtState: CopyAsker = async (ask) => {
+        if (ask.part === 'state') throw new OfflineError('link dropped');
+        return fromOlder(ask);
+      };
+      await expect(takeStartingCopy(goesAtState, targetOf(n.client))).rejects.toThrow(OfflineError);
+      expect(await n.store.meta('startingCopy:org1/p1')).toBe(String(newerSeq));
+      expect(n.client.fillProgress()!.filled).toBe(before);
+    });
+
+    it('a teammate whose checkpoint moves after the copy was dropped refuses it, and does not end the session', async () => {
+      const { server, older, newer, olderSeq } = await twoCheckpoints();
+      const n = await partFilled(server, newer.client);
+      const fromOlder = asker(new StartingCopySender({ language: older.client }, 'p1'));
+      let stateGiven = false;
+      const moving: CopyAsker = async (ask) => {
+        const got = await fromOlder(ask);
+        if (ask.part === 'state') stateGiven = true;
+        return got.t === 'copy-part' && got.part === 'rows' && stateGiven ? { ...got, seq: olderSeq + 1 } : got;
+      };
+      const err = await takeStartingCopy(moving, targetOf(n.client)).catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(CopyRefused);
+      expect((err as CopyRefused).reason).toBe('moved');
+      // The older copy stands, its passages still to fill, from a teammate at its checkpoint.
+      expect(await n.store.meta('startingCopy:org1/p1')).toBe(String(olderSeq));
+      expect(await n.client.holdsCopy()).toBe(true);
+    });
+
+    it('a teammate whose rows and state are at different checkpoints refuses the copy, and nothing is dropped', async () => {
+      const { server, older, newer, newerSeq } = await twoCheckpoints();
+      const n = await partFilled(server, newer.client);
+      const before = n.client.fillProgress()!.filled;
+      const fromOlder = asker(new StartingCopySender({ language: older.client }, 'p1'));
+      const split: CopyAsker = async (ask) => {
+        const got = await fromOlder(ask);
+        return got.t === 'copy-part' && got.part === 'rows' ? { ...got, seq: newerSeq + 500 } : got;
+      };
+      const err = await takeStartingCopy(split, targetOf(n.client)).catch((e: unknown) => e);
+      expect((err as CopyRefused).reason).toBe('moved');
+      expect(await n.store.meta('startingCopy:org1/p1')).toBe(String(newerSeq));
+      expect(n.client.fillProgress()!.filled).toBe(before);
+    });
+
+    it('a teammate from before seqs on rows, at the copy\'s own checkpoint, finishes the fill with nothing dropped', async () => {
+      const { server, newer, newerSeq } = await twoCheckpoints();
+      const n = await partFilled(server, newer.client);
+      const same = phone(server, 'dB', 'r3');
+      await same.client.load();
+      await settle(same.client);
+      expect((await same.client.startingCopy())!.serverSeq).toBe(newerSeq);
+      let drops = 0;
+      const target = targetOf(n.client);
+      target.language.dropCopy = async () => { drops += 1; await n.client.dropStartingCopy(); };
+      const taken = await takeStartingCopy(unsaid(asker(new StartingCopySender({ language: same.client }, 'p1'))), target);
+      expect(taken.whole).toBe(true);
+      // Nothing dropped: the passages filled before stay, and only the rest came.
+      expect(drops).toBe(0);
+      expect(comparable(await whole(n.client, n.store))).toEqual(comparable(await whole(newer.client, newer.store)));
+    });
+
+    it('a teammate at the same checkpoint finishes the fill, and the copy is the first teammate\'s, whole', async () => {
+      const { server, newer, newerSeq } = await twoCheckpoints();
+      const n = await partFilled(server, newer.client);
+      const same = phone(server, 'dB', 'r3');
+      await same.client.load();
+      await settle(same.client);
+      expect((await same.client.startingCopy())!.serverSeq).toBe(newerSeq);
+      const taken = await takeStartingCopy(asker(new StartingCopySender({ language: same.client }, 'p1')), targetOf(n.client));
+      expect(taken.whole).toBe(true);
+      expect(comparable(await whole(n.client, n.store))).toEqual(comparable(await whole(newer.client, newer.store)));
+    });
+
+    it('with no way to drop the copy, a teammate at another checkpoint refuses it, and nothing of it is filled in', async () => {
+      const { server, older, newer } = await twoCheckpoints();
+      const n = await partFilled(server, newer.client);
+      const before = n.client.fillProgress()!.filled;
+      await expect(takeStartingCopy(asker(new StartingCopySender({ language: older.client }, 'p1')), targetOf(n.client, { drop: false }))).rejects.toThrow(CopyRefused);
+      expect(n.client.fillProgress()!.filled).toBe(before);
+    });
+
+    it('a teammate whose own fill is unfinished refuses the copy, rather than ending the session as a drop', async () => {
+      const { server, newer } = await twoCheckpoints();
+      const n = await partFilled(server, newer.client);
+      const notFilled: CopyAsker = async (ask) => (ask.part === 'rows' ? { t: 'copy-no', reason: 'not-filled' } : asker(new StartingCopySender({ language: newer.client }, 'p1'))(ask));
+      const err = await takeStartingCopy(notFilled, targetOf(n.client)).catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(CopyRefused);
+      expect((err as CopyRefused).reason).toBe('not-filled');
+    });
+  });
+
+  // The review of 2026-11-24, item 3: names and up to 5,000 documents follow the passages one round trip each, the longest part;
+  // a drop there threw `OfflineError`, so the copy was not set though the person held everything needed to work.
+  it('a link that goes during the documents leaves the copy whole, said before the first document, with what came kept', async () => {
+    const server = new FakeServer();
+    server.serverCut = true;
+    await language(server, 4);
+    server.makeSnapshot('org1', 'p1');
+    const t = await teammate(server);
+    const doc = (i: number) => ({ format: 'study@2', title: `Guide ${i}`, links: [], steps: [{ id: 's', title: 'Listen', text: `Step ${i}` }], resources: [], terms: [], deps: [] });
+    const hashOf = (d: unknown) => bytesToHex(fakeSha256(utf8Encode(canonicalJson(d))));
+    const docs = [doc(1), doc(2), doc(3)];
+    const reg = <T,>(value: T) => ({ value, hlc: 'x', eventId: 'e' });
+    const library = Object.fromEntries(docs.map((d, i) => [`v${i}`, {
+      kind: reg('material'), name: reg(`V${i}`), description: reg(''), copiedFrom: reg(null), versions: { [hashOf(d)]: { docHash: hashOf(d), hlc: 'x', eventId: 'e', actorId: 'lead' } },
+      sharing: reg({ shared: false, subscribable: false }), archived: reg(false), subscription: reg(null), pinned: reg(null)
+    }]));
+    const orgState = { library, recommendations: {}, members: {}, roles: {}, languages: {} } as unknown as OrgState;
+    const all = new Map(docs.map((d) => [hashOf(d), d as unknown as LibraryDoc]));
+    const port: NearbyDocs = { head: async (x) => { const d = all.get(x); return d ? docHeadOf(d) : null; }, text: async (x) => (all.has(x) ? canonicalJson(all.get(x)) : null), keep: async () => true };
+    const sender = new StartingCopySender({ language: t.client, org: { startingCopy: async () => ({ serverSeq: 1, state: orgState }) }, docs: port }, 'p1');
+    const n = phone(server, 'dN', 'new-1', { online: () => false });
+    await n.client.load();
+    const said: string[] = [];
+    let docAsks = 0;
+    const dropping: CopyAsker = async (ask) => {
+      if (ask.part === 'doc') said.push('doc');
+      if (ask.part === 'doc' && ++docAsks === 2) throw new OfflineError('link dropped');
+      return asker(sender)(ask);
+    };
+    const kept: string[] = [];
+    const taken = await takeStartingCopy(dropping, {
+      ...targetOf(n.client), docs: { head: async () => null, text: async () => null, keep: async (x) => { kept.push(x); return true; } },
+      org: { holdsCopy: async () => true, adoptStartingCopy: async () => undefined, state: () => orgState }
+    }, { held: false }, async (soFar) => { said.push(`whole ${String(soFar.whole)}`); });
+    expect(taken.whole).toBe(true);
+    expect(taken.docs).toMatchObject({ kept: 1, cut: true });
+    expect(kept).toHaveLength(1);
+    expect(said[0]).toBe('whole true');
+    expect(said.filter((x) => x === 'whole true')).toHaveLength(1);
+    // A drop before the copy is whole is still a drop: nothing is said whole.
+    const m = phone(server, 'dM', 'new-2', { online: () => false });
+    await m.client.load();
+    const early: CopyAsker = async (ask) => { if (ask.part === 'rows') throw new OfflineError('link dropped'); return asker(sender)(ask); };
+    const none: string[] = [];
+    await expect(takeStartingCopy(early, { ...targetOf(m.client), org: { holdsCopy: async () => true, adoptStartingCopy: async () => undefined, state: () => orgState } }, { held: false },
+      async () => { none.push('whole'); })).rejects.toThrow(OfflineError);
+    expect(none).toEqual([]);
+  });
+
+  // The review of 2026-11-24, item 28: an older phone treated a document in a format a newer build added as forged, asked that
+  // teammate nothing more that session, and did so again every session. 40 guides plus one such document listed first: 0 kept.
+  it('a document this build cannot read is skipped and remembered, and every readable one after it is still taken', async () => {
+    const server = new FakeServer();
+    server.serverCut = true;
+    await language(server, 4);
+    server.makeSnapshot('org1', 'p1');
+    const t = await teammate(server);
+    const hashOf = (d: unknown) => bytesToHex(fakeSha256(utf8Encode(canonicalJson(d))));
+    const later = { format: 'labels@9', title: 'From a newer build', deps: [] };
+    const guides = Array.from({ length: 5 }, (_, i) => ({ format: 'study@2', title: `Guide ${i}`, links: [], steps: [{ id: 's', title: 'Listen', text: `Step ${i}` }], resources: [], terms: [], deps: [] }));
+    const reg = <T,>(value: T) => ({ value, hlc: 'x', eventId: 'e' });
+    // The unknown one is named first, as the review reproduced it.
+    const named = [later, ...guides];
+    const library = Object.fromEntries(named.map((d, i) => [`i${i}`, {
+      kind: reg('material'), name: reg(`I${i}`), description: reg(''), copiedFrom: reg(null), versions: { [hashOf(d)]: { docHash: hashOf(d), hlc: 'x', eventId: 'e', actorId: 'lead' } },
+      sharing: reg({ shared: false, subscribable: false }), archived: reg(false), subscription: reg(null), pinned: reg(null)
+    }]));
+    const orgState = { library, recommendations: {}, members: {}, roles: {}, languages: {} } as unknown as OrgState;
+    const texts = new Map(named.map((d) => [hashOf(d), canonicalJson(d)]));
+    // The newer teammate serves every document it holds, the unknown one among them.
+    // A newer build reads the unknown format, and offers it as a guide.
+    const theirs: NearbyDocs = { head: async (x) => (texts.has(x) ? { format: 'study@2', refs: [] } : null), text: async (x) => texts.get(x) ?? null, keep: async () => true };
+    const sender = new StartingCopySender({ language: t.client, org: { startingCopy: async () => ({ serverSeq: 1, state: orgState }) }, docs: theirs }, 'p1');
+    const remembered = new Set<string>();
+    const kept: string[] = [];
+    const asked: string[] = [];
+    const mine: NearbyDocs = {
+      head: async () => null, text: async () => null, keep: async (x) => { kept.push(x); return true; },
+      unreadable: async () => remembered, noteUnreadable: async (x) => { remembered.add(x); }
+    };
+    const counting: CopyAsker = async (ask) => { if (ask.part === 'doc') asked.push(ask.hash!); return asker(sender)(ask); };
+    const n = phone(server, 'dN', 'new-1', { online: () => false });
+    await n.client.load();
+    const target = { ...targetOf(n.client), docs: mine, org: { holdsCopy: async () => true, adoptStartingCopy: async () => undefined, state: () => orgState } };
+    const taken = await takeStartingCopy(counting, target);
+    expect(taken.docs).toMatchObject({ kept: 5, refused: 0, missing: 0, unreadable: 1 });
+    expect(kept.sort()).toEqual(guides.map(hashOf).sort());
+    expect([...remembered]).toEqual([hashOf(later)]);
+    // Remembered until the app updates: the next session asks for it no more.
+    asked.length = 0;
+    const again = await takeStartingCopy(counting, { ...target, docs: { ...mine, head: async (x) => (kept.includes(x) ? docHeadOf(guides.find((g) => hashOf(g) === x) as unknown as LibraryDoc) : null) } });
+    expect(asked).toEqual([]);
+    expect(again.docs).toMatchObject({ kept: 0, refused: 0, missing: 0 });
+    // A text with the wrong hash is still a forgery, and that teammate is asked nothing more.
+    const forger: CopyAsker = async (ask) => (ask.part === 'doc' ? { t: 'copy-part', part: 'doc', next: null, body: canonicalJson({ ...guides[0], name: 'forged' }) } : asker(sender)(ask));
+    const m = phone(server, 'dM', 'new-2', { online: () => false });
+    await m.client.load();
+    const forged = await takeStartingCopy(forger, { ...targetOf(m.client), docs: { head: async () => null, text: async () => null, keep: async () => true }, org: target.org });
+    expect(forged.docs).toMatchObject({ kept: 0, refused: 1 });
+  });
+
+  // The review of 2026-11-24, item 27: a teammate part-way through downloading gave out what it held as a whole copy, and the
+  // newcomer asks for the organization only while it holds none, so it kept an organization missing roles and members for good.
+  describe('a stream gives a copy only once it was downloaded right up to the server\'s newest', () => {
+    it('a language whose first download was cut short gives none, and says why, until a pull reaches the newest', async () => {
+      const server = new FakeServer();
+      server.serverCut = false;
+      await language(server, 12);
+      const p = phone(server, 'dP', 'r1', { pullPageSize: 4 });
+      await p.client.load();
+      expect(await p.client.canGiveCopy()).toEqual({ ok: false, why: 'nothing' });
+      await p.client.pullSlice(0);
+      expect(await p.store.cursor('org1', 'p1')).toBeGreaterThan(0);
+      expect(await p.store.cursor('org1', 'p1')).toBeLessThan(server.head('org1', 'p1'));
+      expect(await p.client.startingCopy()).toBeNull();
+      expect(await p.client.canGiveCopy()).toEqual({ ok: false, why: 'downloading' });
+      await settle(p.client);
+      expect(await p.client.canGiveCopy()).toEqual({ ok: true });
+      expect((await p.client.startingCopy())!.serverSeq).toBe(server.head('org1', 'p1'));
+    });
+
+    // The review of the fixes, 2026-11-24: the mark was written only with no copy held, so a copy an older build took (no mark)
+    // and then replaced by a first download in several slices counted as downloaded between them, and gave what it held.
+    it('a copy an older build took, replaced by a download in several slices, gives none until the last', async () => {
+      const server = new FakeServer();
+      server.serverCut = false;
+      const lead = await language(server, 6);
+      server.makeSnapshot('org1', 'p1');
+      const t = phone(server, 'dT', 'r1', { keepOnDisk: false });
+      await t.client.load();
+      await settle(t.client);
+      const copy = (await t.client.startingCopy())!;
+      // Work after the snapshot, which the newcomer's first download pulls in pages after it.
+      for (let i = 0; i < 12; i += 1) await lead.client.append('v1.NoteAdded', { noteId: `after-${i}`, unitId: 'u00', anchor: { kind: 'passage' }, text: 'later' });
+      await lead.client.sync();
+      const online = { on: false };
+      const n = phone(server, 'dN', 'new-1', { keepOnDisk: false, online: () => online.on, pullPageSize: 4 });
+      await n.client.load();
+      await n.client.adoptStartingCopy(copy);
+      // As an older build left it: no mark.
+      await n.store.clearMeta('downloaded:');
+      online.on = true;
+      await n.client.pullSlice(0);
+      expect(await n.client.holdsCopy()).toBe(false);
+      expect(await n.store.cursor('org1', 'p1')).toBeGreaterThan(0);
+      expect(await n.store.cursor('org1', 'p1')).toBeLessThan(server.head('org1', 'p1'));
+      expect(await n.client.startingCopy()).toBeNull();
+      await settle(n.client);
+      expect((await n.client.startingCopy())!.serverSeq).toBe(server.head('org1', 'p1'));
+    });
+
+    it('a teammate still filling in says how far, and gives none', async () => {
+      const server = new FakeServer();
+      server.serverCut = true;
+      await language(server, 12);
+      server.makeSnapshot('org1', 'p1');
+      const t = phone(server, 'dT', 'r1');
+      await t.client.load();
+      await t.client.sync();
+      const ready = await t.client.canGiveCopy();
+      expect(ready).toMatchObject({ ok: false, why: 'filling' });
+      expect((ready as { fill: { filled: number; total: number } }).fill.total).toBeGreaterThan(0);
+    });
+  });
+
+  // The review of 2026-11-24, item 26: an app on another reducer, from an update caught at a market or a newer install file,
+  // dropped the newcomer's copy at the next start, and nothing said so or took one again.
+  describe('a copy lost to another reducer is marked, and wanted again', () => {
+    it('marks the copy lost when its checkpoint is dropped, and a copy taken again, or the server\'s download, clears the mark', async () => {
+      const server = new FakeServer();
+      server.serverCut = true;
+      await language(server, 6);
+      server.makeSnapshot('org1', 'p1');
+      const t = await teammate(server);
+      const online = { on: false };
+      const n = await newcomer(server, t.client, online);
+      expect(await n.client.copyNeed()).toBeNull();
+      // The same store under a build with another reducer.
+      const bumped = { ...LANGUAGE_MATERIALIZER, version: LANGUAGE_MATERIALIZER.version + 1 } as Materializer<Lang>;
+      const after = phone(server, 'dN', 'new-1', { store: n.store, online: () => online.on, materializer: bumped });
+      await after.client.load();
+      expect(await after.client.holdsCopy()).toBe(false);
+      expect(await after.client.copyNeed()).toBe('lost');
+      expect(await n.store.meta('copyLost:org1/p1')).toBe('1');
+      // A teammate on the new build gives it again.
+      const t2 = phone(server, 'dT2', 'r2', { materializer: bumped });
+      await t2.client.load();
+      await settle(t2.client);
+      await after.client.adoptStartingCopy((await t2.client.startingCopy())!);
+      expect(await after.client.copyNeed()).toBe('filling');
+      await after.client.fillFromCopy(rowsOverLink(asker(new StartingCopySender({ language: t2.client }, 'p1')), 'p1'));
+      expect(await after.client.copyNeed()).toBeNull();
+      expect(await n.store.meta('copyLost:org1/p1')).toBeFalsy();
+      // A phone that never took one needs one; one with anything from the server needs none.
+      const none = phone(server, 'dZ', 'z', { online: () => false });
+      await none.client.load();
+      expect(await none.client.copyNeed()).toBe('missing');
+      expect(await t.client.copyNeed()).toBeNull();
+    });
+
+    it('a reducer change on a phone that downloaded from the server marks no copy lost, and gives no copy until downloaded again', async () => {
+      const server = new FakeServer();
+      server.serverCut = true;
+      await language(server, 6);
+      server.makeSnapshot('org1', 'p1');
+      const t = await teammate(server);
+      expect(await t.client.startingCopy()).not.toBeNull();
+      const bumped = { ...LANGUAGE_MATERIALIZER, version: LANGUAGE_MATERIALIZER.version + 1 } as Materializer<Lang>;
+      const online = { on: false };
+      const after = phone(server, 'dT', 'r1', { store: t.store, online: () => online.on, materializer: bumped });
+      await after.client.load();
+      expect(await t.store.meta('copyLost:org1/p1')).toBeFalsy();
+      expect(await after.client.startingCopy()).toBeNull();
+      online.on = true;
+      server.reducerVersion = bumped.version;
+      server.makeSnapshot('org1', 'p1');
+      await settle(after.client);
+      expect(await after.client.startingCopy()).not.toBeNull();
     });
   });
 
@@ -453,7 +912,7 @@ describe.each([['memory', () => new MemoryStore() as EventStore], ['SQLite', sql
     });
     await client.load();
     await client.adoptStartingCopy(forged(structuredClone((await t.client.startingCopy())!)));
-    await client.fillFromCopy(rowsOverLink(asker(new StartingCopySender({ language: t.client }, 'p1')), 'p1'));
+    await client.fillFromCopy(rowsOverLink(unsaid(asker(new StartingCopySender({ language: t.client }, 'p1'))), 'p1', true));
     online.on = true;
     expect((await client.sync()).pulled).toBe(0);
     expect(replaced).toBe(true);

@@ -31,6 +31,14 @@ export interface ChainOrg {
 export const NEARBY_CERTIFICATE_MS = 365 * 86_400_000;
 
 /**
+ * How long a newcomer let in offline is accepted, by teammates and the server, from when the
+ * inviter's phone made their invite link (Carl, 2026-11-24, decision 240 as amended): the same 90
+ * days for everyone, whatever the calendar, provided the link was made before its pass expired.
+ * A link with no `madeAt` (from a build before then) lasts as before, until its pass's `expiresAt`.
+ */
+export const NEARBY_NEWCOMER_MS = 90 * 86_400_000;
+
+/**
  * When the certificate that opens a chain was signed, or null for a chain that does not open with
  * one. For a newcomer let in offline it is their inviter's, since the newcomer has never reached
  * the server. Read only after `checkChain` passed: nothing here checks a signature.
@@ -65,6 +73,14 @@ export interface InviteLink {
   body: {
     pass: JoinPass; installKey: string; idSalt: string; profileId: string; deviceId: string; name: string;
     roleId: string; privileges: Privilege[];
+    /**
+     * When the inviter's phone made the link, by its Hello clock, in ms (2026-11-24). The newcomer is
+     * then accepted for `NEARBY_NEWCOMER_MS` from it, if it is not past the pass's `expiresAt`.
+     * Signed with the rest of the body, and optional rather than a new kind, so a teammate on an
+     * older build, which reads no `madeAt`, still accepts the newcomer as it always did: until the
+     * pass expires. Absent from links made before then, which last as they did.
+     */
+    madeAt?: number;
   };
   /** By the `installKey` the link before names. */
   sig: string;
@@ -130,8 +146,9 @@ function isJoinPass(v: unknown): v is JoinPass {
 
 function isInviteLink(v: unknown): v is InviteLink {
   if (!isObject(v) || !isSig(v['sig']) || !isObject(v['body'])) return false;
-  const { pass, installKey, idSalt, profileId, deviceId, name, roleId, privileges } = v['body'];
-  return isKey(installKey) && isBase64url(idSalt, 16) && isText(profileId) && isText(deviceId) && typeof name === 'string' && isText(roleId) && isTexts(privileges) && isJoinPass(pass);
+  const { pass, installKey, idSalt, profileId, deviceId, name, roleId, privileges, madeAt } = v['body'];
+  return isKey(installKey) && isBase64url(idSalt, 16) && isText(profileId) && isText(deviceId) && typeof name === 'string' && isText(roleId) && isTexts(privileges) && isJoinPass(pass) &&
+    (madeAt === undefined || isTime(madeAt));
 }
 
 /** What these scopes give in one language. */
@@ -212,15 +229,24 @@ export interface JoinAsk {
  * the issuing side and `checkChain` share, so a phone never signs a link its teammates refuse.
  * That is `mayGrantRole`'s rule on signed privileges, so it works with a stale fold. Uses are
  * counted only by the server, at first contact. Signatures are the caller's.
+ *
+ * Expiry (decision 240 as amended 2026-11-24): a link with `madeAt` must have been made by the
+ * pass's `expiresAt`, which holds whatever `now` is, since it is no clock check; and with `now` a
+ * number, `now` must be within `NEARBY_NEWCOMER_MS` of `madeAt`. A link with none is checked
+ * against the pass's `expiresAt`, as before. The issuing side passes `madeAt` as its `now`, so it
+ * refuses exactly a pass already past its expiry.
  */
 export async function inviteRefusal(
-  pass: JoinPass, inviter: Extract<ChainVerdict, { ok: true }>, ask: JoinAsk & { roleId: string; privileges: readonly Privilege[] }, opts: Pick<CheckChainOptions, 'orgId' | 'languageId' | 'now' | 'sha256' | 'revoked'>
+  pass: JoinPass, inviter: Extract<ChainVerdict, { ok: true }>, ask: JoinAsk & { roleId: string; privileges: readonly Privilege[]; madeAt?: number },
+  opts: Pick<CheckChainOptions, 'orgId' | 'languageId' | 'now' | 'sha256' | 'revoked'>
 ): Promise<string | null> {
   const { holder } = inviter;
   if (pass.body.orgId !== opts.orgId || inviter.org.orgId !== opts.orgId) return 'wrong organization';
   if (opts.languageId !== undefined && pass.body.languageId !== opts.languageId) return 'wrong language';
   if (pass.body.inviterKey !== holder.installKey || pass.body.inviter !== holder.profileId) return 'pass names someone else';
-  if (isPast(opts.now, pass.body.expiresAt)) return 'pass expired';
+  if (ask.madeAt === undefined ? isPast(opts.now, pass.body.expiresAt) : !(ask.madeAt <= pass.body.expiresAt) || isPast(opts.now, ask.madeAt + NEARBY_NEWCOMER_MS)) {
+    return 'pass expired';
+  }
   if (ask.installKey === holder.installKey) return 'a link cannot vouch for its own key';
 
   const role = pass.body.roles.find((r) => r.roleId === ask.roleId);

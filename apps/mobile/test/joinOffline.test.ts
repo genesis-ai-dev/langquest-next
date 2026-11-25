@@ -1,8 +1,9 @@
 import {
-  afterCopy, afterGrant, askingRecord, goOnOnline, JOIN_START, joinEndOf, joinGuideFilesLine, joinName, joinReducer, notEmptyWhy, seedsFor, type JoinAction, type JoinStage
+  afterCopy, afterGrant, askingRecord, copyWholeMark, goOnOnline, JOIN_START, joinEndOf, joinGuideFilesCame, joinGuideFilesLine, joinName, joinReducer, notEmptyWhy, seedsFor, wholeAtStart,
+  type JoinAction, type JoinStage
 } from '../src/nearby/joinOfflineModel';
 import { keepGrant, setWhenWhole, type GrantStores } from '../src/nearby/joinGrant';
-import type { LocalPerson } from '../src/session/localPersonModel';
+import { localPersonText, mayKeepLocalPerson, parseLocalPerson, type LocalPerson } from '../src/session/localPersonModel';
 import { inviteChain, KEY, person } from './localPersonFixtures';
 
 /**
@@ -117,6 +118,36 @@ describe('the grant and the copy', () => {
     expect(afterCopy(person({ stage: 'ready' }), true)).toBeNull();
   });
 
+  // Review of 2026-11-24, item 2: setting the person now waits on the steps after the copy on the join's link, which can take
+  // minutes of file moves. A phone that died, or an app swiped away, in that time kept a whole copy under a `filling` record,
+  // and offline only a teammate on the same versions with Share nearby open could set the person after.
+  it('a person whose copy came whole before the phone died during the steps after it is set at the next start, with no teammate', () => {
+    const filling = afterGrant(asked, grant.chain)!;
+    const marked = copyWholeMark(filling)!;
+    expect(marked).toEqual({ ...filling, copyWhole: true });
+    // Still `filling`, so the app does not start over as them while the session runs; and it may be kept over the record.
+    expect(marked.stage).toBe('filling');
+    expect(mayKeepLocalPerson(filling, marked)).toBe(true);
+    // As kept, and read back at the next start.
+    const read = parseLocalPerson(localPersonText(marked));
+    expect(read).toEqual(marked);
+    const ready = wholeAtStart(read)!;
+    expect(ready).toEqual({ ...filling, stage: 'ready' });
+    expect(ready).not.toHaveProperty('copyWhole');
+    expect(mayKeepLocalPerson(read, ready)).toBe(true);
+    // A copy that was not whole waits for a teammate or the server, as before; nobody else is set.
+    expect(wholeAtStart(filling)).toBeNull();
+    expect(wholeAtStart(null)).toBeNull();
+    for (const stage of ['asking', 'ready', 'joined', 'done'] as const) {
+      expect(copyWholeMark(person({ stage }))).toBeNull();
+      expect(wholeAtStart({ ...person({ stage }), copyWhole: true })).toBeNull();
+    }
+    // The mark is the `filling` stage's alone: a record at any other stage reads without it, and the person set drops it.
+    expect(parseLocalPerson(localPersonText({ ...person({ stage: 'ready' }), copyWhole: true }))).not.toHaveProperty('copyWhole');
+    expect(afterCopy(marked, true)).not.toHaveProperty('copyWhole');
+    expect(goOnOnline(marked)).not.toHaveProperty('copyWhole');
+  });
+
   // Carl, 2026-11-09: online, a copy left part way needs no teammate. Found on two emulators: such a person sat on the join screen online and never reached the server.
   it('sets a person whose copy stopped part way once the server answers, and no one else', () => {
     const filling = afterGrant(asked, grant.chain)!;
@@ -140,16 +171,48 @@ describe('the progress screen', () => {
     expect(run(...begun, { t: 'granted' }, { t: 'copied', whole: true })).toEqual({ t: 'whole' });
   });
 
-  it('says guide pictures and audio come later from the grant on, and not before it or when not let in', () => {
+  it('says guide pictures and audio come later once the copy is left to finish or whole without them, and not before it or when not let in', () => {
     // The starting copy carries no guide files; the first Wi-Fi session with a teammate brings them (5.12, Library files).
     const begun: JoinAction[] = [{ t: 'checked', notEmpty: null, code: true, filling: false }, { t: 'start' }, { t: 'asked', pictures: [3, 9] }];
-    expect(joinGuideFilesLine(run(...begun, { t: 'granted' }))).toBe(true);
     expect(joinGuideFilesLine(run(...begun, { t: 'granted' }, { t: 'copied', whole: true }))).toBe(true);
+    expect(joinGuideFilesLine(run(...begun, { t: 'granted' }, { t: 'copied', whole: true, guideFilesCame: false }))).toBe(true);
     expect(joinGuideFilesLine(run(...begun, { t: 'granted' }, { t: 'copied', whole: false }))).toBe(true);
     expect(joinGuideFilesLine(run(...begun, { t: 'granted' }, { t: 'copied', whole: false }, { t: 'look' }))).toBe(true);
+    // Set online, or at the next start from a copy marked whole: nothing says any came.
+    expect(joinGuideFilesLine(run(...begun, { t: 'granted' }, { t: 'copied', whole: false }, { t: 'online' }))).toBe(true);
     expect(joinGuideFilesLine(run(...begun))).toBe(false);
     expect(joinGuideFilesLine(run(...begun, { t: 'ended', why: 'not-let-in' }))).toBe(false);
     expect(joinGuideFilesLine(run({ t: 'checked', notEmpty: null, code: true, filling: false }))).toBe(false);
+  });
+
+  // The review of 2026-11-24, item 2: the join's link now brings the guides' files after a whole copy, and the line still sent the
+  // newcomer to Share nearby for files that had already come.
+  it('says nothing of guide pictures and audio while the copy comes, nor once the link brought some', () => {
+    const begun: JoinAction[] = [{ t: 'checked', notEmpty: null, code: true, filling: false }, { t: 'start' }, { t: 'asked', pictures: [3, 9] }];
+    expect(joinGuideFilesLine(run(...begun, { t: 'granted' }))).toBe(false);
+    expect(joinGuideFilesLine(run(...begun, { t: 'granted' }, { t: 'part' }))).toBe(false);
+    const came = run(...begun, { t: 'granted' }, { t: 'copied', whole: true, guideFilesCame: true });
+    expect(came).toEqual({ t: 'whole', guideFilesCame: true });
+    expect(joinGuideFilesLine(came)).toBe(false);
+    // A drop after it, or the server answering, changes nothing.
+    expect(joinGuideFilesLine(joinReducer(came, { t: 'ended', why: 'dropped' }))).toBe(false);
+    expect(joinGuideFilesLine(joinReducer(came, { t: 'online' }))).toBe(false);
+    // A teammate met while looking that finished the copy and brought them.
+    expect(joinGuideFilesLine(run(...begun, { t: 'granted' }, { t: 'copied', whole: false }, { t: 'look' }, { t: 'copied', whole: true, guideFilesCame: true }))).toBe(false);
+  });
+
+  it('counts guide pictures and audio as come only when the session ended done and its library files step brought one', () => {
+    const done = { how: 'done' };
+    expect(joinGuideFilesCame({ ended: done, libraryFiles: { got: 3 } })).toBe(true);
+    expect(joinGuideFilesCame({ ended: done, libraryFiles: { got: 1 } })).toBe(true);
+    // An older phone on either side, or no library half: no library files step at all.
+    expect(joinGuideFilesCame({ ended: done, libraryFiles: null })).toBe(false);
+    // The teammate's phone held none the guides name.
+    expect(joinGuideFilesCame({ ended: done, libraryFiles: { got: 0 } })).toBe(false);
+    // The link dropped, or the person left, during the steps after the copy: the rest come later.
+    expect(joinGuideFilesCame({ ended: { how: 'dropped' }, libraryFiles: { got: 2 } })).toBe(false);
+    expect(joinGuideFilesCame({ ended: { how: 'said' }, libraryFiles: { got: 2 } })).toBe(false);
+    expect(joinGuideFilesCame(null)).toBe(false);
   });
 
   it('says why a phone that holds someone\'s work cannot join, and asks for a code when none was scanned', () => {

@@ -24,7 +24,21 @@ export type LetInWhyNot =
   /** Android has not allowed this phone's nearby radios yet: Share nearby asks, with why. */
   | 'permissions'
   /** Wi-Fi is off, and the new phone joins over it. */
-  | 'wifi-off';
+  | 'wifi-off'
+  /**
+   * This phone has let in as many people as its pass allows (`maxUses`, 2026-11-24, review item 7):
+   * teammates and the server would refuse one more, so the phone needs the server for a new pass.
+   */
+  | 'used-up'
+  /**
+   * This phone's own copy of the team's work is not ready to give (`canGiveCopy`, 2026-11-24,
+   * review item 5): its download did not reach the server's newest, or its passages are still being
+   * filled in. Only the internet finishes either.
+   */
+  | 'copy-not-ready';
+
+/** What `canGiveCopy` answers, as Let someone in reads it: ready, or why not, with how far a fill has come (`copyReadyOf`). */
+export type LetInCopyReady = { ok: true } | { ok: false; why: 'filling' | 'downloading' | 'nothing'; fill?: { filled: number; total: number } | null };
 
 /** A role the pass lets this phone give, by its name in the organization. */
 export interface LetInRole {
@@ -48,11 +62,16 @@ export function letInRoles(pass: PassShape | null, org: OrgState | null): LetInR
  * issues only while the organization has both `nearby` and `nearby_join` on (Carl's answer 11),
  * not past its expiry, with a role to give. `features` is what the server said this run, null
  * offline: a pass held is then the word that joining was on when it was given, since an answer
- * replaces every pass whole.
+ * replaces every pass whole. `pass` is the one in effect (`passInEffect`) and `now` the clock
+ * Hello checks with (`nearbyHelloNow`), as the session that signs the link checks it.
  */
 export function letInWhyNot(o: {
   inBuild: boolean; readOnly: boolean; pass: PassShape | null | undefined; features: string[] | null; roles: readonly LetInRole[]; now: number;
   permitted?: boolean; wifiOn?: boolean;
+  /** People this phone let in under `pass` (2026-11-24, review item 7); unknown, nothing is said of it. */
+  used?: number;
+  /** Whether this phone can give a whole copy (`copyReadyOf`), checked before the code is shown (review item 5); null while read. */
+  copy?: LetInCopyReady | null;
 }): LetInWhyNot | null {
   if (!o.inBuild) return 'not-in-build';
   if (o.readOnly) return 'read-only';
@@ -61,10 +80,17 @@ export function letInWhyNot(o: {
   if (o.features !== null && (!o.features.includes('nearby') || !o.features.includes('nearby_join'))) return 'no-pass';
   if (!(o.now <= o.pass.body.expiresAt)) return 'expired';
   if (o.roles.length === 0) return 'no-role';
+  if (o.used !== undefined && o.used >= o.pass.body.maxUses) return 'used-up';
+  if (o.copy === null) return 'loading';
+  if (o.copy && !o.copy.ok) return 'copy-not-ready';
   if (o.permitted === false) return 'permissions';
   if (o.wifiOn === false) return 'wifi-off';
   return null;
 }
+
+/** The session's word for a pass used up (sync's `NEARBY_PASS_USED_UP`), copied so the web bundle, which carries this file, carries no nearby entry; letIn.test.ts holds them equal. */
+// i18n-ignore: the session's word in its report, never shown
+export const LET_IN_USED_UP = 'pass used up';
 
 /** How long a QR code nobody has used stays up (14.1, 3, "How long"). */
 export const LET_IN_CODE_MS = 120_000;
@@ -107,18 +133,34 @@ export type LetInEnd =
   | 'dropped-after'
   /** Let in, but this phone had no copy of the organization or language to give yet: any teammate can finish it. */
   | 'copy-short'
+  /**
+   * Let in with a whole copy, and the link went during the names or documents after it (2026-11-24,
+   * review item 3): they can work already, and any teammate gives the rest.
+   */
+  | 'dropped-docs'
+  /** This phone's pass has let in as many people as it allows (2026-11-24, review item 7): nobody more until it reaches the internet. */
+  | 'used-up'
   /** The phone was locked or left, or the screen closed: the code is gone (5.8). */
   | 'stopped'
   /** This phone holds no certificate or discovery key for the language: it needs the server first. */
   | 'no-certificate'
   | 'failed';
 
-/** What a session's report says of how it ended, on the inviter's side. */
+/**
+ * What a session's report says of how it ended, on the inviter's side. A drop after the newcomer's
+ * copy was whole, while the two went on to the newest work (`exchange`, 2026-11-24), is done: they
+ * are in, and what was newer comes from any teammate or the server.
+ */
 export function letInEndOf(r: {
-  ended: { how: string; reason?: string; detail?: string }; versionsDiffer: boolean; clockOff: boolean; join: { granted: boolean; refused: string | null } | null;
+  ended: { how: string; reason?: string; detail?: string }; versionsDiffer: boolean; clockOff: boolean;
+  join: { granted: boolean; refused: string | null; exchange?: boolean; copyWhole?: boolean } | null;
   copyServed?: { stateRefused: string | null };
 }): LetInEnd | 'done' {
-  if (r.join?.granted) return r.ended.how !== 'done' ? 'dropped-after' : r.copyServed?.stateRefused ? 'copy-short' : 'done';
+  if (r.join?.granted) {
+    if (r.ended.how !== 'done' && !r.join.exchange) return r.join.copyWhole ? 'dropped-docs' : 'dropped-after';
+    return r.copyServed?.stateRefused ? 'copy-short' : 'done';
+  }
+  if (r.join?.refused === LET_IN_USED_UP) return 'used-up';
   if (r.versionsDiffer) return 'versions';
   if (r.clockOff) return 'clock';
   if (r.join?.refused === 'not let in') return 'said-no';
@@ -142,7 +184,8 @@ export type LetInStage =
   /** The one tap: "Let Nyibol in?", beside the two pictures. */
   | { t: 'asked'; name: string; pictures: [number, number] }
   | { t: 'copying'; name: string; parts: number }
-  | { t: 'done'; name: string }
+  /** In. `guideFilesWent`: guide pictures and audio went to them on the link (`letInGuideFilesWent`), so none are said to come later. */
+  | { t: 'done'; name: string; guideFilesWent?: true }
   | { t: 'ended'; why: LetInEnd; name: string | null };
 
 export interface LetInState {
@@ -161,7 +204,8 @@ export type LetInAction =
   | { t: 'asked'; name: string; pictures: [number, number] }
   | { t: 'answered'; yes: boolean }
   | { t: 'part' }
-  | { t: 'ended'; why: LetInEnd | 'done' }
+  /** `guideFilesWent`: the session said guide pictures and audio went (`letInGuideFilesWent`). */
+  | { t: 'ended'; why: LetInEnd | 'done'; guideFilesWent?: boolean }
   | { t: 'turned-away' }
   | { t: 'new-code' };
 
@@ -191,7 +235,7 @@ export function letInReducer(s: LetInState, a: LetInAction): LetInState {
       // A No already said so; the session's end after it changes nothing.
       if (stage.t === 'ended') return s;
       const name = nameIn(stage);
-      if (a.why === 'done') return { ...s, stage: { t: 'done', name: name ?? '' } };
+      if (a.why === 'done') return { ...s, stage: { t: 'done', name: name ?? '', ...(a.guideFilesWent ? { guideFilesWent: true as const } : {}) } };
       return { ...s, stage: { t: 'ended', why: a.why, name } };
     }
     case 'turned-away':
@@ -202,13 +246,26 @@ export function letInReducer(s: LetInState, a: LetInAction): LetInState {
 }
 
 /**
+ * Whether guide pictures and audio went to the new person on the join's link: it ran to its end,
+ * and its library files step, which follows a whole copy when both phones run a build from
+ * 2026-11-24 (`join-exchange`, `library-files`), served at least one (docs/nearby-sync-plan.md
+ * 5.12, Library files).
+ */
+export function letInGuideFilesWent(r: { ended: { how: string }; libraryFiles: { served: number } | null }): boolean {
+  return r.ended.how === 'done' && (r.libraryFiles?.served ?? 0) > 0;
+}
+
+/**
  * Whether the screen says the new person's guide pictures and audio come later: once they are in,
- * done or with a copy a teammate finishes. The starting copy carries the language's guides but
- * never the files they name, which come in their first Wi-Fi session with any teammate
- * (docs/nearby-sync-plan.md 5.12, Library files), and nothing else tells the inviter so.
+ * done with none sent (`guideFilesWent`), or with a copy a teammate finishes. The starting copy
+ * carries the language's guides but never the files they name. Since 2026-11-24 the join's link
+ * sends them after a whole copy; but a copy left to finish, an older phone on either side, a link
+ * that dropped first, or none held on this phone leaves them to the new person's first Wi-Fi
+ * session with any teammate, and nothing else tells the inviter so. When some went, nothing is
+ * said: any this phone did not hold come in any later session, as for everyone.
  */
 export function letInGuideFilesLine(s: LetInStage): boolean {
-  return s.t === 'done' || (s.t === 'ended' && (s.why === 'dropped-after' || s.why === 'copy-short'));
+  return (s.t === 'done' && !s.guideFilesWent) || (s.t === 'ended' && (s.why === 'dropped-after' || s.why === 'dropped-docs' || s.why === 'copy-short'));
 }
 
 /** The QR code is shown only while it can still be used: up, and not past its time (two minutes, or Give the app's fifteen). */

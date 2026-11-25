@@ -1,12 +1,14 @@
-import { ORG_STREAM, type OrgState } from '@langquest-next/core';
+import { ORG_STREAM, type LanguageState, type OrgState } from '@langquest-next/core';
 import { base64urlDecode, base64urlEncode, joinPassStop, newcomerProfileId, type ChainLink, type JoinPass } from '@langquest-next/core/nearby';
-import { ensureDeviceId, OfflineError, ORG_MATERIALIZER, SyncClient, type Transport } from '@langquest-next/sync';
+import { ensureDeviceId, LanguageSession, OfflineError, ORG_MATERIALIZER, SyncClient, type Transport } from '@langquest-next/sync';
 import {
-  drawOpening, joinOnlyKeep, joinOnlyPort, nearbyKeepOf, NearbySession, openingPinOf, QR_SALT, qrSessionKeyOf, wifiDirectOptions,
-  type NearbyCopySource, type NearbySessionReport, type StartingCopyTarget
+  drawOpening, joinOnlyKeep, joinOnlyPort, nearbyKeepOf, NearbySession, openingPinOf, QR_SALT, qrSessionKeyOf, sessionDiagOf, wifiDirectOptions,
+  type NearbyCopySource, type NearbyFileMoves, type NearbyJoinOwn, type NearbySessionReport, type StartingCopyTarget
 } from '@langquest-next/sync/nearby';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Crypto from 'expo-crypto';
+import { noteChainNames, readChainNames } from '../account/chainNames';
+import { namesNotMembers, withChainNames } from '../account/chainNamesModel';
 import { appBuild } from '../diagnostics/appBuild';
 import { noteExpected } from '../diagnostics/report';
 import type { JoinCode } from '../invites/inviteCode';
@@ -19,16 +21,18 @@ import { savedSession } from '../session/authState';
 import type { LocalPerson } from '../session/localPersonModel';
 import { getStore, holdsUnsent } from '../storage/store';
 import { anyHandOvers } from '../sync/handOver';
-import { askingRecord, notEmptyWhy, seedsFor, type NotEmptyWhy } from './joinOfflineModel';
+import { askingRecord, copyWholeMark, notEmptyWhy, seedsFor, type NotEmptyWhy } from './joinOfflineModel';
 import { keepGrant, setWhenWhole } from './joinGrant';
-import { keepOpenOrgsFromJoin, nearbyOpenOrgs } from './nearbyIdentity.native';
-import { phoneDocs } from './nearbyLibrary.native';
+import { keepOpenOrgsFromJoin, nearbyOpenOrgs, nearbyOpenSwitch } from './nearbyIdentity.native';
+import { nearbyLibraryOf, phoneDocs, phoneLabels } from './nearbyLibrary.native';
+import { phoneSharedFor } from '../library/sharedTeammate.native';
+import { notesMetOf } from './nearbyModel';
 import { installKey } from '../server/nearbyKey';
 import { nobleSha256, phoneCryptoOf } from './nearbyCryptoModel';
 import type { PhoneRadio } from './nearbyLink.native';
 import { keepChains, nearbyGateFor, nearbyMakerFor, readChains, readRevoked, ROOT_KEYS } from './nearbyPhone.native';
-import { findKeyFor, nearbyPiecesFor } from './nearbyRun.native';
-import { certOrgSeqOf, orgSeqHereOf } from './nearbyRunModel';
+import { findKeyFor, nearbyDiagFor, nearbyPiecesFor } from './nearbyRun.native';
+import { certOrgSeqOf, NEARBY_OPEN_FRESH_MS, orgSeqHereOf } from './nearbyRunModel';
 import type { NearbyLanguage } from '../sync/useLanguage';
 
 /**
@@ -57,9 +61,19 @@ async function directoryOf(actorId: string): Promise<Record<string, string>> {
   }
 }
 
-/** Everything a sender reads a starting copy from: the language's client, the organization's, member names and documents. */
+/**
+ * Everything a sender reads a starting copy from: the language's client, the organization's, names and documents. The
+ * names are the directory with the names checked chains gave people let in offline under it, so a newcomer sees by name
+ * whoever the language's work names, not only the members the server knew (2026-11-24, review item 12): the sender keeps
+ * only the copy's members and the authors of the work its language carries.
+ */
 export function copySourceOf(o: { actorId: string; language: NearbyLanguage['client']; org: SyncClient<OrgState> | null }): NearbyCopySource {
-  return { language: o.language, org: o.org, names: () => directoryOf(o.actorId), docs: phoneDocs };
+  return {
+    language: o.language, org: o.org, docs: phoneDocs, labels: phoneLabels,
+    // The Bibles other organizations share that the team reads, as the inviter's phone keeps them (review item 9).
+    shared: phoneSharedFor({ orgId: o.language.orgId, languageId: o.language.streamId, org: () => o.org?.getState() ?? null, state: () => o.language.getState() as LanguageState }),
+    names: async () => withChainNames(await directoryOf(o.actorId), await readChainNames(o.actorId).catch(() => ({})))
+  };
 }
 
 /** A transport that is never reached: a newcomer's clients before the person is set only take a teammate's copy. */
@@ -96,9 +110,12 @@ async function newcomerClients(person: LocalPerson, orgId: string, languageId: s
   const nearby = await nearbyMakerFor(orgId, person.profileId);
   const client = new SyncClient({ orgId, streamId: languageId, actorId: person.profileId, deviceId, store, transport, newId, keepOnDisk: true, build: appBuild(), nearby });
   await client.load('open');
-  // The names the copy's members go by, with the person's own, and what the app reads at its first start as them.
+  // The names the copy's members go by, with the person's own, and what the app reads at its first start as them. Those
+  // the copy's organization does not list are people let in offline: kept as chain names too, since the server's directory,
+  // which replaces these at the first download, does not know them until their own phones reach it (review item 12).
   const names = async (got: Record<string, string>) => {
     await AsyncStorage.multiSet(seedsFor({ profileId: person.profileId, orgId, languageId, name: person.name, names: got }));
+    await noteChainNames(person.profileId, namesNotMembers(got, org.getState().members ?? {}, person.profileId)).catch((x: unknown) => noteExpected('join: chain names', x));
   };
   return {
     orgId, languageId, org, language: { client, moves: null },
@@ -106,11 +123,17 @@ async function newcomerClients(person: LocalPerson, orgId: string, languageId: s
       languageId,
       language: {
         holdsCopy: () => client.holdsCopy(), adoptStartingCopy: (c) => client.adoptStartingCopy(c), fillFromCopy: (rows) => client.fillFromCopy(rows),
+        // A teammate at another checkpoint finishes no passage: its whole copy takes this one's place (2026-11-24, review item 4).
+        dropCopy: () => client.dropStartingCopy(),
         keptOnDisk: true, state: () => client.getState(), keptPassageLinks: () => client.keptPassageLinks()
       },
       org: { holdsCopy: () => org.holdsCopy(), adoptStartingCopy: (c) => org.adoptStartingCopy(c), state: () => org.getState() },
       names,
-      docs: phoneDocs
+      docs: phoneDocs,
+      // The names the team's library items go by in this phone's language, as the inviter's phone shows them (review item 13).
+      labels: phoneLabels,
+      // The Bibles other organizations share that the team reads (review item 9).
+      shared: phoneSharedFor({ orgId, languageId, org: () => org.getState(), state: () => client.getState() as LanguageState })
     }
   };
 }
@@ -139,6 +162,10 @@ export interface NewcomerOutcome {
  * began with), keep the grant, and take the starting copy (14.1, 3 and 4). The grant is kept in
  * both the record and `nearbyChain:<profileId>`, and the discovery key with no session; the
  * person is set (`ready`) only once the copy is whole, because `Shell` remounts on the actor id.
+ * Before that, on the same link, the work newer than the copy and the files follow (2026-11-24,
+ * `ownLanguage`); the record is marked as soon as the copy is whole (`copyWhole`), so a phone that
+ * dies during those steps sets the person at its next start (`wholeAtStart`). The join is recorded
+ * in field diagnostics, queued until the person is set and online.
  */
 export async function joinWithCode(radio: PhoneRadio, code: JoinCode, name: string, worn: boolean, hooks: NewcomerHooks): Promise<NewcomerOutcome> {
   if (await phoneNotEmpty(worn)) return { report: null, ready: false, why: 'not-empty' };
@@ -167,6 +194,8 @@ export async function joinWithCode(radio: PhoneRadio, code: JoinCode, name: stri
   if (!hooks.still()) { await link.close().catch(() => undefined); return { report: null, ready: false, why: 'stopped' }; }
   const asked = person;
   let granted: LocalPerson | null = null;
+  let clients: NewcomerClients | null = null;
+  let own: OwnLanguage | null = null;
   const session = new NearbySession({
     role: 'i', link, crypto, orgId: '', languageId: '', deviceId: person.deviceId, chain: [],
     signer: { publicKey: crypto.publicKey, sign: crypto.sign, sha256: crypto.sha256, chainFor: () => null },
@@ -189,17 +218,104 @@ export async function joinWithCode(radio: PhoneRadio, code: JoinCode, name: stri
         });
         granted = next;
         hooks.granted();
-        return (await newcomerClients(next, g.orgId, g.languageId)).target;
+        clients = await newcomerClients(next, g.orgId, g.languageId);
+        // The inviter is met here: where this phone may share while LangQuest is open, by the grant's word, the day is noted (2026-11-24).
+        const notesMet = notesMetOf({ feature: g.features.includes('nearby_open'), switchOn: await nearbyOpenSwitch(), worn });
+        return {
+          target: clients.target, keep: nearbyKeepOf(clients.language.client, { orgId: g.orgId, streamId: g.languageId }),
+          ...(notesMet ? { notesMetForMs: NEARBY_OPEN_FRESH_MS } : {})
+        };
+      },
+      // The copy is whole: marked on the record before the steps after it, so a phone that dies during them sets the person at
+      // its next start with no teammate (2026-11-24). Still `filling`, so `Shell` does not remount and stop this session.
+      whole: async () => {
+        const marked = granted ? copyWholeMark(granted) : null;
+        if (!marked) return;
+        try {
+          if (await keepLocalPerson(marked)) granted = marked;
+        } catch (e) {
+          noteExpected('join: whole', e);
+        }
+      },
+      // After a whole copy, the ordinary steps on this link, on the language as the app opens it (2026-11-24, review item 2).
+      exchange: {
+        library: true,
+        open: async () => {
+          const held = clients;
+          if (!hooks.still()) return 'left';
+          if (!granted || !held) return null;
+          own = await ownLanguage(granted, held).catch((e: unknown) => { noteExpected('join: own language', e); return null; });
+          return own?.pieces ?? null;
+        }
       }
     }
   });
   hooks.onSession?.(session);
+  const began = Date.now();
   try {
     const report = await session.run();
+    // Closed before the person is set: the app opens the language as them from here.
+    (own as OwnLanguage | null)?.close();
+    own = null;
+    // Queued with the rest, and sent once the person is set and online (2026-11-24, review item 14).
+    const where = clients as NewcomerClients | null;
+    nearbyDiagFor(where?.orgId ?? '', where?.languageId ?? '')(sessionDiagOf(report, Date.now() - began, 'join'));
+    // Whoever a checked chain named in the steps after the copy, people let in offline whose work came, by name (review item 12).
+    const named = granted as LocalPerson | null;
+    if (named && report.names.length > 0) await noteChainNames(named.profileId, report.names).catch((x: unknown) => noteExpected('join: chain names', x));
     return { report, ready: await finishIfWhole(granted, report) };
   } finally {
+    (own as OwnLanguage | null)?.close();
     hooks.onSession?.(null);
   }
+}
+
+/** The newcomer's language opened as the app opens it, idle, for the steps after a whole copy; closed before the person is set. */
+interface OwnLanguage {
+  pieces: NearbyJoinOwn;
+  close(): void;
+}
+
+/**
+ * After a whole copy on the join's link (2026-11-24): this person's language as the app opens it
+ * (`appLanguagePlatform`), but idle, with no server, no sync and no transfers, so the ordinary
+ * steps that follow on the link read the copy from disk and move files as any session does. Its
+ * file worker is not started, so the session moves the files itself, one at a time. Null when the
+ * phone has no nearby half or file moves, which leaves the join as before: it ends with the copy.
+ */
+async function ownLanguage(person: LocalPerson, clients: NewcomerClients): Promise<OwnLanguage | null> {
+  const { orgId, languageId } = clients;
+  const actorId = person.profileId;
+  const { appLanguagePlatform } = await import('../sync/appLanguage');
+  const platform = await appLanguagePlatform();
+  const nearby = await platform.nearby?.(orgId, actorId);
+  const near = nearby ? await platform.nearbyFiles?.(orgId, actorId, languageId, platform.files) : undefined;
+  if (!nearby || !near) return null;
+  const got = await nearbyPiecesFor({ actorId, orgId, languageId, org: clients.org.getState(), inspectOrg: () => clients.org.inspect() });
+  if (!got.ok) return null;
+  // i18n-ignore: the error's message, for diagnostics
+  const none = () => Promise.reject(new OfflineError('a newcomer has no server yet'));
+  const deviceId = await ensureDeviceId(platform.store, platform.newId);
+  const session = await LanguageSession.open({
+    orgId, languageId, actorId, deviceId, store: platform.store, files: platform.files, transport: offlineTransport(),
+    upload: none, download: none, budget: platform.budget, limits: platform.limits, isDeferred: platform.isDeferred,
+    client: { ...platform.client, nearby }, ...near, keepOnDisk: true, build: platform.build
+  });
+  const moves = session.nearbyMoves();
+  if (!moves) {
+    session.close();
+    return null;
+  }
+  // The session's own file worker never starts here: without `take` the join's session fetches each file itself.
+  const files: NearbyFileMoves = { ...moves };
+  delete files.take;
+  return {
+    pieces: {
+      port: session.client, keep: nearbyKeepOf(session.client, { orgId, streamId: languageId }), gate: got.pieces.gate, signer: got.pieces.signer, files,
+      library: nearbyLibraryOf({ language: session.client, org: () => clients.org.getState() })
+    },
+    close: () => session.close()
+  };
 }
 
 /** Set the person once the copy is whole, and only then (section 7, phase 6). */
@@ -257,7 +373,9 @@ function stopGiveApp(radio: PhoneRadio): Promise<void> {
 /**
  * Let someone in (14.1, 3): host a Wi-Fi Direct group, show the code (how to reach this phone, a
  * one-time secret and a pin on this phone's opening, no pass or key), take the first link and only
- * it, run the session as the inviter under this person's pass, and serve the starting copy over it.
+ * it, run the session as the inviter under this person's pass, and serve the starting copy over it,
+ * then, after a whole copy, the ordinary steps (2026-11-24): this phone's newer work, the work it
+ * carries and the files. The join counts as a meeting and is recorded in field diagnostics.
  * A code nobody used dies at `codeMs`, and at once when `stopped` settles (the person stopped or
  * left). The radio and the group come down whatever happens.
  *
@@ -273,6 +391,8 @@ export async function letInWithPass(o: {
   radio: PhoneRadio; actorId: string; orgId: string; languageId: string; roleId: string; pass: JoinPass;
   org: OrgState; inspectOrg: () => Promise<import('@langquest-next/sync').SyncInspection | null>;
   language: NearbyLanguage; orgClient: SyncClient<OrgState> | null;
+  /** The phone wears a cover: the join notes no day met (decision 230 as amended), as Share nearby notes none. */
+  worn: boolean;
   /** How long a code nobody used stays up, on Give the app's group or on a group of this phone's own (`letInCodeMs`). */
   codeMs(onGiveGroup: boolean): number;
   /** Give the app handed its session to this screen (giveHandOver.ts). */
@@ -337,26 +457,38 @@ async function letInOn(onGive: boolean, o: Parameters<typeof letInWithPass>[0]):
     if (!hooks.still()) { await link.close().catch(() => undefined); return { report: null, why: 'stopped' }; }
     hooks.connected();
     const orgSeqHere = orgSeqHereOf(await o.inspectOrg());
-    const [revoked, gate] = await Promise.all([readRevoked(o.orgId), nearbyGateFor(o.orgId, o.org, orgSeqHere)]);
+    const [revoked, gate, openOrgs, switchOn] = await Promise.all([readRevoked(o.orgId), nearbyGateFor(o.orgId, o.org, orgSeqHere), nearbyOpenOrgs(o.actorId), nearbyOpenSwitch()]);
     const certOrgSeq = certOrgSeqOf(chain);
+    const sharesOpen = openOrgs.has(o.orgId);
+    // Where this phone may share while LangQuest is open, the join is a meeting, as Share nearby's are (decision 230 as amended).
+    const notesMet = notesMetOf({ feature: sharesOpen, switchOn, worn: o.worn });
+    const { moves } = o.language;
     const session = new NearbySession({
       role: 'r', link, crypto, orgId: o.orgId, languageId: o.languageId, deviceId, chain, signer, rootKeys: ROOT_KEYS, gate,
       port: o.language.client, keep: nearbyKeepOf(o.language.client, { orgId: o.orgId, streamId: o.languageId }),
       opening: { kSess: qrSessionKeyOf(crypto, secret), salt: QR_SALT, kFind: new Uint8Array(32), seen: new Set(), drawn },
       time, onProgress: hooks.progress,
       copy: copySourceOf({ actorId: o.actorId, language: o.language.client, org: o.orgClient }),
+      // After the newcomer's whole copy, the ordinary steps on this link: this phone's newer work, the work it carries and the files (2026-11-24).
+      ...(moves ? { files: moves } : {}),
+      library: nearbyLibraryOf({ language: o.language.client, org: () => o.org }),
+      ...(notesMet ? { notesMetForMs: NEARBY_OPEN_FRESH_MS } : {}),
       join: {
         as: 'inviter', pass: o.pass, discovery: { key: findKey.key, gen: findKey.gen, floor: findKey.floor },
         // What this phone last heard the server say of the organization, so the newcomer shares while open as this phone does.
-        features: (await nearbyOpenOrgs(o.actorId)).has(o.orgId) ? ['nearby', 'nearby_join', 'nearby_open'] : ['nearby', 'nearby_join'],
+        features: sharesOpen ? ['nearby', 'nearby_join', 'nearby_open'] : ['nearby', 'nearby_join'],
         // The role was chosen before the code was shown; the tap only says yes or no.
         tap: async (who) => ((await hooks.tap({ name: who.name, profileId: who.profileId, pictures: who.pictures })) ? o.roleId : null),
-        stop: (roleId) => joinPassStop(o.pass, roleId, { now: Date.now(), org: o.org, orgSeqHere, certOrgSeq, ...(revoked ? { revoked: revoked.list } : {}) })
+        // On the clock Hello checks with, as the session that signs the link does (`nearbyHelloNow`).
+        stop: (roleId) => joinPassStop(o.pass, roleId, { now: o.language.client.nearbyHelloNow, org: o.org, orgSeqHere, certOrgSeq, ...(revoked ? { revoked: revoked.list } : {}) })
       }
     });
     o.onSession(session);
+    const began = Date.now();
     const report = await session.run();
     o.onSession(null);
+    // The join in field diagnostics, as any session of Share nearby's is (2026-11-24, review item 14): counts and words, never who.
+    nearbyDiagFor(o.orgId, o.languageId)(sessionDiagOf(report, Date.now() - began, 'join'));
     return { report };
   } finally {
     await unpublish();

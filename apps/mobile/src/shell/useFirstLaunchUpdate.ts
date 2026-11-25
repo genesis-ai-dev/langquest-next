@@ -4,10 +4,12 @@ import { useEffect, useState } from 'react';
 import { Platform } from 'react-native';
 import { noteExpected } from '../diagnostics/report';
 import { afterWait, FIRST_LAUNCH_KEY, FIRST_LAUNCH_WAIT_MS, waitsForUpdate } from './firstLaunchModel';
+import { startingCopyHere } from './updatesHeld';
 
-/** Look for the latest OTA update and download it; what came of it. */
+/** Look for the latest OTA update and download it; what came of it. Never while a teammate's starting copy is held (review item 26). */
 async function fetchLatest(): Promise<'fetched' | 'none' | 'failed'> {
   try {
+    if (await startingCopyHere()) return 'none';
     const check = await Updates.checkForUpdateAsync();
     if (!check.isAvailable) return 'none';
     const fetched = await Updates.fetchUpdateAsync();

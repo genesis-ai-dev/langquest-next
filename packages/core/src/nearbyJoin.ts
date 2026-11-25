@@ -51,6 +51,24 @@ export async function joinPassBody(
   };
 }
 
+/**
+ * How long before a window ends a certificate answer also holds the next window's pass (Carl,
+ * 2026-11-24, answering section 13): 30 days, so a team leaving town late in a window can still
+ * let people in, at the cost of up to `2 * JOIN_PASS_USES` uses in that time.
+ */
+export const PASS_NEXT_WITHIN_MS = 30 * 86_400_000;
+
+/**
+ * The times a certificate answer at `nowMs` signs a pass at, each given to `joinPassBody` as its
+ * `nowMs`: this window's, and in its last `PASS_NEXT_WITHIN_MS` the next window's too, in that
+ * order. A phone uses the pass in effect (`expiresAt` not past, the soonest first); a build before
+ * 2026-11-24 takes the first a language has, which is this window's, as it always did.
+ */
+export function passWindowTimes(nowMs: number): number[] {
+  const { expiresAt } = passWindowAt(nowMs);
+  return expiresAt - nowMs <= PASS_NEXT_WITHIN_MS ? [nowMs, expiresAt] : [nowMs];
+}
+
 /** The Worker's signature over a pass, under its key `kid`. */
 export async function signJoinPass(body: JoinPass['body'], kid: string, sign: Signer): Promise<JoinPass> {
   return { kind: 'pass@1', kid, body, sig: await sign(nearbyBytes('pass', passText({ kind: 'pass@1', kid, body }))) };
@@ -58,12 +76,15 @@ export async function signJoinPass(body: JoinPass['body'], kid: string, sign: Si
 
 /**
  * The inviter's phone signs the second link (section 14.1, after the one tap), naming the chosen
- * role and its privileges as the pass gives them. It refuses by the rule `checkChain` applies, so
- * it never signs a link a teammate or the server would refuse: an expired pass, a pass for
- * another inviter, key or organization, a role off the pass or with a manage privilege, a role
- * this inviter could not grant, an id that does not follow from the key, or a self-link. The
- * caller checks that its own certificate still holds (expiry, the revocation list) and asks
- * `joinPassStop` of its fold first.
+ * role and its privileges as the pass gives them, and `madeAt`, the time `now` says: pass the
+ * clock Hello checks with (`nearbyHelloNow`), which setting the date back does not move, so the
+ * newcomer is accepted for `NEARBY_NEWCOMER_MS` from the tap (decision 240 as amended
+ * 2026-11-24). It refuses by the rule `checkChain` applies, so it never signs a link a teammate
+ * or the server would refuse: an expired pass, a pass for another inviter, key or organization, a
+ * role off the pass or with a manage privilege, a role this inviter could not grant, an id that
+ * does not follow from the key, or a self-link, and a clock it cannot read. The caller checks
+ * that its own certificate still holds (expiry, the revocation list) and asks `joinPassStop` of
+ * its fold first.
  */
 export async function issueInviteLink(o: {
   inviterLink: WorkerLink; pass: JoinPass; ask: JoinAsk; roleId: string; now: number; sha256: Sha256; sign: Signer; revoked?: RevocationList;
@@ -72,11 +93,14 @@ export async function issueInviteLink(o: {
   const role = pass.body.roles.find((r) => r.roleId === roleId);
   if (!role) return { ok: false, reason: 'role is not on the pass' };
   if (!(o.now <= inviterLink.body.expiresAt)) return { ok: false, reason: 'certificate expired' };
+  // A time no teammate would read as one (`checkChain` refuses a negative or unsafe `madeAt` as malformed).
+  const madeAt = Math.floor(o.now);
+  if (!Number.isSafeInteger(madeAt) || madeAt < 0) return { ok: false, reason: 'clock' };
   const inviter: Extract<ChainVerdict, { ok: true }> = {
     ok: true, holder: { installKey: inviterLink.body.installKey, profileId: inviterLink.body.profileId, deviceId: inviterLink.body.deviceId }, org: inviterLink.body.org, links: 1
   };
   const body: InviteLink['body'] = {
-    pass, installKey: ask.installKey, idSalt: ask.idSalt, profileId: ask.profileId, deviceId: ask.deviceId, name: ask.name, roleId, privileges: [...role.privileges]
+    pass, installKey: ask.installKey, idSalt: ask.idSalt, profileId: ask.profileId, deviceId: ask.deviceId, name: ask.name, roleId, privileges: [...role.privileges], madeAt
   };
   const refused = await inviteRefusal(pass, inviter, body, { orgId: inviterLink.body.org.orgId, languageId: pass.body.languageId, now: o.now, sha256: o.sha256, ...(o.revoked ? { revoked: o.revoked } : {}) });
   if (refused !== null) return { ok: false, reason: refused };

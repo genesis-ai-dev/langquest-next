@@ -105,7 +105,8 @@ export async function nextClaimsOf(up: NearbyHost, them: { cursor: number; claim
     if (!attested) continue;
     const ids = new Set(attested.rows.map(([id]) => id));
     const told = { cursor: after, claimedSeq: after };
-    const rows = (await store.confirmedAfter(orgId, streamId, after, NEARBY_BATCH_MAX_EVENTS))
+    // The log, then what this phone's checkpoints kept for claims (review item 18).
+    const rows = (await store.claimableAfter(orgId, streamId, after, NEARBY_BATCH_MAX_EVENTS))
       .filter((l) => ids.has(l.event.id) && shouldClaim(l, told, { attestedSeq: Math.min(held.lastSeq, cursor), isRedacted: (id) => up.lang().redactions[id] === true }));
     const events: AnyEvent[] = [];
     let bytes = 0;

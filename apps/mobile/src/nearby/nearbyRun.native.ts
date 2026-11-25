@@ -133,11 +133,17 @@ export function nearbyDiagFor(orgId: string, languageId: string): (input: Nearby
 
 const time = { now: () => Date.now(), sleep: (ms: number) => new Promise<void>((resolve) => { setTimeout(resolve, ms); }) };
 
+/** How long a summary worked out with no write since stands, at most: a write some path makes without the client's knowing is caught by then. */
+const SUMMARY_FRESH_MS = 60_000;
+
 /** The room's facts from the language's store, as a session works them out: the summary after signing, and holdings for what each side lacks. */
 function factsOf(a: NearbyRoomArgs, keep: ReturnType<typeof nearbyKeepOf>, names: () => Promise<ReadonlyMap<string, string>>, notesMetForMs: number | undefined): NearbyRoomFacts {
   const { client } = a.language;
   const { crypto, signer, revoked } = a.pieces;
   let holdings: Holdings = new Map();
+  // The summary as last worked out, and the writes it was worked out after (2026-11-24 review, P1): every 2-second tick
+  // signed under the language's lock and read every holdings entry, though nothing had changed between ticks.
+  let last: { stamp: string; at: number; summary: string } | null = null;
   return {
     ...(notesMetForMs !== undefined ? {
       async greetDue() {
@@ -146,10 +152,15 @@ function factsOf(a: NearbyRoomArgs, keep: ReturnType<typeof nearbyKeepOf>, names
       }
     } : {}),
     async summary() {
+      const now = Date.now();
+      if (last && last.stamp === client.writeStamp && now - last.at < SUMMARY_FRESH_MS) return last.summary;
       await client.signUnsigned(signer);
       holdings = await keep.holdings();
       const { cursor, claimedSeq, vector } = await client.nearbyHave();
-      return summaryOf(summaryText(Math.max(cursor, claimedSeq), vector, holdings, (await keep.revoked())?.list.seq ?? 0), crypto.sha256);
+      const summary = await summaryOf(summaryText(Math.max(cursor, claimedSeq), vector, holdings, (await keep.revoked())?.list.seq ?? 0), crypto.sha256);
+      // After the signing, which writes: the stamp the next tick finds when nothing more was written.
+      last = { stamp: client.writeStamp, at: now, summary };
+      return summary;
     },
     peers: () => keep.peers(),
     async knownKeys() {

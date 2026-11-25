@@ -7,7 +7,8 @@ import type { RpcAnswer } from './nearby';
 /**
  * Joining offline, the server's door (docs/nearby-sync-plan.md 14.1, "First time online"). A
  * newcomer let in by a teammate's phone holds a two-link chain: the inviter's `worker@1` link,
- * then an `invite@1` link the inviter's key signed under a pass the Worker signed. At first
+ * then an `invite@1` link the inviter's key signed under a pass the Worker signed, which from
+ * 2026-11-24 says when it was made (`madeAt`), so they are let in for 90 days from then. At first
  * contact their phone sends it here, and the relay brings it for a newcomer whose work a
  * teammate carries (section 6, "Authors with no account yet"). Both go through
  * `accountFromChain`, so one implementation is tested here with fakes.
@@ -27,10 +28,14 @@ export const JOIN_PATH = '/api/nearby/join';
 export interface AccountDeps {
   /** The public keys phones trust (`NEARBY_CERT_KEYS`). */
   rootKeys(): ReadonlyMap<string, string>;
-  /** `nearby_join_state` with the service client. */
-  state(a: { profileId: string; key: string; salt: string; pass: JoinPass['body']; roleId: string }): Promise<RpcAnswer>;
-  /** `nearby_join_finish` with the service client. */
-  finish(a: { profileId: string; key: string; salt: string; deviceId: string; name: string; pass: JoinPass['body']; roleId: string; token?: string }): Promise<RpcAnswer>;
+  /**
+   * `nearby_join_state` with the service client. `madeAt` is the invite link's signed time, when it
+   * has one (decision 240 as amended): `p_made_at`, left out for a link with none, so a database
+   * before 20261124230000 still answers those.
+   */
+  state(a: { profileId: string; key: string; salt: string; pass: JoinPass['body']; roleId: string; madeAt?: number }): Promise<RpcAnswer>;
+  /** `nearby_join_finish` with the service client, `madeAt` as for `state`. */
+  finish(a: { profileId: string; key: string; salt: string; deviceId: string; name: string; pass: JoinPass['body']; roleId: string; token?: string; madeAt?: number }): Promise<RpcAnswer>;
   /** `preview_invite` with the service client. */
   preview(token: string): Promise<RpcAnswer>;
   /**
@@ -81,8 +86,9 @@ export function refusalStatus(reason: string): string {
 /**
  * A newcomer's chain, or why not: exactly two links, the pass under a root key, the inviter's link
  * under a root key, and the invite link signed by the inviter's key, with the id following from
- * the newcomer's key (`checkChain`). No expiry: a lost reply may be retried months later, and the
- * server's own stops decide a first use (`pass_refusal`).
+ * the newcomer's key (`checkChain`). No clock: a lost reply may be retried months later, and the
+ * server's own stops decide a first use (`pass_refusal`, given the link's `madeAt`). A link made
+ * after its pass expired is refused here, since that needs no clock.
  */
 export async function checkJoinChain(chain: unknown, deps: Pick<AccountDeps, 'rootKeys' | 'verify' | 'sha256'>): Promise<{ ok: true; checked: CheckedJoin } | { ok: false; reason: string }> {
   if (!Array.isArray(chain) || chain.length !== 2) return { ok: false, reason: 'a newcomer\'s chain has two links' };
@@ -132,7 +138,9 @@ function stateOf(data: unknown): JoinState | null {
 export async function accountFromChain(checked: CheckedJoin, deps: AccountDeps, o: { token?: string; relay?: boolean } = {}): Promise<ChainAccount> {
   const { holder, link } = checked;
   const pass = link.body.pass.body;
-  const ask = { profileId: holder.profileId, key: holder.installKey, salt: link.body.idSalt, pass, roleId: link.body.roleId };
+  // When the link was made, which the pass's stops count 90 days from (decision 240 as amended); `checkChain` checked it is a time.
+  const made = link.body.madeAt !== undefined ? { madeAt: link.body.madeAt } : {};
+  const ask = { profileId: holder.profileId, key: holder.installKey, salt: link.body.idSalt, pass, roleId: link.body.roleId, ...made };
 
   const first = await deps.state(ask);
   const stateFailed = failed(first, 'nearby_join_state');
@@ -176,7 +184,7 @@ export async function accountFromChain(checked: CheckedJoin, deps: AccountDeps, 
 
   const done = await deps.finish({
     profileId: holder.profileId, key: holder.installKey, salt: link.body.idSalt, deviceId: holder.deviceId, name: link.body.name, pass, roleId: link.body.roleId,
-    ...(o.token !== undefined ? { token: o.token } : {})
+    ...(o.token !== undefined ? { token: o.token } : {}), ...made
   });
   if (done.error?.code === '42501') return refused('this id belongs to someone else', 'taken');
   const finishFailed = failed(done, 'nearby_join_finish');

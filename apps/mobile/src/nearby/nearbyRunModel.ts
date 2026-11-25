@@ -224,7 +224,7 @@ export interface SessionReportLike {
   sent: { events: number };
   files: { got: number; served: number; failed: number; noRoom: boolean; cutBackups: boolean };
   /** Guide pictures and audio, counted apart from recordings (5.12, Library files); null when the two phones did not swap them. */
-  libraryFiles: { got: number } | null;
+  libraryFiles: { got: number; short?: number } | null;
   older: boolean;
   farAhead: readonly { actorId: string; hlc: string }[];
 }
@@ -297,6 +297,8 @@ export interface NearbySessionLine {
   filesFailed: number;
   /** Guide pictures and audio this phone got: files its language's guides name, which a starting copy never carries (5.12, Library files). */
   guideFilesIn: number;
+  /** Guide pictures and audio the teammate held that waited for want of room on this phone (they never make room). */
+  guideFilesShort: number;
   /** This phone stopped asking for files: too little room. */
   noRoom: boolean;
   /** Backups were cut for a teammate waiting (5.11). */
@@ -387,7 +389,7 @@ export function sessionLineOf(tag: string | null, r: SessionReportLike): NearbyS
   return {
     tag: tag ?? r.peer?.tag ?? null, profileId: r.peer?.profileId ?? null, role: r.role, how: r.ended.how, linkKind: r.linkKind,
     eventsIn: r.got.events, eventsOut: r.sent.events, refused: r.got.refused, filesIn: r.files.got, filesOut: r.files.served, filesFailed: r.files.failed,
-    guideFilesIn: r.libraryFiles?.got ?? 0, noRoom: r.files.noRoom, cutBackups: r.files.cutBackups, olderFromServer: r.older
+    guideFilesIn: r.libraryFiles?.got ?? 0, guideFilesShort: r.libraryFiles?.short ?? 0, noRoom: r.files.noRoom, cutBackups: r.files.cutBackups, olderFromServer: r.older
   };
 }
 
@@ -538,6 +540,17 @@ export interface NearbyView {
   whileOpen: boolean | null;
   /** Ready to carry (5.8). */
   carry: ReadyToCarry;
+  /**
+   * What this person's starting copy still needs of a teammate (2026-11-24, review items 6 and 26):
+   * `lost`, an update with another reducer dropped it; `missing` or `filling`, it never came whole.
+   * Null for everyone else. Share nearby says so, and takes one from the next teammate it meets.
+   */
+  copyNeed: 'filling' | 'lost' | 'missing' | null;
+  /**
+   * This phone holds a teammate's starting copy, which the server has not replaced yet: another
+   * version of the app could not read it, so Share nearby warns before suggesting a newer one.
+   */
+  copyHeld: boolean;
 }
 
 export interface NearbyActions {
@@ -576,6 +589,8 @@ export interface NearbyViewFacts {
   /** The switch, where the organization has `nearby_open`; null where it does not, or not yet read. */
   whileOpen?: boolean | null;
   carry: ReadyToCarry;
+  copyNeed?: 'filling' | 'lost' | 'missing' | null;
+  copyHeld?: boolean;
 }
 
 export function nearbyViewOf(f: NearbyViewFacts): NearbyView {
@@ -584,6 +599,7 @@ export function nearbyViewOf(f: NearbyViewFacts): NearbyView {
     offered: f.offered, iphone: f.iphone, tapCoversAll: f.tapCoversAll, whyNot: f.whyNot, radiosOff: f.radiosOff, permissions: f.permissions, worn: f.worn,
     needsPress: f.worn && !run.pressed, running: run.running, stopped: run.stopped, level: run.level && run.met, teammates: run.teammates,
     sessions: run.sessions, current: run.current, holding: f.holding, farAhead: run.farAhead, clockOff: run.clockOff,
-    newerAppNeeded: run.newerAppNeeded, findError: run.findError, hold: f.hold, whileOpen: f.worn ? null : f.whileOpen ?? null, carry: f.carry
+    newerAppNeeded: run.newerAppNeeded, findError: run.findError, hold: f.hold, whileOpen: f.worn ? null : f.whileOpen ?? null, carry: f.carry,
+    copyNeed: f.copyNeed ?? null, copyHeld: f.copyHeld === true
   };
 }

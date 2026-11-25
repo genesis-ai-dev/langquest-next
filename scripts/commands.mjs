@@ -82,6 +82,7 @@ export const GROUPS = [
       'nearby-keys': "a person's nearby keys: list with each revoked key's cap, revoke for a lost phone, raise a cap (docs/nearby-sync-plan.md section 6)",
       v2: 'the LangQuest v2 import: the board, a sync, a dry run',
       'library:seed': "publish the LangQuest organization's library",
+      'library:bsb-audio': "hash each BSB chapter's MP3 for the library seed (library/bsb-audio.json; about 5 GB of downloads)",
       'bibles:survey': "which numbering each of Bible Brain's Bibles uses (needs its key)",
       'sample:org': 'a sample organization the team can join',
       'ui:fixture': "the UI test suite's fixture world, on the local server",

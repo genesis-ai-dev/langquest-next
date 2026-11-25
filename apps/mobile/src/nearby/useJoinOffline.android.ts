@@ -2,6 +2,7 @@ import type { NearbyRoom, NearbyRoomEvent, NearbySession } from '@langquest-next
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { AppState } from 'react-native';
+import { noteChainNames } from '../account/chainNames';
 import { noteExpected } from '../diagnostics/report';
 import { heldJoinCode, onJoinCode, takeJoinCode } from '../invites/heldJoinCode';
 import type { JoinCode } from '../invites/inviteCode';
@@ -10,7 +11,7 @@ import { serverHealth } from '../server/reachability';
 import { CHECK_TIMEOUT_MS, isServerAnswer } from '../sync/reachModel';
 import { onWake } from '../sync/wake';
 import { useAppCovered } from '../shell/useAppCovered';
-import { goOnOnline, JOIN_START, joinEndOf, joinName, joinReducer } from './joinOfflineModel';
+import { goOnOnline, JOIN_START, joinEndOf, joinGuideFilesCame, joinName, joinReducer, wholeAtStart } from './joinOfflineModel';
 import { finishUnfinished, joinWithCode, phoneNotEmpty, unfinishedCopy } from './nearbyJoin.android';
 import { nearbyRadio } from './nearbyLink.native';
 import { radiosMayRun } from './nearbyModel';
@@ -45,10 +46,20 @@ export function useJoinOffline(): JoinOfflineHandle {
   const [pictures, setPictures] = useState<[number, number] | null>(null);
   useEffect(() => onJoinCode(() => setCode(heldJoinCode())), []);
 
+  /** The join's session while it runs: leaving stops it, as it stops the room. */
+  const joining = useRef<NearbySession | null>(null);
+
   const check = useCallback(() => {
     void (async () => {
       const notEmpty = await phoneNotEmpty(worn);
       const held = await readLocalPerson();
+      // A copy that came whole before the phone died or the app was closed during the steps after it on the join's link
+      // (2026-11-24): the person is set now, with no teammate, as the copy alone would have. Never while a join runs here.
+      const ready = joining.current ? null : wholeAtStart(held);
+      if (ready && await keepLocalPerson(ready)) {
+        dispatch({ t: 'copied', whole: true });
+        return;
+      }
       dispatch({ t: 'checked', notEmpty, code: heldJoinCode() !== null, filling: held?.stage === 'filling' });
     })().catch((e: unknown) => { noteExpected('join: check', e); dispatch({ t: 'checked', notEmpty: null, code: false, filling: false }); });
   }, [worn]);
@@ -71,8 +82,6 @@ export function useJoinOffline(): JoinOfflineHandle {
   gate.current = open;
   const attempt = useRef(0);
   const room = useRef<{ room: NearbyRoom; ticker: ReturnType<typeof setInterval> } | null>(null);
-  /** The join's session while it runs: leaving stops it, as it stops the room. */
-  const joining = useRef<NearbySession | null>(null);
 
   const stopRoom = useCallback(async () => {
     const held = room.current;
@@ -133,7 +142,8 @@ export function useJoinOffline(): JoinOfflineHandle {
       });
       setCode(heldJoinCode());
       if (out.why === 'not-empty') { check(); return; }
-      if (out.ready) { dispatch({ t: 'copied', whole: true }); return; }
+      // The steps after a whole copy may have brought the guides' pictures and audio on this link (2026-11-24).
+      if (out.ready) { dispatch({ t: 'copied', whole: true, guideFilesCame: joinGuideFilesCame(out.report) }); return; }
       if (out.report?.join?.granted) { dispatch({ t: 'copied', whole: false }); return; }
       dispatch({ t: 'ended', why: out.report ? joinEndOf(out.report) : out.why === 'stopped' ? 'dropped' : 'failed' });
     } catch (e) {
@@ -162,8 +172,11 @@ export function useJoinOffline(): JoinOfflineHandle {
       dispatch({ t: 'look' });
       const report = (e: NearbyRoomEvent) => {
         if (e.t === 'ended' && e.report.copyRefused === 'versions') dispatch({ t: 'other-version' });
+        // People let in offline whose work came, by the names their checked chains give (review item 12).
+        if (e.t === 'ended' && e.report.names.length > 0) void noteChainNames(person.profileId, e.report.names).catch((x: unknown) => noteExpected('join: chain names', x));
         if (e.t === 'ended' && e.report.copy?.whole) {
-          void finishUnfinished(person, true).then((ready) => { if (ready) dispatch({ t: 'copied', whole: true }); void stopRoom(); });
+          const guideFilesCame = joinGuideFilesCame(e.report);
+          void finishUnfinished(person, true).then((ready) => { if (ready) dispatch({ t: 'copied', whole: true, guideFilesCame }); void stopRoom(); });
         }
         if (e.t === 'stopped') { void stopRoom(); dispatch({ t: 'look-stopped' }); }
       };

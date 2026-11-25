@@ -1,23 +1,22 @@
 import type { JoinPass } from '@langquest-next/core/nearby';
-import type { NearbySession } from '@langquest-next/sync/nearby';
+import { nearbyKeepOf, type NearbySession } from '@langquest-next/sync/nearby';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { AppState } from 'react-native';
-import { noteChainName } from '../account/chainNames';
+import { noteChainNames } from '../account/chainNames';
 import { noteExpected } from '../diagnostics/report';
 import type { Ctx } from '../shell/ctx';
 import { useAppCovered } from '../shell/useAppCovered';
 import { takeGiveHandOver } from './giveHandOver';
-import { codeShown, LET_IN_START, letInCodeMs, letInEndOf, letInReducer, letInRoles, letInWhyNot, type LetInWhyNot } from './letInModel';
+import { codeShown, LET_IN_START, letInCodeMs, letInEndOf, letInGuideFilesWent, letInReducer, letInRoles, letInWhyNot, type LetInCopyReady, type LetInWhyNot } from './letInModel';
 import { letInPermit } from './letInPermitModel';
-import type { PassShape } from './nearbyModel';
-import { radiosMayRun } from './nearbyModel';
+import { copyReadAgain, LET_IN_COPY_READ_MS, letInDaysLeft, passesUntil, passInEffect, radiosMayRun, readCopyReady, type PassShape } from './nearbyModel';
 import { letInWithPass } from './nearbyJoin.android';
 import { nearbyRadio } from './nearbyLink.native';
 import { nearbyFlag } from './nearbyFlag';
 import { androidSdk, askingForNearby, askNearbyPermissions, checkNearbyPermissions, openNearbySettings } from './nearbyPermissions.android';
 import { afterPrompt, permissionsStateOf, type PermissionAnswers } from './nearbyPermissionsModel';
-import { joinPassFor } from './nearbyPhone.native';
+import { joinPassesFor } from './nearbyPhone.native';
 import { useFocus } from './useNearby.native';
 import { nearbyOwner } from './nearbyOwner';
 import { useRadioClaim } from './useRadioClaim';
@@ -44,18 +43,51 @@ export function useLetIn(ctx: Ctx): LetInHandle {
   const { orgId, languageId } = ctx.language;
   const { covered, worn } = useAppCovered();
   const [state, dispatch] = useReducer(letInReducer, LET_IN_START);
-  const [pass, setPass] = useState<PassShape | null | undefined>(undefined);
+  const [passes, setPasses] = useState<PassShape[] | undefined>(undefined);
   const [answers, setAnswers] = useState<PermissionAnswers | undefined>(undefined);
   const [wifiOn, setWifiOn] = useState<boolean | undefined>(undefined);
   const [now, setNow] = useState(() => Date.now());
+  /** People this phone let in under each pass (2026-11-24, review item 7), and whether it can give a whole copy (item 5). */
+  const [used, setUsed] = useState<ReadonlyMap<string, number>>(() => new Map());
+  /** Null until first read; undefined while the language's or organization's session is not open (`readCopyReady`). */
+  const [copyReady, setCopyReady] = useState<LetInCopyReady | null | undefined>(null);
+  const nearbyLanguage = ctx.language.nearby;
+  const orgClientOf = useRef(ctx.org.client);
+  orgClientOf.current = ctx.org.client;
+
+  // Before the code is shown: a phone whose own copy is not whole would let them in with nothing to give (review item 5).
+  const readCopy = useCallback(() => {
+    // A read that fails says nothing against the copy: the session still refuses state it cannot give, and says so.
+    Promise.resolve().then(() => readCopyReady(nearbyLanguage()?.client ?? null, orgClientOf.current()))
+      .then(setCopyReady)
+      .catch((e: unknown) => { noteExpected('let in: copy ready', e); setCopyReady({ ok: true }); });
+  }, [nearbyLanguage]);
 
   const refresh = useCallback(() => {
-    joinPassFor(actorId, orgId, languageId).then((p) => setPass(p as PassShape | null)).catch((e: unknown) => { noteExpected('let in: pass', e); setPass(null); });
+    const open = nearbyLanguage();
+    const keep = open ? nearbyKeepOf(open.client, { orgId, streamId: languageId }) : null;
+    joinPassesFor(actorId, orgId, languageId).then(async (p) => {
+      const held = p as unknown as PassShape[];
+      const counts = new Map<string, number>();
+      // A count that cannot be read counts nothing: the session counts again before it grants.
+      if (keep) for (const pass of held) counts.set(pass.body.passId, (await keep.letIn(pass.body.passId).catch(() => [])).length);
+      setUsed(counts);
+      setPasses(held);
+    }).catch((e: unknown) => { noteExpected('let in: pass', e); setPasses([]); });
     checkNearbyPermissions().then(setAnswers).catch((e: unknown) => noteExpected('let in: permissions', e));
     radio?.facts().then((f) => setWifiOn(f.wifiOn)).catch((e: unknown) => noteExpected('let in: capabilities', e));
-  }, [actorId, orgId, languageId, radio]);
+    readCopy();
+  }, [actorId, orgId, languageId, radio, nearbyLanguage, readCopy]);
   useEffect(refresh, [refresh]);
   const focused = useFocus(refresh);
+  // Read again while in view until the copy is known ready: a session opening, or this phone's fill or download going on,
+  // changes the answer, which mount, focus and a session's end alone never caught (review of the fixes, 2026-11-24).
+  const readAgain = copyReadAgain(copyReady);
+  useEffect(() => {
+    if (!focused || !readAgain) return;
+    const timer = setInterval(readCopy, LET_IN_COPY_READ_MS);
+    return () => clearInterval(timer);
+  }, [focused, readAgain, readCopy]);
   // The quiet room of sharing while LangQuest is open steps aside while this screen is open (15.6).
   useRadioClaim(focused);
   const [onScreen, setOnScreen] = useState(() => AppState.currentState === 'active');
@@ -69,6 +101,11 @@ export function useLetIn(ctx: Ctx): LetInHandle {
     return () => sub.remove();
   }, [refresh]);
 
+  // The pass is checked on the clock Hello and the session that signs the link check it with, which setting the date back does not move.
+  const passNow = helloNow(ctx);
+  const usedOf = useCallback((passId: string) => used.get(passId) ?? 0, [used]);
+  const pass = passes === undefined ? undefined : passInEffect(passes, passNow, usedOf);
+  const daysLeft = letInDaysLeft(passesUntil(passes ?? []), passNow);
   const roles = useMemo(() => letInRoles(pass ?? null, ctx.org.state), [pass, ctx.org.state]);
   const features = nearbyFlag(actorId).features;
   const sdk = androidSdk();
@@ -76,7 +113,8 @@ export function useLetIn(ctx: Ctx): LetInHandle {
   // Asked here, as Give the app asks, except on a phone that wears a cover (letInPermit, Carl 2026-11-19).
   const permit = useMemo(() => letInPermit({ sdk, answers, worn }), [sdk, answers, worn]);
   const whyNot = letInWhyNot({
-    inBuild: radio !== null, readOnly: readOnly || isLocal, pass, features: features ? features[orgId] ?? [] : null, roles, now, permitted, wifiOn
+    inBuild: radio !== null, readOnly: readOnly || isLocal, pass, features: features ? features[orgId] ?? [] : null, roles, now: passNow, permitted, wifiOn,
+    ...(pass ? { used: usedOf(pass.body.passId) } : {}), ...(copyReady !== undefined ? { copy: copyReady } : {})
   });
   // One role: nothing to choose.
   useEffect(() => { if (roles.length === 1 && state.roleId === null) dispatch({ t: 'role', roleId: roles[0]!.roleId }); }, [roles, state.roleId]);
@@ -163,7 +201,7 @@ export function useLetIn(ctx: Ctx): LetInHandle {
       if (!still()) return;
       const out = await letInWithPass({
         radio, actorId, orgId, languageId, roleId, pass: pass as unknown as JoinPass, org, inspectOrg: () => ctx.org.inspect(),
-        language: open, orgClient: ctx.org.client(), codeMs: letInCodeMs, giveHandedOver, stopped,
+        language: open, orgClient: ctx.org.client(), worn, codeMs: letInCodeMs, giveHandedOver, stopped,
         onSession: (s) => { session.current = s; },
         hooks: {
           showing: (uri, until, onGiveGroup) => { setNow(Date.now()); dispatch({ t: 'showing', uri, until, onGiveGroup }); },
@@ -179,10 +217,15 @@ export function useLetIn(ctx: Ctx): LetInHandle {
         }
       });
       // The person just let in shows under the name they gave, until the server knows them (14.1, 5).
-      if (out.report?.join?.granted && asked.who) void noteChainName(actorId, asked.who.profileId, asked.who.name).catch((x: unknown) => noteExpected('let in: name', x));
+      // And whoever else a checked chain named in the ordinary steps after the copy (review item 12).
+      const named = [...(out.report?.join?.granted && asked.who ? [{ profileId: asked.who.profileId, name: asked.who.name }] : []), ...(out.report?.names ?? [])];
+      if (named.length > 0) void noteChainNames(actorId, named).catch((x: unknown) => noteExpected('let in: name', x));
+      // The pass has one use fewer: read again, so the next code is not shown past its count (review item 7).
+      refresh();
       if (mine !== attempt.current) return;
       if (out.why) dispatch({ t: 'ended', why: out.why });
-      else if (out.report) dispatch({ t: 'ended', why: letInEndOf(out.report) });
+      // The steps after a whole copy may have sent the guides' pictures and audio on this link (2026-11-24).
+      else if (out.report) dispatch({ t: 'ended', why: letInEndOf(out.report), guideFilesWent: letInGuideFilesWent(out.report) });
     } catch (e) {
       noteExpected('let in', e);
       if (mine === attempt.current) dispatch({ t: 'ended', why: 'failed' });
@@ -192,7 +235,7 @@ export function useLetIn(ctx: Ctx): LetInHandle {
       answer.current = null;
       deactivateKeepAwake(KEEP_AWAKE).catch((e: unknown) => noteExpected('let in: keep awake', e));
     }
-  }, [state.roleId, ctx.language, ctx.org, radio, pass, whyNot, actorId, orgId, languageId]);
+  }, [state.roleId, ctx.language, ctx.org, radio, pass, whyNot, actorId, orgId, languageId, worn, refresh]);
 
   const actions = useMemo(() => ({
     choose: (roleId: string) => dispatch({ t: 'role', roleId }),
@@ -214,23 +257,32 @@ export function useLetIn(ctx: Ctx): LetInHandle {
     openSettings: () => { openNearbySettings().catch((e: unknown) => noteExpected('let in: settings', e)); }
   }), [show, stop, permit]);
 
+  const days = daysLeft?.days ?? null;
+  const warn = daysLeft?.warn ?? false;
   return useMemo(() => ({
     whyNot, roles, state, code: codeShown(state.stage, now), secondsLeft: state.stage.t === 'showing' ? Math.max(0, Math.ceil((state.stage.until - now) / 1000)) : 0,
-    worn, permit, actions
-  }), [whyNot, roles, state, now, worn, permit, actions]);
+    worn, permit, actions, daysLeft: days === null ? null : { days, warn }, copyReady: copyReady ?? null
+  }), [whyNot, roles, state, now, worn, permit, actions, days, warn, copyReady]);
+}
+
+/** What Hello checks a certificate and a pass against (`nearbyHelloNow`): the open language's clock, or the wall's before it is open. */
+function helloNow(ctx: Ctx): number {
+  return ctx.language.nearby()?.client.nearbyHelloNow ?? Date.now();
 }
 
 /** Whether Share nearby offers Let someone in, or why not, from the pass and the flag alone; starts nothing. */
 export function useLetInOffered(ctx: Ctx): LetInWhyNot | null {
   const { actorId, readOnly, isLocal } = ctx.session;
   const { orgId, languageId } = ctx.language;
-  const [pass, setPass] = useState<PassShape | null | undefined>(undefined);
+  const [passes, setPasses] = useState<PassShape[] | undefined>(undefined);
   useEffect(() => {
     let live = true;
-    joinPassFor(actorId, orgId, languageId).then((p) => { if (live) setPass(p as PassShape | null); }).catch((e: unknown) => { noteExpected('let in: pass', e); if (live) setPass(null); });
+    joinPassesFor(actorId, orgId, languageId).then((p) => { if (live) setPasses(p as unknown as PassShape[]); }).catch((e: unknown) => { noteExpected('let in: pass', e); if (live) setPasses([]); });
     return () => { live = false; };
   }, [actorId, orgId, languageId]);
+  const now = helloNow(ctx);
+  const pass = passes === undefined ? undefined : passInEffect(passes, now);
   const roles = useMemo(() => letInRoles(pass ?? null, ctx.org.state), [pass, ctx.org.state]);
   const features = nearbyFlag(actorId).features;
-  return letInWhyNot({ inBuild: nearbyRadio() !== null, readOnly: readOnly || isLocal, pass, features: features ? features[orgId] ?? [] : null, roles, now: Date.now() });
+  return letInWhyNot({ inBuild: nearbyRadio() !== null, readOnly: readOnly || isLocal, pass, features: features ? features[orgId] ?? [] : null, roles, now });
 }

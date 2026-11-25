@@ -2,6 +2,7 @@ import { newCommandId, type LanguageState } from '@langquest-next/core';
 import { eventDigest, isCounted, parseBatchManifest, type BatchManifest } from '@langquest-next/core/nearby';
 import { signerFor, signerOf, ORG, LANG, NOW, STORES, intakeFor, phone, rowOf, session, teammate, vectorOf, worker, type Teammate } from './nearbyFixtures';
 import { MemoryStore } from '../src/memoryStore';
+import { nearbyClient } from '../src/nearbyClient';
 import { FakeServer } from '../src/testing/fakeServer';
 import { fakeSha256, fakeSigner } from '../src/testing/memoryNearbyLink';
 import type { EventStore } from '../src/types';
@@ -346,10 +347,12 @@ describe.each(STORES)('what a phone sends, on the %s store', (_name, make) => {
     expect((await client.nearbyBatchPage(sam.key, 1))!.events).toEqual([]);
   });
 
-  it('says what Have says: cursor, claims mark and vector, and whether its log starts past theirs', async () => {
+  it('says what Have says: cursor, claims mark and vector, and whether what it can claim starts past theirs', async () => {
     const server = new FakeServer();
     const store = make();
-    const client = phone(server, store, sam, { checkpointEvery: 1 });
+    // Its checkpoints keep one row for claims (review item 18), holding a certificate, so the first is gone.
+    const certified = { sha256: fakeSha256, holdsCertificate: () => true };
+    const client = phone(server, store, sam, { checkpointEvery: 1, nearbyMaker: nearbyClient(certified, { claimable: { maxRows: 1, maxChars: 1_000_000 } }) });
     await client.load();
     expect(await client.nearbyHave()).toEqual({ cursor: 0, claimedSeq: 0, vector: new Map() });
     expect(await client.nearbyHoldsLess({ cursor: 0, claimedSeq: 0 })).toBe(false);
@@ -359,8 +362,15 @@ describe.each(STORES)('what a phone sends, on the %s store', (_name, make) => {
     await client.sync();
     expect((await client.nearbyHave()).cursor).toBe(2);
     expect(await client.nearbyHoldsLess({ cursor: 0, claimedSeq: 0 })).toBe(true);
+    expect(await client.nearbyHoldsLess({ cursor: 1, claimedSeq: 0 })).toBe(false);
     expect(await client.nearbyHoldsLess({ cursor: 2, claimedSeq: 0 })).toBe(false);
     expect(await client.nearbyHoldsLess({ cursor: 0, claimedSeq: 2 })).toBe(false);
+
+    // With room for both, a checkpoint takes nothing a teammate could be claimed.
+    const roomy = phone(server, make(), sam, { checkpointEvery: 1, nearby: certified });
+    await roomy.load();
+    await roomy.sync();
+    expect(await roomy.nearbyHoldsLess({ cursor: 0, claimedSeq: 0 })).toBe(false);
   });
 
   it('claims what the Worker vouched for, past what they have been told of, in serverSeq order and stripped', async () => {

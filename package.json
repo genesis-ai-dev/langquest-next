@@ -62,6 +62,7 @@
     "nearby-keys": "tsx scripts/nearby-keys.ts",
     "v2": "node scripts/with-local-keys.mjs tsx server/v2.ts",
     "library:seed": "tsx scripts/library-seed.ts",
+    "library:bsb-audio": "tsx scripts/bsb-audio.ts",
     "bibles:survey": "tsx scripts/bible-survey.ts",
     "sample:org": "tsx scripts/sample-org.ts",
     "ui:fixture": "tsx scripts/ui-fixture.ts",

@@ -1,6 +1,7 @@
 import { emptyLanguageState, foldLanguage, type AnyEvent, type LanguageState } from '@langquest-next/core';
 import { isCounted } from '@langquest-next/core/nearby';
 import { Diagnostics, MemoryDiagStore } from '../src/diagnostics';
+import { nearbyClient } from '../src/nearbyClient';
 import { FakeServer } from '../src/testing/fakeServer';
 import { SimDevice } from '../src/testing/fleet/device';
 import { fakeSha256 } from '../src/testing/memoryNearbyLink';
@@ -718,7 +719,7 @@ describe.each(STORES)('the sweep on the %s store', (_name, make) => {
       expect((await client.nearbyNextClaims({ cursor: 2, claimedSeq: 0 }))?.throughSeq).toBe(4);
     });
 
-    it('an answer goes as prune passes it, and asking starts from the checkpoint', async () => {
+    it('an answer stays while the rows a checkpoint kept for claims hold it, and asking goes on from the newest (review item 18)', async () => {
       await toServer(1, 50);
       const client = await myPhone({ checkpointEvery: 100 });
       await client.sync();
@@ -728,12 +729,69 @@ describe.each(STORES)('the sweep on the %s store', (_name, make) => {
       await client.sync();
       expect(await store.cursor(ORG, LANG)).toBe(110);
       expect(JSON.parse((await store.meta(`snapshot:${ORG}/${LANG}`))!).serverSeq).toBe(110);
-      expect(await heldSeqs()).toEqual([]);
-      expect(server.attestCalls).toBe(1);
+      expect(await store.confirmedAfter(ORG, LANG, 0, 1)).toEqual([]);
+      expect(await heldSeqs()).toEqual([50, 110]);
+      expect(server.attestCalls).toBe(2);
 
       await toServer(111, 113);
       await client.sync();
-      expect(await heldSeqs()).toEqual([113]);
+      expect(await heldSeqs()).toEqual([50, 110, 113]);
+    });
+
+    it('a teammate a little behind is claimed what a checkpoint pruned from the log, and the carrier holds no less (review item 18)', async () => {
+      await toServer(1, 30);
+      const client = await myPhone({ checkpointEvery: 20 });
+      await client.sync();
+      // Pruned into the checkpoint, and still claimable: a pull in town that checkpointed as it went.
+      expect(await store.confirmedAfter(ORG, LANG, 0, 1)).toEqual([]);
+      const first = await client.nearbyNextClaims({ cursor: 5, claimedSeq: 0 });
+      expect(first?.page.events.map((e) => e.id)).toEqual(server.stream(ORG, LANG).slice(5, 30).map((e) => e.id));
+      expect(first?.throughSeq).toBe(30);
+      expect(await client.nearbyHoldsLess({ cursor: 5, claimedSeq: 0 })).toBe(false);
+
+      // A teammate that takes them holds them, though the carrier's log no longer does.
+      const theirs = phone(server, make(), sam);
+      await theirs.load();
+      const receipt = await theirs.receiveNearby(first!.page, intakeFor({ peerKey: mine.key }));
+      expect(receipt).toMatchObject({ outcome: 'taken', kept: 25 });
+    });
+
+    it('past the bound the oldest rows go, with the answers that spoke only for them, and the screen is told', async () => {
+      await toServer(1, 30);
+      const client = phone(server, store, mine, { nearbyMaker: nearbyClient(certified, { claimable: { maxRows: 10, maxChars: 1_000_000 } }), checkpointEvery: 5 });
+      await client.load();
+      server.attester = async (orgId, streamId, rows) => worker.attestRows(orgId, streamId, rows.slice(0, 10));
+      await client.sync();
+      await client.sync();
+      await client.sync();
+      expect(await store.claimableFrom(ORG, LANG)).toBe(21);
+      expect(await heldSeqs()).toEqual([30]);
+      expect(await client.nearbyHoldsLess({ cursor: 5, claimedSeq: 0 })).toBe(true);
+      expect(await client.nearbyHoldsLess({ cursor: 20, claimedSeq: 0 })).toBe(false);
+      expect((await client.nearbyNextClaims({ cursor: 20, claimedSeq: 0 }))?.throughSeq).toBe(30);
+    });
+
+    // The review of item 18's fix: every phone has a nearby half, but one with no certificate is vouched for by nobody,
+    // so the rows it kept could never be claimed and cost it up to 16 MB a language.
+    it('a phone without a certificate keeps nothing for claims, and losing one lets what it kept go at the next checkpoint', async () => {
+      await toServer(1, 30);
+      const none = phone(server, store, mine, { nearby: { sha256: fakeSha256, holdsCertificate: () => false }, checkpointEvery: 5 });
+      await none.load();
+      await none.sync();
+      expect(await store.confirmedAfter(ORG, LANG, 0, 1)).toEqual([]);
+      expect(await store.claimableFrom(ORG, LANG)).toBeNull();
+      expect(await store.claimableAfter(ORG, LANG, 0, 100)).toEqual([]);
+
+      let holds = true;
+      const other = make();
+      const client = phone(server, other, mine, { nearby: { sha256: fakeSha256, holdsCertificate: () => holds }, checkpointEvery: 5 });
+      await client.load();
+      await client.sync();
+      expect(await other.claimableFrom(ORG, LANG)).toBe(1);
+      holds = false;
+      await toServer(31, 40);
+      await client.sync();
+      expect(await other.claimableFrom(ORG, LANG)).toBeNull();
     });
 
     it('a Worker that cannot be reached fails no sync, and the sweep still runs', async () => {
