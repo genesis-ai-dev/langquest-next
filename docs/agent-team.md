@@ -330,7 +330,10 @@ A problem that a person sent from help mode in the app goes before every
 other issue, also when the watch added the report to an issue it filed for
 another kind (`sent`;
 `docs/decisions/2026-11-24-user-reports-have-their-own-page-and-go-first.md`).
-Inside each half the order is Linear's priority (Urgent, High, Medium or none, Low), then
+After those, an open issue whose failure came back goes before every other
+issue (`back`), once for each time the watch keeps its logs after the fix
+team last had the issue ("The logs of the moment" below).
+Inside each part the order is Linear's priority (Urgent, High, Medium or none, Low), then
 the most people of one of its kinds in 7 days, then how many kinds point to
 it, then how many places the research found with the same mistake, then
 times, then the oldest. Each run reads each open issue's priority with its
@@ -341,6 +344,57 @@ first at once. The job log says each issue's place and why. The Overview's
 "On its way" shows the next run's issues in this order with the same why
 (`diag.ops_user_issue_order()`).
 (`docs/decisions/2026-11-22-the-fix-team-takes-the-most-important-issue-first.md`)
+
+## The logs of the moment
+
+The Worker logs keep 24 hours, and the fix team can come to an issue days
+after the failure. So the watch reads the logs at the moment it sees a
+failure, and the database keeps them with the kind for 30 days
+(`docs/decisions/2026-11-25-the-watch-keeps-the-logs-of-the-moment-a-failure-starts.md`).
+
+```mermaid
+flowchart LR
+  W["The watch, every 15 minutes"] -->|"a kind for Claude now"| L["Step: the logs of the moment<br/>(log gate, as agent_reader)"]
+  W -->|"an open issue's job or ops line<br/>fails again now"| L
+  L --> K["ops.user_issue_logs<br/>(30 days, personal data out)"]
+  L -->|"evidence.logs"| C["Claude looks"]
+  K -->|"back: goes first"| O["The order"]
+  O --> F["Fix team: issue.json evidence.logs<br/>(logs-kept.json)"]
+  K --> F
+```
+
+1. The step "The logs of the moment" (`scripts/user-issues.mjs logs`) runs
+   after "What is new" and before Claude, with the job's OIDC token. It
+   reads, as agent_reader, through the log gate (`docs/production-reads.md`):
+   - the errors and the warnings of every Worker, and Supabase's Postgres
+     and API errors, of the last 2 hours (`MOMENT_READS`): once a run, the
+     same for every kind;
+   - a day of the Worker logs that name the kind, for a server job (its
+     name) or a Worker route (`logsSearchOf`);
+   - what the watch saw: a job's last run and error class, an ops line's
+     words (`watch`): the error text.
+2. It does this for each kind Claude looks at now (`new`), and for each
+   open issue whose server job or ops line fails now while the watch does
+   not hand it to Claude (`back`, `ops_user_issue_back()`): looked at in
+   the last 7 days, with no logs kept for that kind in 12 hours. At most
+   20 kinds a run, the `back` ones first.
+3. The Worker keeps them (`POST /api/user-issues?logs=1`,
+   `ops.user_issue_logs`). The log gate already took emails, IP addresses,
+   phone numbers, tokens and long values out for agent_reader; the script
+   and the Worker (`maskLogLine`) take them out again. No log line goes to
+   Linear, a pull request or the job log, which says counts and keys only.
+4. Claude in the watch reads them in `evidence.logs`. The fix team reads
+   every save of the issue's kinds, the newest first, in
+   `.user-issues/evidence/logs-kept.json` (`GET /api/user-issues?logs=LAN-12`,
+   `ops_user_issue_logs_of()`), named by `issue.json` `evidence.logs`.
+5. A `back` issue goes first in the order at the same run (the step `file`
+   reads the order again), and its Linear issue gets a comment that the
+   failure came back (`backComment`). A failure that stays gets its logs
+   kept again after 12 hours, and goes to the fix team again then.
+
+A failure on a phone (an error, a sync or a download) keeps its records in
+the phone's diagnostics, which the fix team reads anyway; only the kinds
+Claude looks at get the logs of the moment.
 
 ## Issues Claude never tried
 

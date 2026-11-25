@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { handleUserIssues, USER_ISSUES_RULE, type UserIssuesDeps } from '../worker/userIssues';
 import { handleApi, type ApiDeps } from '../worker/api';
-import { evidenceAsked, KEY, LOOKED_MAX, LookedError, parseLooked, type Looked, type Media, type Phone, type Watch } from '../../../server/userIssues';
+import { evidenceAsked, KEY, LOOKED_MAX, LookedError, maskLogLine, parseLooked, parseSavedLogs, SAVED_LOGS_MAX, type Looked, type Media, type Phone, type SavedLogs, type Watch } from '../../../server/userIssues';
 import type { JobRun } from '../../../server/jobRuns';
 
 /** The watch for user issues (decisions.md 202): who gets in, and what it may send back. */
@@ -162,6 +162,7 @@ describe('/api/user-issues', () => {
   function deps(over: Partial<UserIssuesDeps> = {}) {
     const runs: JobRun[] = [];
     const sent: Looked[] = [];
+    const kept: SavedLogs[] = [];
     const d: UserIssuesDeps = {
       verify: async (t, rule) => (t === 'good' && rule === USER_ISSUES_RULE ? { repository: 'genesis-ai-dev/langquest-next', workflowRef: USER_ISSUES_RULE.workflowRef, runId: '123456', runAttempt: '1', eventName: 'schedule' } : null),
       watch: async () => watch,
@@ -170,11 +171,13 @@ describe('/api/user-issues', () => {
       research: async () => ({ issues: [{ issue: 'LAN-220' }], items: [] }),
       notes: async (issue) => ({ waiting: issue === 'LAN-220' ? [{ id: FEEDBACK, at: '2026-11-03T17:00:00Z', text: 'Wait for the passage first.' }] : [], before: [] }),
       looked: async (l) => { sent.push(l); return { looked: l.looked.length, grew: l.grew.length }; },
+      logs: async (issue) => (issue === 'LAN-298' ? [{ key: 'ops:v2-failed', why: 'back', at: '2026-11-22T10:00:00Z', runUrl: RUN, logs: [] }] : []),
+      logsSaved: async (saved) => { kept.push(saved); return saved.logs.length; },
       record: async (run) => { runs.push(run); },
       now: () => NOW,
       ...over
     };
-    return { d, runs, sent };
+    return { d, runs, sent, kept };
   }
   const req = (method: string, auth: string | null, body?: unknown) =>
     new Request('https://next.langquest.org/api/user-issues', { method, headers: auth ? { authorization: `Bearer ${auth}` } : {}, ...(body === undefined ? {} : { body: typeof body === 'string' ? body : JSON.stringify(body) }) });
@@ -184,6 +187,22 @@ describe('/api/user-issues', () => {
       audience: 'https://next.langquest.org/api/user-issues',
       workflowRef: 'genesis-ai-dev/langquest-next/.github/workflows/user-issues.yml@refs/heads/main'
     });
+  });
+
+  it('keeps the logs of the moment a run read, and hands an issue\'s to the run that writes its fix', async () => {
+    const { d, kept, runs } = deps();
+    const post = (body: unknown, auth = 'good') => handleUserIssues(new Request('https://next.langquest.org/api/user-issues?logs=1', { method: 'POST', headers: { authorization: `Bearer ${auth}` }, body: JSON.stringify(body) }), d);
+    const logs = [{ key: 'ops:v2-failed', why: 'back', logs: [{ source: 'worker-logs', ask: 'worker-logs', note: null, lines: ['x'] }] }];
+    expect((await post({ runUrl: RUN, logs }, 'stolen')).status).toBe(401);
+    expect((await post({ runUrl: 'https://github.com/genesis-ai-dev/langquest-next/actions/runs/9', logs })).status).toBe(400);
+    const res = await post({ runUrl: RUN, logs });
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ saved: 1 });
+    expect(kept[0]!.logs[0]!.key).toBe('ops:v2-failed');
+    // Not a look: no run of the watch is recorded for it.
+    expect(runs).toEqual([]);
+    const got = await handleUserIssues(new Request('https://next.langquest.org/api/user-issues?logs=LAN-298', { headers: { authorization: 'Bearer good' } }), d);
+    expect((await got.json() as unknown[]).length).toBe(1);
   });
 
   it('lets in only the watch workflow\'s token', async () => {
@@ -230,8 +249,8 @@ describe('/api/user-issues', () => {
     expect(q(`phone=${INSTALL}`)).toEqual({ phone: INSTALL, at: null });
     expect(q('phone=ui-a&at=2026-11-04T04:29:00.000Z')).toEqual({ phone: 'ui-a', at: '2026-11-04T04:29:00.000Z' });
     const wrong: [string, string][] = [
-      [`media=${FEEDBACK}&phone=ui-a`, 'media, phone, notes or research: one of them'],
-      ['notes=LAN-9&phone=ui-a', 'media, phone, notes or research: one of them'],
+      [`media=${FEEDBACK}&phone=ui-a`, 'media, phone, notes, research or logs: one of them'],
+      ['notes=LAN-9&phone=ui-a', 'media, phone, notes, research or logs: one of them'],
       ['notes=lan-9', 'notes: a Linear issue (LAN-12)'],
       ['notes=', 'notes: a Linear issue (LAN-12)'],
       ['media=LAN-224', 'media: the id of a problem sent from help mode'],
@@ -306,5 +325,38 @@ describe('/api/user-issues', () => {
     const { d } = deps();
     const on = await handleApi(req('GET', 'good'), { ...base, userIssues: d });
     expect(on.status).toBe(200);
+  });
+});
+
+describe('the logs of the moment', () => {
+  const LOG = { key: 'ops:v2-failed', why: 'back', logs: [{ source: 'worker-logs', ask: 'worker-logs level=error minutes=120', note: null, lines: ['2026-11-22T10:00:00Z\tlangquest-next\terror\tlist org/x/ (502)'] }] };
+
+  it('takes a run\'s logs, each line with personal data out once more', () => {
+    const got = parseSavedLogs({ runUrl: RUN, logs: [{ ...LOG, logs: [{ ...LOG.logs[0]!, lines: ['a@b.org from 10.0.0.1 with Bearer abc.def eyJa.eyJb.c and +1 604 555 0100'] }] }] });
+    expect(got.logs[0]!.logs[0]!.lines).toEqual(['[email] from [ip] with Bearer [hidden] [jwt] and [number]']);
+    expect(maskLogLine('ids stay: 0d000000-0000-4000-8000-000000000001 E-7K2Q01')).toBe('ids stay: 0d000000-0000-4000-8000-000000000001 E-7K2Q01');
+  });
+
+  it('refuses what is not a kind, a why or a run of this repository', () => {
+    expect(() => parseSavedLogs({ runUrl: 'https://github.com/x/y/actions/runs/1', logs: [] })).toThrow(LookedError);
+    expect(() => parseSavedLogs({ runUrl: RUN, logs: [{ ...LOG, key: 'nothing' }] })).toThrow(/key/);
+    expect(() => parseSavedLogs({ runUrl: RUN, logs: [{ ...LOG, why: 'later' }] })).toThrow(/why/);
+    expect(() => parseSavedLogs({ runUrl: RUN, logs: Array.from({ length: SAVED_LOGS_MAX.kinds + 1 }, () => LOG) })).toThrow(/at most/);
+    expect(() => parseSavedLogs({ runUrl: RUN, logs: [{ ...LOG, logs: [{ ...LOG.logs[0]!, source: 'Drop Table' }] }] })).toThrow(/source/);
+  });
+
+  it('keeps the newest lines that fit in the database\'s 64 KB a kind', () => {
+    const lines = Array.from({ length: 400 }, (_, i) => `${String(i).padStart(4, '0')} ${'x'.repeat(590)}`);
+    const got = parseSavedLogs({ runUrl: RUN, logs: [{ ...LOG, logs: [{ ...LOG.logs[0]!, lines }, { ...LOG.logs[0]!, lines }] }] });
+    const kept = got.logs[0]!.logs.flatMap((r) => r.lines);
+    expect(kept.length).toBeLessThanOrEqual(SAVED_LOGS_MAX.lines);
+    expect(got.logs[0]!.logs[0]!.lines.at(-1)).toMatch(/^0399 /);
+    expect(new TextEncoder().encode(JSON.stringify(got.logs[0]!.logs)).length).toBeLessThan(64 * 1024);
+  });
+
+  it('is asked for by issue', () => {
+    expect(evidenceAsked(new URLSearchParams('logs=LAN-298'))).toEqual({ logs: 'LAN-298' });
+    expect(() => evidenceAsked(new URLSearchParams('logs=drop'))).toThrow(LookedError);
+    expect(() => evidenceAsked(new URLSearchParams('logs=LAN-1&notes=LAN-1'))).toThrow(/one of them/);
   });
 });
