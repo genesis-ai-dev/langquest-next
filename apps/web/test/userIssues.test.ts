@@ -171,7 +171,7 @@ describe('/api/user-issues', () => {
       research: async () => ({ issues: [{ issue: 'LAN-220' }], items: [] }),
       notes: async (issue) => ({ waiting: issue === 'LAN-220' ? [{ id: FEEDBACK, at: '2026-11-03T17:00:00Z', text: 'Wait for the passage first.' }] : [], before: [] }),
       looked: async (l) => { sent.push(l); return { looked: l.looked.length, grew: l.grew.length }; },
-      logs: async (issue) => (issue === 'LAN-298' ? [{ key: 'ops:v2-failed', why: 'back', at: '2026-11-22T10:00:00Z', runUrl: RUN, logs: [] }] : []),
+      logs: async (issue) => (issue === 'LAN-12' ? [{ key: 'ops:v2-failed', why: 'back', at: '2026-11-22T10:00:00Z', runUrl: RUN, logs: [] }] : []),
       logsSaved: async (saved) => { kept.push(saved); return saved.logs.length; },
       record: async (run) => { runs.push(run); },
       now: () => NOW,
@@ -201,7 +201,7 @@ describe('/api/user-issues', () => {
     expect(kept[0]!.logs[0]!.key).toBe('ops:v2-failed');
     // Not a look: no run of the watch is recorded for it.
     expect(runs).toEqual([]);
-    const got = await handleUserIssues(new Request('https://next.langquest.org/api/user-issues?logs=LAN-298', { headers: { authorization: 'Bearer good' } }), d);
+    const got = await handleUserIssues(new Request('https://next.langquest.org/api/user-issues?logs=LAN-12', { headers: { authorization: 'Bearer good' } }), d);
     expect((await got.json() as unknown[]).length).toBe(1);
   });
 
@@ -355,7 +355,7 @@ describe('the logs of the moment', () => {
   });
 
   it('is asked for by issue', () => {
-    expect(evidenceAsked(new URLSearchParams('logs=LAN-298'))).toEqual({ logs: 'LAN-298' });
+    expect(evidenceAsked(new URLSearchParams('logs=LAN-12'))).toEqual({ logs: 'LAN-12' });
     expect(() => evidenceAsked(new URLSearchParams('logs=drop'))).toThrow(LookedError);
     expect(() => evidenceAsked(new URLSearchParams('logs=LAN-1&notes=LAN-1'))).toThrow(/one of them/);
   });

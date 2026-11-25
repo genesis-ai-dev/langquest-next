@@ -884,11 +884,11 @@ describe('the logs of the moment', () => {
 
   it('saves the logs of the failures that came back first, then of the kinds Claude looks at now', () => {
     const watch = {
-      back: [{ key: 'ops:v2-failed', issue: 'LAN-298', server: { line } }, { key: 'not a key', issue: 'LAN-1', server: null }],
+      back: [{ key: 'ops:v2-failed', issue: 'LAN-12', server: { line } }, { key: 'not a key', issue: 'LAN-1', server: null }],
       look: [kind('job:projection:failing', { server: { job: 'projection', streak: 4 } }), kind('error:TypeError@sign in:-'), kind('ops:v2-failed')]
     };
     expect(logsPlan(watch).map((p) => [p.key, p.why, p.issue])).toEqual([
-      ['ops:v2-failed', 'back', 'LAN-298'], ['job:projection:failing', 'new', null], ['error:TypeError@sign in:-', 'new', null]
+      ['ops:v2-failed', 'back', 'LAN-12'], ['job:projection:failing', 'new', null], ['error:TypeError@sign in:-', 'new', null]
     ]);
     const many = { look: Array.from({ length: 30 }, (_, i) => kind(`error:E${i}@x:-`)) };
     expect(logsPlan(many)).toHaveLength(LOGS_KINDS);
@@ -929,7 +929,7 @@ describe('the logs of the moment', () => {
       const sent: { key: string }[][] = [];
       const watch = {
         asOf: '2026-11-25T17:00:00Z',
-        back: [{ key: 'ops:v2-failed', issue: 'LAN-298', server: { line } }],
+        back: [{ key: 'ops:v2-failed', issue: 'LAN-12', server: { line } }],
         look: [kind('job:projection:failing', { server: { job: 'projection' } }), ...Array.from({ length: 9 }, (_, i) => kind(`error:E${i}@x:-`))]
       };
       const got = await saveLogs(dir, watch, {
@@ -956,7 +956,7 @@ describe('the logs of the moment', () => {
   it('goes on when the Worker cannot keep them, and says nothing came back then', async () => {
     const dir = mkdtempSync(join(tmpdir(), 'logs-'));
     try {
-      const got = await saveLogs(dir, { look: [], back: [{ key: 'ops:v2-failed', issue: 'LAN-298', server: null }] }, {
+      const got = await saveLogs(dir, { look: [], back: [{ key: 'ops:v2-failed', issue: 'LAN-12', server: null }] }, {
         gate: async () => { throw new Error('offline'); },
         send: async () => { throw new Error('HTTP 500'); }
       });
