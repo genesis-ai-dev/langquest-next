@@ -10,7 +10,7 @@ const logic = new Function(`${CARD_LOGIC}; return { lineCardId, cardHref, viewOf
   viewOf: (hash: string, sections: { id: string }[]) => { name: string; id?: string; card?: string };
   lineWay: (f: Row, byClaude: boolean, asked: boolean) => Way;
   noBoxSaid: (state: string, read: boolean) => string;
-  nextSaid: (state: string, own: boolean, asked: boolean) => string;
+  nextSaid: (state: string, own: boolean, asked: boolean, issue?: string) => string;
   LINE_STEPS: [string, string][];
 };
 const SECTIONS = [{ id: 'jobs' }, { id: 'userissues' }];
@@ -45,6 +45,12 @@ describe('each Overview line opens its card', () => {
     expect(way('noise').at).toBe(0);
     expect(way('person').at).toBe(0);
     expect(way('part', { fixed: 1, each: [{}, {}] }).pill[0]).toBe('1 of 2 issues have a fix');
+    // Linear closed its issue: it waits for its check as after a merge; still on the page after it, Claude looks again
+    // (docs/decisions/2026-11-26-the-live-check-decides-and-linear-follows.md).
+    expect([way('closing').pill[0], way('closing').at]).toEqual(['Closed in Linear', 5]);
+    expect([way('back').pill, way('back').at]).toEqual([['Claude looks again', 'claude'], 3]);
+    expect(way('back').steps.map((st) => st[0])).toEqual(logic.LINE_STEPS.map((st) => st[0]));
+    expect(way('back').steps[2]).toEqual(['Fix written', 'the problem shows again after its close']);
     // An instruction that waits for Claude's answer: Claude acts next.
     expect(way('issue', {}, false, true).pill).toEqual(['Claude acts next', 'claude']);
     expect(logic.LINE_STEPS.map((s) => s[0])).toEqual(['Found', 'In Linear', 'Fix written', 'Merged', 'Gone']);
@@ -64,6 +70,15 @@ describe('each Overview line opens its card', () => {
     expect(logic.nextSaid('stuck', true, true)).toContain('Claude has your instruction.');
     expect(logic.nextSaid('open', false, false)).toBe('');
     expect(logic.nextSaid('issue', false, false)).toBe('');
+  });
+
+  it('says plainly that Linear closed the issue and the problem shows now, never "Live" and "fixed" with "still here" (LAN-312)', () => {
+    const said = logic.nextSaid('back', false, false, 'LAN-312');
+    expect(said).toContain('LAN-312 is closed in Linear, but the problem shows on this page now.');
+    expect(said).toContain('opens LAN-312 again in Linear');
+    expect(said).toContain('write below');
+    expect(said).not.toMatch(/fix merged|after the fix/i);
+    expect(logic.nextSaid('back', false, true, 'LAN-312')).toContain('Claude has your instruction.');
   });
 
   it('draws the lines as cards at their part, and the Overview\'s rows link to them', async () => {

@@ -247,8 +247,25 @@ export function lineIssues(items: readonly { issues?: readonly string[] }[]): st
   return [...out].slice(0, 200);
 }
 
-/** A line as the watch for user issues takes it (ops_user_issue_watch's p_lines). */
-export interface WatchLine { key: string; level: string; text: string; title: string; part: string; link?: string }
+/**
+ * A line as the watch for user issues takes it (ops_user_issue_watch's p_lines). `settleMin`: the most minutes
+ * after a fix's merge (or a close in Linear) before the line's check has run again and can no longer find it
+ * (settleMinutes): past that, a line whose issue closed is a problem that shows again, and the watch hands it
+ * to Claude at once (docs/decisions/2026-11-26-the-live-check-decides-and-linear-follows.md).
+ */
+export interface WatchLine { key: string; level: string; text: string; title: string; part: string; link?: string; settleMin: number }
+
+/** How long a merge takes to reach what a line's check reads: the deploy on merge (pageFixes.ts DEPLOY_MIN). */
+export const DEPLOY_MIN = 30;
+
+/**
+ * The most minutes from a merge or a close to the first check that no longer counts what came before it: the
+ * deploy, the hours the check counts, the wait for its next run (a day for a daily check, a month for a monthly
+ * one) and the run itself. Never less than pageFixes.ts clearsAt says.
+ */
+export function settleMinutes(r: Recheck): number {
+  return DEPLOY_MIN + (r.windowH ?? 0) * 60 + (r.everyMin ?? 0) + (r.takesMin ?? 0) + (r.daily?.length ? 1440 : 0) + (r.monthly ? 31 * 1440 : 0);
+}
 
 /** At most this many lines go to one watch: a flood of new lines is one look's worth. */
 export const WATCH_LINES_MAX = 50;
@@ -260,14 +277,14 @@ export const WATCH_LINES_MAX = 50;
  * key, and not "Could not read", which says the page could not ask a
  * provider, not that LangQuest has a problem.
  */
-export function watchLines(items: readonly { key: string; level: string; text: string; section: string; link?: string; watchKey: string; issues?: readonly string[] }[]): WatchLine[] {
+export function watchLines(items: readonly { key: string; level: string; text: string; section: string; link?: string; watchKey: string; issues?: readonly string[]; recheck?: Recheck }[]): WatchLine[] {
   const out = new Map<string, WatchLine>();
   for (const i of items) {
     const kind = (KINDS as Record<string, AlertKind>)[i.key];
     if (!kind || kind.person || i.key === 'unreadable' || i.issues?.length || !i.watchKey.startsWith('ops:') || out.has(i.watchKey)) continue;
     out.set(i.watchKey, {
       key: i.watchKey, level: i.level, text: i.text.slice(0, 600), title: kind.title, part: i.section,
-      ...(i.link?.startsWith('https://') ? { link: i.link.slice(0, 500) } : {})
+      ...(i.link?.startsWith('https://') ? { link: i.link.slice(0, 500) } : {}), settleMin: settleMinutes({ ...kind.recheck, ...i.recheck })
     });
   }
   return [...out.values()].slice(0, WATCH_LINES_MAX);

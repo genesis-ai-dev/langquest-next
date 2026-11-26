@@ -622,6 +622,8 @@ function show(id, s) {
   const el = $('pill-' + g.id); el.className = 'pill ' + cls; el.textContent = text;
   drawBody(g);
   if (id === 'userissues') redrawLineCards();
+  // A line that came in shows a closed issue's problem again, or no more: User issues says so too (pageFixes.ts liveIssues).
+  else if (backChanged()) drawBody(groupOf('userissues'));
   // The open issues' states in Linear, at most each 2 minutes (pageMine.ts syncIssueStates).
   if (id === 'userissues' && s && s.state === 'ok') syncIssueStates();
   // A report's card shows its issue's step from the User issues part's answer (pageReports.ts).

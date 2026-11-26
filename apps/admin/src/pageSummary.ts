@@ -150,10 +150,10 @@ const HEALTH_SAID = { normal: 'Normal', high: 'Higher than usual', low: 'Lower t
 /**
  * Where a line belongs on a summary: 'need' (it needs a person: Act now or
  * Fix soon), 'decide' (a choice a person makes, at Watch), 'way' (its fix is
- * merged and waits for the check that clears it) or 'watch'.
+ * merged, or Linear closed its issue, and it waits for the check that clears it) or 'watch'.
  */
 function lineBucket(level, fixState) {
-  if (fixState === 'merged') return 'way';
+  if (fixState === 'merged' || fixState === 'closing') return 'way';
   if (level === 'urgent' || level === 'problem') return 'need';
   return fixState === 'person' ? 'decide' : 'watch';
 }
@@ -302,16 +302,16 @@ function groupCounts(g, lines) {
   return c;
 }
 
-/** A line's steps in small: Found, In Linear, Fix written, Merged, Gone; a fix that did not work says Still here. */
+/** A line's steps in small: Found, In Linear, Fix written, Merged, Gone; a fix that did not work says Still here, a problem back after its close Shows again. */
 function miniSteps(f) {
   if (!f) return '';
   const way = lineWay(f, false, false);
   if (!way.at) return '';
-  const stuck = f.state === 'stuck';
+  const stuck = f.state === 'stuck' || f.state === 'back';
   return '<ol class="msteps" aria-label="' + esc('Step ' + way.at + ' of ' + way.steps.length) + '">' + way.steps.map((st, i) => {
     const cls = i + 1 < way.at ? 'done' : i + 1 === way.at ? (stuck ? 'fail' : 'now') : '';
     // The step it waits at is not done yet: it says Next, so a dot never says a step is done when it is not.
-    return '<li' + (cls ? ' class="' + cls + '"' : '') + '><i></i>' + esc(stuck && i + 1 === way.at ? 'Still here' : (cls === 'now' ? 'Next: ' : '') + st[0]) + '</li>';
+    return '<li' + (cls ? ' class="' + cls + '"' : '') + '><i></i>' + esc(stuck && i + 1 === way.at ? (f.state === 'back' ? 'Shows again' : 'Still here') : (cls === 'now' ? 'Next: ' : '') + st[0]) + '</li>';
   }).join('') + '</ol>';
 }
 

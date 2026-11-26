@@ -76,6 +76,9 @@ function lineWay(f, byClaude, asked) {
     open: byClaude ? { pill: ['Merges when checks pass', 'claude'], at: 4 } : { pill: ['Waits on you', 'you'], at: 4 },
     merged: { pill: ['Fix merged', 'claude'], at: 5 },
     stuck: { pill: ['Still here after its fix', 'you'], at: 5, steps: steps.slice(0, 4).concat([['Gone', 'still here after its check']]) },
+    // Linear closed its issue: the line waits for its check, as after a merge. Then still on the page: the problem shows again, and Claude looks again.
+    closing: { pill: ['Closed in Linear', ''], at: 5 },
+    back: { pill: ['Claude looks again', 'claude'], at: 3, steps: steps.slice(0, 2).concat([['Fix written', 'the problem shows again after its close']], steps.slice(3)) },
     noise: { pill: ['Claude found nothing to fix', ''], at: 0 },
     person: { pill: ['Waits on you', 'you'], at: 0 }
   }[f.state] || { pill: ['', ''], at: 0 };
@@ -87,10 +90,12 @@ function lineWay(f, byClaude, asked) {
  * What happens next on a line's card, in words: who acts, and what; '' when the pill and the steps
  * say it already. own: the line names its own Linear issue (a nightly test's: the nightly report
  * filed it, not the watch), so no agent writes a fix for it unless a person tells Claude to.
- * asked: an instruction to Claude waits for its answer.
+ * asked: an instruction to Claude waits for its answer. issue: the line's Linear issue.
  */
-function nextSaid(state, own, asked) {
+function nextSaid(state, own, asked, issue) {
   if (asked) return 'Claude has your instruction. The answer shows under your words below, after the next run of the watch (each 15 minutes).';
+  // The live check decides, and Linear follows it (docs/decisions/2026-11-26-the-live-check-decides-and-linear-follows.md).
+  if (state === 'back') return (issue || 'The issue') + ' is closed in Linear, but the problem shows on this page now. Claude looks at it again at the next run of the watch (each 15 minutes) and opens ' + (issue || 'it') + ' again in Linear. To tell Claude what to do now, write below.';
   if (state === 'stuck') return own
     ? 'The test failed again after the fix merged. The cause can be a new one. No agent works on it now. To get a fix, tell Claude what to do below.'
     : 'The problem is still here after the fix merged. To get a new fix, tell Claude what to do below.';
@@ -123,7 +128,9 @@ function lineCard(a, group) {
   const f = unread || a.key === 'user-issues-open' || a.key === 'user-issues-waiting' ? null : fixOf(a);
   const issue = f && f.issues.length === 1 ? f.issues[0] : null;
   const row = issue && ud ? (ud.issues || []).find((x) => x.issue === issue) || null : null;
-  const record = issue && ud && ud.fixes ? ud.fixes[issue] || null : null;
+  const recorded = issue && ud && ud.fixes ? ud.fixes[issue] || null : null;
+  // The problem shows again after Linear closed the issue: what Claude found before the close is not what is true now (the card's Steps keep it).
+  const record = recorded && f && f.state === 'back' && row && row.closedAt && Date.parse(recorded.at) < Date.parse(row.closedAt) ? null : recorded;
   const notes = issue && ud && ud.notes ? ud.notes[issue] || [] : [];
   const pr = f && f.pr && f.pr.number ? f.pr : null;
   const shown = fixFor(record, pr);
@@ -144,7 +151,7 @@ function lineCard(a, group) {
   return issueCard({
     card: lineCardId(a), cls: 'line ' + level,
     tags: '<span class="tag ' + level + '">' + esc(LEVEL[level].title) + '</span>' + backTag(a, 'tag back') +
-      (issue ? (row && safeLink(row.issueUrl) ? outLink(row.issueUrl, esc(issue), 'lin') : '<b>' + esc(issue) + '</b>') + (row && row.state ? '<span>' + esc(row.state) + ' in Linear</span>' : '') + claimTag(issue) : ''),
+      (issue ? (row && safeLink(row.issueUrl) ? outLink(row.issueUrl, esc(issue), 'lin') : '<b>' + esc(issue) + '</b>') + (row && row.state ? (f && f.state === 'back' ? '<span class="tag bad">Closed in Linear</span>' : '<span>' + esc(row.state) + ' in Linear</span>') : '') + claimTag(issue) : ''),
     title: t.title, meta: where,
     // A line with one Linear issue: the box to tell Claude what to do with it. Any other line: the box to ask Claude about it (pageAsk.ts).
     talk: issue ? issueTalk({ issue, closedAt: row ? row.closedAt : null }, (ud && ud.notes) || {}, 'ln-' + lineCardId(a)) : askTalk(lineCardId(a), group, t.title),
@@ -152,7 +159,7 @@ function lineCard(a, group) {
     // Short, as a user issue's card (pageIssues.ts shortCard): Wrong, Known and Next, the rest behind Details.
     pill: way.pill,
     short: (() => {
-      const n = issue && f ? nextSaid(f.state, !!(a.issues && a.issues.length), asked) : '';
+      const n = issue && f ? nextSaid(f.state, !!(a.issues && a.issues.length), asked, issue) : '';
       const fixed = f && !why ? fixHtml(a) : f && why === 'count' ? fixHtml(a) : !f && t.next ? esc(t.next) : '';
       const pics = issue ? fixPictures(record, issue, !!shown, ud && ud.diagrams ? ud.diagrams[issue] : null) : '';
       const claude = shown ? fixLine(shown, { tab: f.state === 'merged' || f.state === 'stuck' ? 'merged' : '' }) : '';

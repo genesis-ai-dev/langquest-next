@@ -7,7 +7,8 @@ import {
   fixBody, fixBranch, fixComment, fixRefusal, grewComment, isClosed, issueDescription, KEY, keysIn, LABEL, leaks, linearKept, LIMITS, linearClient, lookedOf, mergesOf,
   linearAsked, linearChanges, statusFor, withoutLinearClaims, noFixComment, noteAnswer, noteIdsOf, notesToTake, oldPathsOf, pathsOf, phoneFacts, PREFIX, privateOf, redact, statesToSend, updateComment, when, withEvidence,
   repairOf, repairsOf, planRecord, planReads, READ_ROWS, dueToTake, PROBE_MAX, fixRecord, orderToTake, whyInOrder, prioritiesToSend, OPEN_AGAIN, refusedWhy,
-  backComment, kindLogs, LOGS_KINDS, logsPlan, logsSearchOf, maskLine, MOMENT_READS, savedRead, saveLogs
+  backComment, kindLogs, LOGS_KINDS, logsPlan, logsSearchOf, maskLine, MOMENT_READS, savedRead, saveLogs,
+  buildReads, closedWithNotes, noteReopenComment, openState, quotedBySomeone
 } from './user-issues.mjs';
 import { USER_ISSUES_PATH, USER_ISSUES_RULE } from '../apps/web/worker/userIssues';
 import * as model from '../server/userIssues';
@@ -327,7 +328,7 @@ describe("Claude's decisions", () => {
       known: [{ keys: [ERR.key], issue: 'LAN-12' }, { keys: [ERR.key], issue: 'LAN-13' }, { keys: [FB.key], issue: 'OTHER-1' }],
       noise: ['x']
     }, watch, linear);
-    expect(plan.known).toEqual([{ keys: [ERR.key], issue: 'LAN-12', comment: '' }]);
+    expect(plan.known).toEqual([{ keys: [ERR.key], issue: 'LAN-12', comment: '', context: null, problem: null, known: null, solution: null }]);
     expect(plan.dropped).toHaveLength(5);
     expect(plan.undecided).toEqual([FB.key, NOISE.key]);
     expect(checkDecisions(null, watch, linear).undecided).toHaveLength(3);
@@ -337,7 +338,14 @@ describe("Claude's decisions", () => {
     const w = { ...watch, look: [kind('sync:refused')] };
     const plan = checkDecisions({ file: [{ keys: ['sync:refused'], title: 't', summary: 'seen again' }] }, w, linear);
     expect(plan.file).toEqual([]);
-    expect(plan.known).toEqual([{ keys: ['sync:refused'], issue: 'LAN-90', comment: 'seen again' }]);
+    expect(plan.known).toEqual([{ keys: ['sync:refused'], issue: 'LAN-90', comment: 'seen again', context: null, problem: null, known: null, solution: null }]);
+  });
+
+  it('takes a known issue\'s card words again, for a problem that shows again after its close with a new cause', () => {
+    const plan = checkDecisions({ known: [{ keys: [ERR.key], issue: 'LAN-12', comment: 'The build failed again for a new cause.',
+      problem: 'The web build fails. Its build token belongs to a person who left. a@b.org', solution: 'Set a new build token in Cloudflare, then retry the build.' }] }, watch, linear);
+    expect(plan.known[0]).toMatchObject({ issue: 'LAN-12', problem: 'The web build fails. Its build token belongs to a person who left. [address]', known: null,
+      solution: 'Set a new build token in Cloudflare, then retry the build.' });
   });
 
   it('cuts what Claude wrote to size, priority Medium unless it says', () => {
@@ -796,6 +804,13 @@ describe('what Claude looks at besides the counts', () => {
     expect(priv.installs).toEqual(['eae9b9ed-7c59-41c5-9dc4-173b84a3860d', 'inst-0001']);
     expect(priv.words).toEqual(['Playback is super slow on this lower end phone. Just tried to play audio now.']);
     expect(keysIn(description)).toEqual(['feedback:a316558c-474c-46f1-8f48-672fc38ea87d', 'audio:playFail']);
+    // An ops line's own words are the dashboard's, not what a person sent: an answer that names the same build is kept (LAN-312, 2026-11-22).
+    const line = factsOf(kind('ops:worker-build-failed:langquest-next', { server: { line: { level: 'problem', title: 'A Workers Build failed', part: 'cloudflare', text: 'The latest Workers Build of langquest-next failed (commit 602041db), so main is not deployed there.' } } }));
+    const both = privateOf(`${description}\n\n${line}`);
+    expect(both.words).toEqual(priv.words);
+    expect(leaks('The latest Workers Build of langquest-next failed because its build token is no longer valid.', privateOf(line))).toBe(false);
+    expect(quotedBySomeone('**The ops dashboard shows: x** · Fix soon\n\n> the dashboard\'s words\n\n**Sent from help mode** on Nov 3\n\n> a person\'s words\n>\n> more')).toEqual(["a person's words", 'more']);
+    expect(quotedBySomeone('**The ops dashboard shows: x**\n\n> line one\n>\n> line two')).toEqual([]);
 
     expect(leaks('+ // Seen on eae9b9ed-7c59-41c5-9dc4-173b84a3860d', priv)).toBe(true);
     expect(leaks('const report = "a316558c-474c-46f1-8f48-672fC38EA87D";', priv)).toBe(true);
@@ -895,6 +910,33 @@ describe('the logs of the moment', () => {
     expect(logsPlan({})).toEqual([]);
   });
 
+  it('saves a line handed again after its issue closed as a failure that came back, so the fix team takes it first once it is open again', () => {
+    const closed = { verdict: 'fixed', issue: 'LAN-312', issueUrl: 'https://linear.app/x/issue/LAN-312', closedAt: '2026-11-24T03:10:53Z', state: 'Live', fixedBy: null, fixedAt: '2026-11-24T03:10:53Z', people: 0, lookedAt: '2026-11-20T00:12:57Z' };
+    const watch = { look: [kind('ops:worker-build-failed:langquest-next', { before: closed }), kind('ops:v2-failed', { before: { ...closed, closedAt: null, verdict: 'noise', issue: null } })] };
+    expect(logsPlan(watch).map((p) => [p.key, p.why, p.issue])).toEqual([['ops:worker-build-failed:langquest-next', 'back', 'LAN-312'], ['ops:v2-failed', 'new', null]]);
+  });
+
+  it('reads a failed Workers Build\'s own log, where the reason is, and only for that line', async () => {
+    const header = 'worker\tcreated\toutcome\tbranch\tcommit\tbuild\tcommit message';
+    const asked: Record<string, unknown>[] = [];
+    const ask = async (read: Record<string, unknown>) => {
+      asked.push(read);
+      const lines = read.source === 'worker-builds'
+        ? [header, 'langquest-next\t2026-11-26T15:47:51Z\tfail\tmain\tade2f0dff870\te34e1f8b-8411-4771-93e5-5d54876b8be3\tMerge pull request #716', 'langquest-next\t2026-11-25T23:18:07Z\tsuccess\tmain\t84fa151b1ca5\t6b644589-937c-46dc-a4de-fd66078ff2ca\tMerge pull request #723']
+        : ['Build failed: Your build is configured with a build token that belongs to a user who has left your organization.'];
+      return { source: String(read.source), ask: String(read.source), note: null, lines };
+    };
+    const got = await buildReads('ops:worker-build-failed:langquest-next', ask);
+    expect(asked).toEqual([{ source: 'worker-builds', worker: 'langquest-next', limit: 5 }, { source: 'worker-build-log', build: 'e34e1f8b-8411-4771-93e5-5d54876b8be3' }]);
+    expect(got[1]!.lines[0]).toContain('build token that belongs to a user who has left');
+    // The newest build passed (the line is about to go): the list only.
+    asked.length = 0;
+    const passed = async (read: Record<string, unknown>) => { asked.push(read); return { source: 'worker-builds', ask: '', note: null, lines: [header, 'langquest-next\tx\tsuccess\tmain\tc\t6b644589-937c-46dc-a4de-fd66078ff2ca\tm'] }; };
+    expect(await buildReads('ops:worker-build-failed:langquest-next', passed)).toHaveLength(1);
+    expect(await buildReads('ops:v2-failed', ask)).toEqual([]);
+    expect(await buildReads('ops:worker-build-failed:bad name!', ask)).toEqual([]);
+  });
+
   it('searches a day of the Worker logs for a job\'s name or a route, and nothing else', () => {
     expect(logsSearchOf('job:projection:failing')).toBe('projection');
     expect(logsSearchOf('worker:blobs:5xx')).toBe('blobs');
@@ -971,6 +1013,21 @@ describe('the logs of the moment', () => {
     const c = backComment(['ops:v2-failed'], '2026-11-22T10:00:00Z', RUN);
     expect(c).toContain('The failure came back');
     expect(c).toContain('`ops:v2-failed`');
+    expect(c).toContain(RUN);
+  });
+
+  it('opens a closed issue again when an admin\'s instruction waits on it, once, and says so in Linear without the words', () => {
+    const watch = { issues: [{ issue: 'LAN-312', state: 'Live', closed: true }, { issue: 'LAN-12', state: 'Todo', closed: false }],
+      notes: [{ issue: 'LAN-312', ids: ['a'] }, { issue: 'LAN-12', ids: ['b'] }, { issue: 'LAN-312', ids: ['c'] }, { issue: 'bad', ids: [] }] };
+    expect(closedWithNotes(watch)).toEqual(['LAN-312']);
+    expect(closedWithNotes(watch, [openState('LAN-312', 'Todo')])).toEqual([]);
+    expect(closedWithNotes({})).toEqual([]);
+    expect(openState('LAN-312', 'Todo')).toEqual({ issue: 'LAN-312', state: 'Todo', closed: false, closedAt: null, fixedBy: null, fixedAt: null, title: null });
+    expect(openState('LAN-312', '<b>')).toMatchObject({ state: 'Todo' });
+    // The Worker takes it as it takes a state the watch read in Linear.
+    expect(model.parseLooked({ sha: 'a'.repeat(40), runUrl: RUN, looked: [], grew: [], states: [openState('LAN-312', 'Todo')] }).states[0]).toMatchObject({ issue: 'LAN-312', closed: false });
+    const c = noteReopenComment(RUN);
+    expect(c).toContain('Open again');
     expect(c).toContain(RUN);
   });
 

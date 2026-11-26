@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import fc from 'fast-check';
 import { describe, expect, it, vi } from 'vitest';
-import { alertId, intervalMinutes, KINDS, lineIssues, watchKeyOf, watchLines, WATCH_LINES_MAX, WORKFLOW_RECHECK, type AlertKind } from '../src/alertKinds';
+import { alertId, intervalMinutes, KINDS, lineIssues, settleMinutes, watchKeyOf, watchLines, WATCH_LINES_MAX, WORKFLOW_RECHECK, type AlertKind } from '../src/alertKinds';
 import { page } from '../src/page';
 import { FIX_LOGIC } from '../src/pageFixes';
 import { GROUPS } from '../src/pageOps';
@@ -15,7 +15,7 @@ type Fix = { state: string; key: string; issues: string[]; at?: number; from?: n
 type Line = { key: string; level?: string; subject?: string; watchKey?: string; issues?: string[]; recheck?: Record<string, unknown> };
 
 /** The page's own logic, as it runs there (pageFixes.ts FIX_LOGIC). */
-const logic = new Function(`${FIX_LOGIC}; return { lineId, watchKeyOf, nextCheck, clearsAt, rowFor, lineFix, keyKind, resolvedLines };`)() as {
+const logic = new Function(`${FIX_LOGIC}; return { lineId, watchKeyOf, nextCheck, clearsAt, rowFor, lineFix, keyKind, resolvedLines, withLiveLines };`)() as {
   lineId: (a: Line) => string;
   watchKeyOf: (a: Line) => string;
   nextCheck: (r: Record<string, unknown>, t: number) => number;
@@ -23,6 +23,7 @@ const logic = new Function(`${FIX_LOGIC}; return { lineId, watchKeyOf, nextCheck
   lineFix: (a: Line, kinds: Record<string, AlertKind>, ud: unknown, prs: unknown[], now: number) => Fix;
   keyKind: (key: string, kinds: Record<string, AlertKind>) => { part: string; title: string; subject: string } | null;
   resolvedLines: (ud: unknown, now: Set<string>, answered: (p: string) => boolean, kinds: Record<string, AlertKind>, at: number) => { key: string; issue: string; closed: boolean }[];
+  withLiveLines: (ud: unknown, lines: Line[], kinds: Record<string, AlertKind>, prs: unknown[], now: number) => { issues: Record<string, unknown>[]; fixes?: Record<string, { at: string }> };
 };
 
 const H = 3_600_000, M = 60_000;
@@ -118,6 +119,46 @@ describe('a line\'s state, from its Linear issue and the pull requests that name
   it('takes the fix Linear closed the issue with when no pull request names it', () => {
     const f = logic.lineFix(r2, kinds, ud([row({ fixedBy: 640, fixedAt: '2026-11-17T20:00:00Z', closedAt: '2026-11-17T20:10:00Z' })]), [], NOW);
     expect(f).toMatchObject({ state: 'merged', pr: { number: 640 } });
+    // Past that fix's check, the line on the page says the problem shows again, though Linear closed the issue.
+    expect(logic.lineFix(r2, kinds, ud([row({ fixedBy: 640, fixedAt: '2026-11-17T20:00:00Z', closedAt: '2026-11-17T20:10:00Z' })]), [], at('2026-11-18T07:00:00Z')))
+      .toMatchObject({ state: 'back', pr: { number: 640 }, closedAt: '2026-11-17T20:10:00Z' });
+  });
+
+  it('never calls a close in Linear a fix: the line waits for its check, then says the problem shows again (LAN-312)', () => {
+    // LAN-312: closed by hand as Live on Nov 24 with no pull request; the web build failed again on Nov 26 for a new cause.
+    const build = { key: 'worker-build-failed', subject: 'langquest-next', level: 'problem' };
+    const closed = { issues: [], lines: [row({ key: 'ops:worker-build-failed:langquest-next', issue: 'LAN-312', verdict: 'fixed', state: 'Live', closedAt: '2026-11-24T03:10:53Z', fixedAt: '2026-11-24T03:10:53Z', fixedBy: null })] };
+    const now = logic.lineFix(build, kinds, closed, [], at('2026-11-26T19:00:00Z'));
+    expect(now).toMatchObject({ state: 'back', pr: null, closedAt: '2026-11-24T03:10:53Z', closedAs: 'Live', issues: ['LAN-312'] });
+    // Within the check after the close (a live check: the deploy's 30 minutes), it waits as after a merge, with no pull request.
+    const soon = logic.lineFix(build, kinds, closed, [], at('2026-11-24T03:20:00Z'));
+    expect(soon).toMatchObject({ state: 'closing', pr: null });
+    expect(new Date(soon.at!).toISOString()).toBe('2026-11-24T03:40:53.000Z');
+    // A pull request that waits on its merge leads, as for an open issue.
+    expect(logic.lineFix(build, kinds, closed, [pr(9, 'open', ['LAN-312'])], at('2026-11-26T19:00:00Z')).state).toBe('open');
+    // An open issue with no fix stays "no fix yet": only a merged pull request is a fix.
+    const open = { issues: [], lines: [row({ key: 'ops:worker-build-failed:langquest-next', issue: 'LAN-312', fixedAt: '2026-11-24T03:10:53Z', fixedBy: null })] };
+    expect(logic.lineFix(build, kinds, open, [], at('2026-11-26T19:00:00Z')).state).toBe('issue');
+  });
+
+  it('shows a closed issue whose line is on the page past its check as back on User issues, without what Claude said before the close (LAN-312)', () => {
+    const build = { key: 'worker-build-failed', subject: 'langquest-next', level: 'problem' };
+    const lan312 = { issue: 'LAN-312', verdict: 'fixed', state: 'Live', keys: ['ops:worker-build-failed:langquest-next'], closedAt: '2026-11-24T03:10:53Z', fixedAt: '2026-11-24T03:10:53Z', fixedBy: null, solution: 'Read the build log.' };
+    const other = { issue: 'LAN-5', verdict: 'fixed', state: 'Done', keys: ['ops:r2-missing'], closedAt: '2026-11-24T03:10:53Z', fixedBy: null };
+    const ud = { issues: [lan312, other], fixes: { 'LAN-312': { at: '2026-11-22T06:59:49Z' }, 'LAN-5': { at: '2026-11-22T06:59:49Z' } } };
+    const live = logic.withLiveLines(ud, [build], kinds, [], at('2026-11-26T19:00:00Z'));
+    expect(live.issues[0]).toMatchObject({ issue: 'LAN-312', back: true, closedAt: '2026-11-24T03:10:53Z' });
+    expect(String(live.issues[0]!.solution)).toContain('LAN-312 is closed in Linear, but the problem shows on this page now.');
+    // Only the issue whose line shows: LAN-5's line is gone, so its close holds.
+    expect(live.issues[1]).toBe(other);
+    expect(Object.keys(live.fixes ?? {})).toEqual(['LAN-5']);
+    // The answer itself is kept as it came.
+    expect(ud.issues[0]).toBe(lan312);
+    expect(Object.keys(ud.fixes)).toEqual(['LAN-312', 'LAN-5']);
+    // A record Claude wrote after the close stays; within the check after the close, nothing is back yet.
+    expect(logic.withLiveLines({ ...ud, fixes: { 'LAN-312': { at: '2026-11-25T00:00:00Z' } } }, [build], kinds, [], at('2026-11-26T19:00:00Z')).fixes).toHaveProperty('LAN-312');
+    expect(logic.withLiveLines(ud, [build], kinds, [], at('2026-11-24T03:20:00Z'))).toBe(ud);
+    expect(logic.withLiveLines(ud, [], kinds, [], at('2026-11-26T19:00:00Z'))).toBe(ud);
   });
 
   it('uses the issues a nightly line names itself, and the issue of a kind the watch found in the records', () => {
@@ -191,10 +232,19 @@ describe('the lines the watch hands to Claude', () => {
       item('db-disk-full', { link: 'javascript:alert(1)' })
     ]);
     expect(out).toEqual([
-      { key: 'ops:r2-missing', level: 'problem', text: 'r2-missing happened.', title: KINDS['r2-missing'].title, part: 'storage' },
-      { key: 'ops:db-disk-full', level: 'problem', text: 'db-disk-full happened.', title: KINDS['db-disk-full'].title, part: 'storage' }
+      { key: 'ops:r2-missing', level: 'problem', text: 'r2-missing happened.', title: KINDS['r2-missing'].title, part: 'storage', settleMin: 30 + 1440 + 120 },
+      { key: 'ops:db-disk-full', level: 'problem', text: 'db-disk-full happened.', title: KINDS['db-disk-full'].title, part: 'storage', settleMin: 30 }
     ]);
     expect(watchLines(Array.from({ length: 80 }, (_, i) => item('r2-missing', { watchKey: `ops:r2-missing:${i}` })))).toHaveLength(WATCH_LINES_MAX);
+  });
+
+  it('says for each line when its check can no longer find a problem a fix or a close took away: never before the page says it clears', () => {
+    expect(settleMinutes({})).toBe(30);
+    expect(settleMinutes({ windowH: 24 })).toBe(30 + 1440);
+    // A job's own interval and last run (sources/diag.ts) count too.
+    expect(watchLines([item('job-failures', { recheck: { everyMin: 60, last: '2026-11-17T20:00:00Z' } })])[0]!.settleMin).toBe(30 + 48 * 60 + 60);
+    fc.assert(fc.property(fc.integer({ min: 0, max: 10 ** 12 }), fc.constantFrom(...Object.values(KINDS).map((k) => k.recheck as Record<string, unknown>), ...Object.values(WORKFLOW_RECHECK) as Record<string, unknown>[]),
+      (t, r) => { expect(t + settleMinutes(r) * M).toBeGreaterThanOrEqual(logic.clearsAt(r, t)); }));
   });
 
   it('names the Linear issues the lines name themselves, each once, for an instruction on one', () => {

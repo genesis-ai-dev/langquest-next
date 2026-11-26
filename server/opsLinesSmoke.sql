@@ -57,6 +57,37 @@ begin
 end $$;
 reset role;
 
+-- A line still on the page after its issue closed, past the check that would clear it, goes back to Claude at
+-- once, not after the week (migration *_user_issue_came_back.sql,
+-- docs/decisions/2026-11-26-the-live-check-decides-and-linear-follows.md).
+update ops.user_issues set verdict = 'fixed', closed_at = now() - interval '2 hours', fixed_at = now() - interval '2 hours', fixed_by = null,
+  issue_state = 'Live', looked_at = now() - interval '3 days' where key = 'ops:r2-missing';
+set local role service_role;
+do $$
+declare v jsonb; x jsonb;
+  line jsonb := jsonb_build_object('key', 'ops:r2-missing', 'level', 'urgent', 'text', 'The R2 reconciliation found 7 recordings the log names but R2 does not have.',
+    'title', 'Recordings missing from R2', 'part', 'storage');
+begin
+  -- Its check would still count what came before the close: not yet.
+  v := public.ops_user_issue_watch(jsonb_build_array(line || jsonb_build_object('settleMin', 600)));
+  assert not exists (select 1 from jsonb_array_elements(v->'look') e where e->>'key' = 'ops:r2-missing'), 'not before its check: %', v->'look';
+  -- Past it: handed over, with the closed issue in before.
+  v := public.ops_user_issue_watch(jsonb_build_array(line || jsonb_build_object('settleMin', 30)));
+  select e into x from jsonb_array_elements(v->'look') e where e->>'key' = 'ops:r2-missing';
+  assert x->'before'->>'verdict' = 'fixed' and x->'before'->>'issue' = 'LAN-310' and x->'before'->>'closedAt' is not null, 'handed over after its close: %', x;
+  -- A line with no settleMin waits an hour, as a server job does.
+  assert exists (select 1 from jsonb_array_elements(public.ops_user_issue_watch(jsonb_build_array(line))->'look') e where e->>'key' = 'ops:r2-missing'), 'an hour by default';
+end $$;
+reset role;
+-- Looked at since the close (Claude opened it again, or found it noise): not again until the week or the next close.
+update ops.user_issues set looked_at = now() - interval '1 hour' where key = 'ops:r2-missing';
+set local role service_role;
+do $$ begin
+  assert not exists (select 1 from jsonb_array_elements(public.ops_user_issue_watch(jsonb_build_array(jsonb_build_object('key', 'ops:r2-missing', 'level', 'urgent', 'text', 'x', 'title', 'x', 'part', 'storage', 'settleMin', 30)))->'look') e
+    where e->>'key' = 'ops:r2-missing'), 'once for each close';
+end $$;
+reset role;
+
 -- Nobody else hands lines to the watch.
 do $$ begin
   set local role authenticated;
