@@ -142,6 +142,8 @@ function issueWay(r, prs, notes, fix) {
   if (!r.issue) return { tab: 'closed', pill: 'Already fixed', level: 'done', at: 0, pr: merged };
   const byClaude = (pr) => !!fixFor(fix, pr) && fix.decision === 'merge';
   if (r.closedAt) {
+    // Closed in Linear, but its line shows on the page past its check (pageFixes.ts withLiveLines): no fix yet, and Claude looks again.
+    if (r.back) return { tab: 'nofix', pill: 'Claude looks again', level: 'claude', at: 3, pr: null, back: true };
     const dropped = /^(cancell?ed|duplicate)$/i.test(String(r.state || ''));
     return { tab: 'closed', pill: dropped ? r.state : 'Closed', level: dropped ? '' : 'done', at: dropped ? 0 : ISSUE_STEPS.length + 1, pr: merged, claude: !dropped && byClaude(merged) };
   }
@@ -522,9 +524,11 @@ function issueTalk(r, notes, at) {
       '<div class="said claude">' + saidHtml(said) + '</div><small>Claude' + (n.answeredAt ? ' · ' + when(n.answeredAt) : '') + where + '</small>';
   }).join('');
   const id = esc(r.issue), busy = list.some((n) => n.local && n.state === 'sending');
+  // The box is on every card, also when Linear closed the issue: an instruction opens it again in Linear
+  // (docs/decisions/2026-11-26-the-live-check-decides-and-linear-follows.md).
   return (talk ? '<div class="talk">' + talk + '</div>' : '') +
-    (r.closedAt ? '' : '<div class="tell"><textarea id="uin-' + (at ? esc(at) + '-' : '') + id + '" maxlength="2000" rows="3" aria-label="What Claude must do"' + (busy ? ' readonly' : '') + ' placeholder="' + (list.length ? 'Send another instruction…' : 'Tell Claude what to do…') + '"></textarea>' +
-      '<small>' + (startsNow() ? 'Claude starts on it when you send it.' : 'Claude reads it at the next run of the watch, ' + watchSaid() + '.') + '</small><button type="button" class="primary" data-uinote="' + id + '"' + (busy ? ' disabled aria-busy="true">Sending…' : '>Send to Claude') + '</button></div>');
+    '<div class="tell"><textarea id="uin-' + (at ? esc(at) + '-' : '') + id + '" maxlength="2000" rows="3" aria-label="What Claude must do"' + (busy ? ' readonly' : '') + ' placeholder="' + (list.length ? 'Send another instruction…' : 'Tell Claude what to do…') + '"></textarea>' +
+      '<small>' + (r.closedAt ? 'Sending it opens ' + id + ' again in Linear. ' : '') + (startsNow() ? 'Claude starts on it when you send it.' : 'Claude reads it at the next run of the watch, ' + watchSaid() + '.') + '</small><button type="button" class="primary" data-uinote="' + id + '"' + (busy ? ' disabled aria-busy="true">Sending…' : '>Send to Claude') + '</button></div>';
 }
 /** A place in the code as a link to that file on main, at its line. */
 function placeLink(place) {

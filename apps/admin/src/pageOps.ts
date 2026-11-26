@@ -467,7 +467,8 @@ Object.assign(RENDER, {
     return h;
   },
   // What the watch for user issues filed, closed or found already fixed, with the pull request (decisions.md 202).
-  userissues(d) { return userIssuesHtml(d); },
+  // As the live check says it now: a closed issue whose line shows again (pageFixes.ts liveIssues).
+  userissues(d) { return userIssuesHtml(liveIssues(d)); },
   // What people sent from help mode, each with its Linear issue (pageReports.ts).
   userreports(d) { return userReportsHtml(d); },
   // The research team's report of each day and what it found (pageResearch.ts, docs/research-team.md).

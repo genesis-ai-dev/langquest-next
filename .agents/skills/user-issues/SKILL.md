@@ -65,6 +65,14 @@ people using the app their work.
     It is back because people hit it more than a day after the fix:
     `peopleAfterFix` of them, and its `platforms`, `apps`, `installIds` and
     `stack` are theirs only.
+  - an `ops:` line or a **server** kind with `before.verdict` `fixed` and
+    `before.closedAt`: its issue closed in Linear, and the line is on the
+    ops dashboard again past the check that would clear it. The problem
+    shows now, whatever Linear says (the live check decides, and Linear
+    follows it:
+    `docs/decisions/2026-11-26-the-live-check-decides-and-linear-follows.md`).
+    Read its logs (`evidence.logs`: a Workers Build line has its build log)
+    and find the cause now; it can be a new one.
   - A **server** kind has `server`: a job's name, how often it runs, how many
     runs failed in a row (`streak`), its last outcome and error class, and its
     last good run; or a Worker route and how many 5xx answers it gave in a day;
@@ -239,6 +247,16 @@ dashboard read; the issue lists the installs so a developer can read more
    - An `ops:` line is noise only when it measures nothing wrong with
      LangQuest (a count that is high for a known, harmless reason). A line
      that names the same problem as an open issue is `known` with that issue.
+   - A line back after its issue closed (`before.closedAt`) is `known` with
+     `before.issue`: the script opens it again, and the fix team takes it
+     first. Write its card again for what is true now: `context`,
+     `problem`, `known` and `solution`, as for a new issue, and say in
+     `comment` the cause now ("The build failed again on Nov 26 for a new
+     cause: its Cloudflare build token belongs to a person who left."). The
+     old words stay in the card's steps. Noise only when Linear says
+     `Canceled` and the line measures nothing wrong. A line whose cause is
+     a step only a person can do (a token, a setting) is still `known`:
+     its `solution` names that one step.
    - Not noise, even for one person: lost recordings or files, an upload or
      download stuck over a day, a crash or error boundary, a server job
      stopped or failing, the Worker's 5xx, anything a person took the trouble
@@ -296,7 +314,9 @@ The developer reads the issue on their phone, between other things.
     the cause, say what to find first.
   Use your own words. Do not copy what a person wrote, and give no name,
   address or id: the script cuts an address out.
-- `comment` (known): one or two sentences on what is new.
+- `comment` (known): one or two sentences on what is new. A known entry
+  may also have `context`, `problem`, `known` and `solution`: they replace
+  the card's words (write them for a line back after its issue closed).
 - `note` (noise): one line on why it is nothing to fix. (fixed): one line
   on why that pull request fixes it and why the hits came before it.
 - `title` (fixed): what a person saw go wrong, as for a new issue: the ops

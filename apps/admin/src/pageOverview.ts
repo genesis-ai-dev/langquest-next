@@ -233,7 +233,7 @@ const goLink = (href, text, out) => '<a class="go" href="' + esc(href) + '"' + (
 const rowOpenLink = (href) => '<a class="go open" href="' + esc(href) + '">Open ' + svgIcon('go') + '</a>';
 const ALSO_SHOWN = 3;
 
-/** Every card line is a merged fix that waits for its check. */
+/** Every card line is a merged fix (or an issue Linear closed) that waits for its check. */
 const fixing = (c) => Boolean(c.alerts && c.alerts.length) && waitingFixes(c.alerts) === c.alerts.length;
 
 /** One row for a part's alerts of one kind: the most urgent leads, up to 3 more follow, the rest are counted. */
@@ -315,9 +315,10 @@ function wayItems(plan, work, store, now) {
   for (const r of plan.way) {
     for (const a of r.alerts) {
       const f = fixOf(a), t = splitAlert(tidy(a.text));
-      const at = f.state === 'merged' && Number.isFinite(f.at) ? f.at : null;
+      const at = (f.state === 'merged' || f.state === 'closing') && Number.isFinite(f.at) ? f.at : null;
+      const said = f.state === 'closing' ? 'Closed in Linear with no fix. The next check shows if the problem is gone.' : 'Fixed in ' + prLink(f.pr) + '. The next check shows if the fix works.';
       out.push({ at: at || now + 2, who: 'check', when: at ? whenOf(at, now) : ['Soon', ''],
-        title: t.title.replace(/\.$/, ''), said: 'Fixed in ' + prLink(f.pr) + '. The next check shows if the fix works.', from: esc(titleOf(r.group)), href: cardHref(r.group, lineCardId(a)) });
+        title: t.title.replace(/\.$/, ''), said, from: esc(titleOf(r.group)), href: cardHref(r.group, lineCardId(a)) });
     }
   }
   for (const i of work.filter((w) => w.state === 'person')) {
