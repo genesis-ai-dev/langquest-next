@@ -21,7 +21,8 @@ import { noteRefusal } from '../session/signOutCause';
  *   not refused, so such a request fails as a network failure would.
  *
  * And every request gets its answer within ANSWER_WITHIN_MS, or fails as a
- * lost network does (`answerWithin`).
+ * lost network does (`answerWithin`); one still out when the network goes or
+ * comes back is stopped (`stopRequestsInFlight`).
  *
  * Pure (no app imports), so the tests run it against supabase-js itself.
  */
@@ -136,44 +137,141 @@ export const ANSWER_WITHIN_MS = 120_000;
 /** The message of a request that got no answer in time: "Network request failed", so it reads as offline. */
 export const NO_ANSWER = 'Network request failed: no answer in time';
 
+/** The message of a request stopped because the network went or came back (`stopRequestsInFlight`). */
+export const NETWORK_CHANGED = 'Network request failed: the network changed';
+
+/** Why the app stopped a request: no answer in time, or the network changed. For field diagnostics (`listenToStops`). */
+export type StopReason = 'no_answer' | 'network_changed';
+
+const stopListeners = new Set<(why: StopReason) => void>();
+
+/** Hear each request the app stops, and why. Returns the unsubscribe. */
+export function listenToStops(listener: (why: StopReason) => void): () => void {
+  stopListeners.add(listener);
+  return () => { stopListeners.delete(listener); };
+}
+
+function told(why: StopReason): void {
+  for (const listener of stopListeners) {
+    try { listener(why); } catch { /* a listener never breaks a request */ }
+  }
+}
+
+/** A request still waiting for its answer or its body: when it began, and how to stop it. */
+interface InFlight {
+  startedAt: number;
+  stop: (error: TypeError, why: StopReason) => void;
+}
+
+/** Requests `stopRequestsInFlight` may stop. A renewal is never one of them (`sessionSafeFetch`). */
+const inFlight = new Set<InFlight>();
+
+/**
+ * Stop every request still waiting for its answer, as a lost network does:
+ * a request sent before the network went or came back waits on a
+ * connection that is gone, and stays out until its time limit. Stopped
+ * now, the sync that the same change wakes sends it again at once
+ * (sync/wake.ts). Answers how many it stopped.
+ */
+export function stopRequestsInFlight(): number {
+  const now = [...inFlight];
+  for (const request of now) request.stop(new TypeError(NETWORK_CHANGED), 'network_changed');
+  return now.length;
+}
+
+/** The app stopped this request: no answer in time, or the network changed. */
+export function isStoppedRequest(e: unknown): e is TypeError {
+  return e instanceof TypeError && (e.message === NO_ANSWER || e.message === NETWORK_CHANGED);
+}
+
+/** The ways a body is read; each is held to the request's time limit (`answerWithin`). */
+const BODY_READS = ['arrayBuffer', 'blob', 'bytes', 'formData', 'json', 'text'] as const;
+
 /**
  * `base`, failing as a lost network does once a request has waited `ms`
- * for its answer, and stopping the request. A caller's own signal still
- * stops it too.
+ * for its answer and its body, and stopping the request. The limit holds
+ * until the body is read: Expo's fetch answers as soon as the headers come,
+ * and a body can stop coming too. A caller's own signal still stops it.
+ * `listed: false` leaves it out of `stopRequestsInFlight`.
  */
-export function answerWithin(base: typeof fetch, ms: number): typeof fetch {
+export function answerWithin(base: typeof fetch, ms: number, opts: { listed?: boolean } = {}): typeof fetch {
   return (input, init) => {
-    const stop = new AbortController();
+    const halt = new AbortController();
     const theirs = init?.signal ?? undefined;
-    const passOn = () => stop.abort(theirs?.reason);
+    const passOn = () => halt.abort(theirs?.reason);
     if (theirs?.aborted) passOn();
     else theirs?.addEventListener('abort', passOn);
     let timer: ReturnType<typeof setTimeout> | undefined;
-    // Settles first even when `base` ignores the stop, as a request on a dead connection may.
-    const late = new Promise<never>((_, reject) => {
-      timer = setTimeout(() => {
-        reject(new TypeError(NO_ANSWER));
-        stop.abort();
-      }, ms);
-    });
-    // A `base` that throws at once fails this request too, and its timer goes with it.
-    const sent = new Promise<Response>((resolve) => resolve(base(input, { ...init, signal: stop.signal })));
-    return Promise.race([sent, late]).finally(() => {
+    const request: InFlight = { startedAt: Date.now(), stop: () => {} };
+    const done = () => {
       clearTimeout(timer);
+      inFlight.delete(request);
       theirs?.removeEventListener('abort', passOn);
+    };
+    // Settles first even when `base` ignores the stop, as a request on a dead connection may.
+    const failed = new Promise<never>((_, reject) => {
+      request.stop = (error, why) => {
+        done();
+        reject(error);
+        halt.abort(error);
+        told(why);
+      };
     });
+    timer = setTimeout(() => request.stop(new TypeError(NO_ANSWER), 'no_answer'), ms);
+    if (opts.listed !== false) inFlight.add(request);
+    // A `base` that throws at once fails this request too, and its timer goes with it.
+    const sent = new Promise<Response>((resolve) => resolve(base(input, { ...init, signal: halt.signal })));
+    return Promise.race([sent, failed]).then(
+      (res) => readWithin(res, failed, done),
+      (e: unknown) => { done(); throw e; }
+    );
   };
 }
 
+/** `res`, its body reads held to the request's limit: the first read that settles ends the limit. */
+function readWithin(res: Response, failed: Promise<never>, done: () => void): Response {
+  for (const name of BODY_READS) {
+    const read = (res as unknown as Record<string, unknown>)[name];
+    if (typeof read !== 'function') continue;
+    Object.defineProperty(res, name, {
+      configurable: true,
+      value: (...args: unknown[]) => Promise.race([(read as (...a: unknown[]) => Promise<unknown>).apply(res, args), failed]).finally(done)
+    });
+  }
+  return res;
+}
+
+/**
+ * The global fetch, held to the same limit: the app's calls to its Worker
+ * (nearby.ts, blobTransport.ts), which go through no Supabase client. A file
+ * the web sends whole takes `transferLimitMs` instead.
+ */
+export function limitedFetch(input: RequestInfo | URL, init?: RequestInit, ms = ANSWER_WITHIN_MS): Promise<Response> {
+  return answerWithin((i, n) => fetch(i, n), ms)(input, init);
+}
+
+/** The slowest link a whole file is given time for: 4 KB a second (32 kbit/s), more than a weak 2G link. */
+const SLOWEST_BYTES_PER_S = 4_096;
+
+/** How long a file of `bytes` may take to go whole in one request: ANSWER_WITHIN_MS, and its bytes at the slowest link. */
+export function transferLimitMs(bytes: number): number {
+  return ANSWER_WITHIN_MS + Math.ceil(bytes / SLOWEST_BYTES_PER_S) * 1000;
+}
+
 export function sessionSafeFetch(opts: SessionSafeOptions): typeof fetch {
-  const base = answerWithin(opts.base ?? ((input, init) => fetch(input, init)), opts.answerWithinMs ?? ANSWER_WITHIN_MS);
+  const global = opts.base ?? ((input, init) => fetch(input, init));
+  const ms = opts.answerWithinMs ?? ANSWER_WITHIN_MS;
+  const base = answerWithin(global, ms);
+  // A renewal is never stopped on a network change: Supabase Auth may have used its token already,
+  // and a token sent again after its 10 seconds of grace ends the sign-in. Its time limit stays.
+  const renew = answerWithin(global, ms, { listed: false });
   return async (input, init) => {
     const url = urlOf(input);
     if (isRenewal(url)) {
       const watch = opts.watch;
       let res: Response;
       try {
-        res = await base(input, init);
+        res = await renew(input, init);
       } catch (e) {
         renewed(watch, { failed: 'offline' });
         throw e;

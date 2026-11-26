@@ -1,7 +1,7 @@
 import { OfflineError, SupabaseTransport } from '@langquest-next/sync';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { accessTokenFresh, afterAuthEvent, savedSession } from '../src/session/authState';
-import { answerAtOnceWhileOffline, answerWithin, ANSWER_WITHIN_MS, listenToRenewals, NO_ANSWER, NOT_RENEWED, renewalChanges, sessionSafeFetch, type RenewalChange, type RenewalWatch } from '../src/server/sessionSafeFetch';
+import { answerAtOnceWhileOffline, answerWithin, ANSWER_WITHIN_MS, isStoppedRequest, listenToRenewals, listenToStops, NETWORK_CHANGED, NO_ANSWER, NOT_RENEWED, renewalChanges, sessionSafeFetch, stopRequestsInFlight, transferLimitMs, type RenewalChange, type RenewalWatch, type StopReason } from '../src/server/sessionSafeFetch';
 import { signOutThisDevice } from '../src/server/signOut';
 import { signOutChosen, takeRefusal } from '../src/session/signOutCause';
 
@@ -290,6 +290,9 @@ describe('what field diagnostics hear about the sign-in (signOutCause.ts, renewa
 });
 
 describe('a request that gets no answer (sessionSafeFetch.ts answerWithin)', () => {
+  // Requests earlier tests left out under a fake clock that is gone; their limit never fires.
+  beforeEach(() => { stopRequestsInFlight(); });
+
   /** A connection that died with the network: the request went out, and nothing comes back, nor does it fail. */
   function silent(heard: { stopped: boolean }): Network {
     return (_url, init) => new Promise<Response>(() => {
@@ -326,6 +329,86 @@ describe('a request that gets no answer (sessionSafeFetch.ts answerWithin)', () 
     } finally {
       off();
     }
+  });
+
+  it('a body that stops coming fails as offline in time too', async () => {
+    // Why: Expo's fetch answers as soon as the headers come, and reads the
+    // body after; a connection that died between the two left the body read
+    // waiting for ever, with the same effect as a request with no answer.
+    const heard = { stopped: false };
+    const p = phone(now() + 3600, async (_url, init) => {
+      init?.signal?.addEventListener('abort', () => { heard.stopped = true; });
+      return new Response(new ReadableStream({ start() { /* the rest never comes */ } }), { status: 200, headers: { 'content-type': 'application/json' } });
+    });
+    const outcome = new SupabaseTransport(p.client).pull('org1', 'L-1', 0, 500).then(() => 'answered', (e: unknown) => e);
+    await vi.advanceTimersByTimeAsync(ANSWER_WITHIN_MS);
+    expect(await outcome).toBeInstanceOf(OfflineError);
+    expect(heard.stopped).toBe(true);
+  });
+
+  it('a request that answered in time is not stopped later, and nothing is told', async () => {
+    const told: StopReason[] = [];
+    const off = listenToStops((why) => { told.push(why); });
+    try {
+      const p = phone(now() + 3600, async () => json(200, []));
+      expect(await new SupabaseTransport(p.client).pull('org1', 'L-1', 0, 500)).toEqual([]);
+      await vi.advanceTimersByTimeAsync(2 * ANSWER_WITHIN_MS);
+      expect(stopRequestsInFlight()).toBe(0);
+      expect(told).toEqual([]);
+    } finally {
+      off();
+    }
+  });
+
+  it('a request with no answer is told as no_answer, for field diagnostics', async () => {
+    const told: StopReason[] = [];
+    const off = listenToStops((why) => { told.push(why); });
+    try {
+      const answer = answerWithin(silent({ stopped: false }) as typeof fetch, ANSWER_WITHIN_MS)('https://abcdefgh.supabase.co/rest/v1/rpc/x').catch((e: unknown) => e);
+      await vi.advanceTimersByTimeAsync(ANSWER_WITHIN_MS);
+      expect(isStoppedRequest(await answer)).toBe(true);
+      expect(told).toEqual(['no_answer']);
+    } finally {
+      off();
+    }
+  });
+
+  it('when the network goes or comes back, a request still out is stopped at once and fails as offline', async () => {
+    // Why: a request sent before the network changed waits on a connection
+    // that is gone; stopped now, the sync the same change wakes sends it
+    // again at once rather than after the 2 minutes (sync/wake.ts).
+    const heard = { stopped: false };
+    const p = phone(now() + 3600, silent(heard));
+    const outcome = new SupabaseTransport(p.client).pull('org1', 'L-1', 0, 500).then(() => 'answered', (e: unknown) => e);
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(stopRequestsInFlight()).toBe(1);
+    const failed = await outcome;
+    expect(failed).toBeInstanceOf(OfflineError);
+    expect((failed as Error).message).toContain(NETWORK_CHANGED);
+    expect(heard.stopped).toBe(true);
+    expect(stopRequestsInFlight()).toBe(0);
+  });
+
+  it('a renewal is never stopped on a network change: Supabase Auth may have used its token already', async () => {
+    // Why: a refresh token sent again more than 10 seconds after Supabase
+    // Auth used it ends the sign-in (refresh_token_reuse_interval). A renewal
+    // keeps only its time limit.
+    const heard = { stopped: false };
+    const p = phone(now() - 60 * DAY, silent(heard));
+    const session = p.client.auth.getSession();
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(p.requests.some((u) => u.includes('grant_type=refresh_token'))).toBe(true);
+    expect(stopRequestsInFlight()).toBe(0);
+    expect(heard.stopped).toBe(false);
+    await vi.advanceTimersByTimeAsync(3 * ANSWER_WITHIN_MS);
+    await session;
+    expect(p.stored.has(KEY)).toBe(true);
+  });
+
+  it('a whole file sent from the web gets time for its bytes on a slow link', () => {
+    expect(transferLimitMs(0)).toBe(ANSWER_WITHIN_MS);
+    // 1 MB at 4 KB a second: 256 seconds more.
+    expect(transferLimitMs(1_048_576)).toBe(ANSWER_WITHIN_MS + 256_000);
   });
 
   it("a caller's own stop still stops the request", async () => {

@@ -1,6 +1,6 @@
 import { CLIENT_PROTOCOL_VERSION } from '@langquest-next/core';
 import { ClientTooOldError, type RelayAnswer, type RelayBatch } from '@langquest-next/sync';
-import { NearbyCallError, post } from './nearby';
+import { bodyOf, NearbyCallError, post } from './nearby';
 
 /**
  * `POST /api/relay` (apps/web/worker/relay.ts, docs/nearby-sync-plan.md section 6): teammates'
@@ -17,7 +17,7 @@ export async function relayBatches(orgId: string, streamId: string, batches: Rel
   // i18n-ignore: the error's message, for diagnostics
   if (res.status === 426) throw new ClientTooOldError('client too old');
   if (res.status !== 200) throw new NearbyCallError(res.status);
-  const body = await res.json() as unknown;
+  const body = await bodyOf(res);
   const list = typeof body === 'object' && body !== null ? (body as { batches?: unknown }).batches : undefined;
   if (!Array.isArray(list) || !list.every(isAnswer)) throw new NearbyCallError(res.status);
   return list;
