@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { outcomeOf, publishTutorials, type Channel, type Due, type PublishReport, type Up } from '../../../server/tutorialPublisher';
+import { publishTutorials, type Channel, type Due, type PublishReport, type Up } from '../../../server/tutorialPublisher';
 import { brandOf, channelAbout, CHANNELS } from '../../../server/youtube';
 
 /** The publish job (server/tutorialPublisher.ts, decisions.md 180) against a YouTube that answers by address. */
@@ -356,18 +356,6 @@ describe('the publish job', () => {
       expect(rows.map((r) => r.contentDetails.playlists ?? 'channels')).toEqual(['channels', 'channels', ['PLtrad'], ['PLnew']]);
     });
 
-    it('leaves a channel for the next day when YouTube\'s day runs out while it puts it in order, with nothing failed', async () => {
-      // Why: each run after the first of the day stopped here, and every run of the job was partial (17 to 25 November 2026).
-      const yt = youtube({ entries: { PLtrad: [] }, shown: ['aaaaaaaaaa0'] });
-      const d = deps([video('record-a-passage')], yt, undefined, [await es()], all);
-      const tight = d.deps.fetcher;
-      d.deps.fetcher = async (input: string, init?: RequestInit) =>
-        input.includes('/playlistItems') && init?.method === 'POST' ? Response.json({ error: { errors: [{ reason: 'quotaExceeded' }] } }, { status: 403 }) : tight(input, init);
-      const report = await publishTutorials(d.deps, fresh());
-      expect(report).toMatchObject({ incomplete: 0, failed: 0, published: 0, outOfQuota: true, firstError: 'youtube_quotaExceeded' });
-      expect(outcomeOf(report, undefined, false)).toBe('ok');
-    });
-
     it('counts a channel it could not put in order, and goes on', async () => {
       const yt = youtube({ entries: { PLtrad: [] }, shown: ['aaaaaaaaaa0'] });
       const d = deps([video('record-a-passage')], yt, undefined, [await es()], all);
@@ -376,29 +364,6 @@ describe('the publish job', () => {
         input.includes('/videos?part=status') ? Response.json({ error: { errors: [{ reason: 'backendError' }] } }, { status: 503 }) : failing(input, init);
       expect(await publishTutorials(d.deps, fresh())).toMatchObject({ incomplete: 1, published: 1, firstError: 'youtube_backendError' });
     });
-  });
-
-  it('leaves a video that is up for the next day\'s run to put in its playlist when YouTube\'s day runs out, with nothing failed', async () => {
-    const yt = youtube();
-    const d = deps([video('a'), video('b')], yt);
-    const tight = d.deps.fetcher;
-    d.deps.fetcher = async (input: string, init?: RequestInit) =>
-      input.includes('/playlistItems') && init?.method === 'POST' ? Response.json({ error: { errors: [{ reason: 'quotaExceeded' }] } }, { status: 403 }) : tight(input, init);
-    const report = await publishTutorials(d.deps, fresh());
-    expect(report).toMatchObject({ due: 1, published: 1, incomplete: 0, failed: 0, outOfQuota: true, firstError: 'youtube_quotaExceeded' });
-    expect(d.marks).toEqual(['a video000001']);
-    expect(outcomeOf(report, undefined, false)).toBe('ok');
-  });
-
-  it('says a run did part of its work only when something failed, not when YouTube\'s day ran out', () => {
-    const waited = { ...fresh(), published: 22, outOfQuota: true, channelsFull: 1, firstError: 'youtube_uploadLimitExceeded' };
-    expect(outcomeOf(waited, undefined, false)).toBe('ok');
-    expect(outcomeOf({ ...waited, failed: 1 }, undefined, false)).toBe('partial');
-    expect(outcomeOf({ ...waited, incomplete: 1 }, undefined, false)).toBe('partial');
-    expect(outcomeOf({ ...waited, brandFailed: 1 }, undefined, false)).toBe('partial');
-    expect(outcomeOf(waited, undefined, true)).toBe('partial');
-    expect(outcomeOf(waited, new Error('x'), false)).toBe('partial');
-    expect(outcomeOf(fresh(), new Error('x'), false)).toBe('error');
   });
 
   it('leaves a channel Google no longer lets in, and says why', async () => {

@@ -39,7 +39,7 @@ import { firstSentence, FRAME, PLAYLISTS, TRAILER_FRAME, youtubeText } from './p
 import { TUNE } from './tune';
 import { importsOf, screenCode, stepScreens, type ScreenCode } from './screens';
 import { TRAILER_DIR, trailerLook, trailerText } from './trailer/trailer';
-import { causeLine, readLog, scriptOf, slotsOf, whyFilm, type Cause, type Change, type Slot } from './why';
+import { causeLine, readLog, scriptLine, scriptOf, slotsOf, whyFilm, type Cause, type Change, type Slot } from './why';
 
 const args = process.argv.slice(2);
 const flag = (name: string) => { const i = args.indexOf(name); return i < 0 ? undefined : args.splice(i, 2)[1]; };
@@ -89,8 +89,18 @@ try {
 }
 const scriptFile = (id: string) => path.join('e2e', 'tutorials', `${id}.ts`);
 const scriptSource = (id: string) => (existsSync(scriptFile(id)) ? readFileSync(scriptFile(id), 'utf8') : '');
-/** A video's script tonight, in this language (why.ts `scriptOf`). */
-const scriptNow = (id: string) => scriptOf(scriptSource(id), TUTORIALS[id]!.steps.map((s) => (s.say ? say(s.say) : undefined)), TUTORIALS[id]!.speech ?? []);
+// The lines as committed, not as translated on the runner tonight (why.ts `scriptLine`); out of a git checkout,
+// the file's. English says each line as written.
+let committedLines: Record<string, string> = lines;
+if (head && language !== 'en') {
+  try {
+    committedLines = JSON.parse(git('show', `HEAD:e2e/tutorials/lines/${language}.json`)) as Record<string, string>;
+  } catch {
+    committedLines = {};
+  }
+}
+/** A video's script tonight, in this language (why.ts `scriptOf`), with the lines as committed. */
+const scriptNow = (id: string) => scriptOf(scriptSource(id), TUTORIALS[id]!.steps.map((s) => (s.say ? scriptLine(s.say, committedLines) : undefined)), TUTORIALS[id]!.speech ?? []);
 /** Its own files, and the helpers in this folder it imports: where a change to its script is found. */
 const scriptFiles = (id: string) => new Set([
   `e2e/tutorials/${id}.ts`, `e2e/tutorials/lines/${language}.json`,

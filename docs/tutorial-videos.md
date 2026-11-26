@@ -244,7 +244,10 @@ was filmed from, its script, each step's look and why it was made
 (`e2e/tutorials/why.ts`), so each night says what changed a video:
 
 - **Its script.** What the video says (in the film's language), does or
-  lights: its own file and every line it says, hashed. A fix asked for in a
+  lights: its own file and every line it says, hashed, each line as committed
+  to `lines/<language>.json` (a line translated on the runner counts as its
+  English until it is committed, since Gemini words it anew each night and
+  the video would be filmed and put up again every night). A fix asked for in a
   comment comes in this way, as a pull request that changes the script; the
   words on its screens stay the same, so the look alone would not film it.
 - **Its words on a screen.** Which steps read differently, the screens they

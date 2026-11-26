@@ -99,11 +99,7 @@ export interface PublishReport {
   published: number;
   replaced: number;
   failed: number;
-  /**
-   * Up, but its playlist place or the old version's line did not work, or a channel's playlists could not be put in order,
-   * for another reason than YouTube's day running out (that is `outOfQuota`, and the next day's run does it): counted in
-   * the job run, with its code if it was the first.
-   */
+  /** Up, but its playlist place or the old version's line did not work, or a channel's playlists could not be put in order: counted in the job run, with its code if it was the first. */
   incomplete: number;
   /** Put right on the channels: a video put in its playlist, an old version's entry taken out or the old version unlisted. */
   tidied: number;
@@ -122,25 +118,6 @@ const ASKED = 500;
 
 /** A code that fits the database's columns, from anything thrown. */
 export const failureCode = (e: unknown) => (e instanceof YouTubeError ? e.code : e instanceof Error ? e.name.replace(/[^A-Za-z0-9_]/g, '').slice(0, 80) || 'Error' : 'unknown');
-
-/**
- * The job run's outcome (server/tutorialPublish.ts). YouTube's day running
- * out, for the project (`outOfQuota`) or for one channel (`channelsFull`),
- * is how a day of uploads ends, not a failure: the rest wait for the next
- * day's run, and the run's counts keep that they did. The day's units run
- * out after about 25 videos, so each run after the one at five past midnight
- * in California stops at its first call; from 17 to 25 November 2026 every
- * run was `partial`, and the ops dashboard's line for a job
- * that does only part of its work never cleared and told nobody anything.
- * A video that waits too long has its own line (apps/admin/src/sources/ops.ts
- * `tutorialAlerts`, `videos-stuck`). So `partial` is what failed: a video,
- * a channel's look, a step left undone for another reason, or a run asked
- * to stop.
- */
-export function outcomeOf(report: PublishReport, error: unknown, stopping: boolean): 'ok' | 'partial' | 'error' {
-  if (error !== undefined) return report.published === 0 ? 'error' : 'partial';
-  return stopping || report.failed > 0 || report.incomplete > 0 || report.brandFailed > 0 ? 'partial' : 'ok';
-}
 
 /**
  * Puts up what is due, then asks again, so videos chosen while it ran go up
@@ -240,13 +217,10 @@ async function tendChannels(deps: PublisherDeps, run: Run, report: PublishReport
     try {
       await tidyChannel(deps, token, channel, up.filter((v) => v.channelId === channel.channelId), report);
     } catch (e) {
-      report.firstError ??= failureCode(e);
-      // Out of the day's units: the next day's run puts the channel in order; nothing failed.
-      if (outOfQuota(e)) {
-        report.outOfQuota = true;
-        return;
-      }
       report.incomplete += 1;
+      report.firstError ??= failureCode(e);
+      report.outOfQuota ||= outOfQuota(e);
+      if (report.outOfQuota) return;
     }
     try {
       await setHome(deps.fetcher, token, channel.language);
@@ -371,13 +345,12 @@ async function publishSome(deps: PublisherDeps, run: Run, due: Due[], report: Pu
         report.replaced += 1;
       }
     } catch (e) {
+      report.incomplete += 1;
       report.firstError ??= failureCode(e);
-      // Out of the day's units: the next day's run puts the video in its place (tidyChannel); nothing failed.
       if (outOfQuota(e)) {
         report.outOfQuota = true;
         break;
       }
-      report.incomplete += 1;
     }
   }
 }
