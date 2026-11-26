@@ -166,6 +166,13 @@ An answer holds the newest 2,000 lines at most. Each read is a line in the
 Worker's log, as a statement is. The rate limit is the read gate's, counted
 apart. Log lines are production data too: "Where answers go" below holds.
 
+When a provider refuses a read, the gate says why. A path or id the provider
+does not have (its 400, 404, 410 or 422) answers 400: the reader's mistake, as
+a statement the database refuses. Its 429 answers 429. A key it refuses (401,
+403) or the provider failing answers 502, and a key the Worker lacks 503. The
+Worker counts every 5xx on these paths as a server failure, and the watch for
+user issues files them (LAN-327).
+
 Every key the Worker reads logs and APIs with is read-only. Workers Logs take a token
 of their own with the Workers role Metadata Read-Only, so the dashboard's
 token keeps its own few grants.
@@ -209,12 +216,6 @@ npm run prod:read -- --logs r2-blobs keys='["<org id>/<stream id>/<sha256>.m4a"]
 | `app-store-report` | an App Store analytics report's newest rows, such as "App Crashes": crashes on people's iPhones by day, app version, device and iOS version (counts, no stack traces) | `ADMIN_APP_STORE_KEY`, after the one report request below |
 | `play-crashes`, `google-play-api` | Google Play: crash and ANR groups, one group's reports with stack traces, crash and ANR rates, reviews | `ADMIN_GOOGLE_PLAY_KEY` |
 | `r2-blobs` | the BLOBS bucket: a key's size, time and type (a HEAD each), or one page of a prefix's listing, through the app Worker's read-only JobStatus entrypoint; never a file's bytes | none: the `APP_JOBS` binding |
-
-When a provider refuses what a read asks (a run or job it does not have, a
-query it does not take, its rate limit), the gate answers the provider's own
-4xx with its message. It answers 502 only when the provider refuses the
-Worker's key (401, 403) or fails itself. The ops route's 5xx count in the
-watch for user issues then means a fault, not a wrong question (LAN-327).
 
 Apple makes the analytics reports only after one ongoing report request,
 which only an Admin's key may make. Caleb chose that on 2026-11-24; it is

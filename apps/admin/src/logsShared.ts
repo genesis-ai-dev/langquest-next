@@ -76,16 +76,15 @@ export const need = (token: string | undefined, name: string, what: string): str
 export const ISO = (ms: number) => new Date(ms).toISOString();
 
 /**
- * The gate's answer when a provider refuses a read. A refusal of what was
- * asked (a run, job or path it does not have, a query it does not take,
- * its rate limit) is the caller's to change, so it stays that 4xx. A key the
- * provider refuses (401, 403) and the provider's own fault are this
- * Worker's: 502. Every refusal was a 502 before, so an agent that asked for
- * a run GitHub does not have counted as a server error of the ops dashboard
- * in the watch for user issues (LAN-327).
+ * The gate's status for a provider that refused a read. A path or id the
+ * provider does not have (404, 400, 422) is the reader's mistake: 400, as a
+ * statement the database refuses is (read.ts). The Worker counts every 5xx
+ * on the ops paths as a server failure (requestTally.ts), and the watch for
+ * user issues filed agents' wrong paths as one (LAN-327). 429 stays 429. Our
+ * key refused (401, 403) or the provider failing (5xx) is 502.
  */
 export const providerStatus = (status: number): number =>
-  status >= 400 && status < 500 && status !== 401 && status !== 403 ? status : 502;
+  status === 429 ? 429 : status >= 400 && status < 500 && status !== 401 && status !== 403 ? 400 : 502;
 
 export async function getJson<T>(fetcher: typeof fetch, url: string, init: RequestInit, what: string): Promise<T> {
   const res = await fetcher(url, { ...init, signal: AbortSignal.timeout(20_000) });

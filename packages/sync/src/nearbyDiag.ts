@@ -123,6 +123,20 @@ export function refusalOf(detail: string | undefined): NearbyDiagRefusal {
  * starting copy whole once its passages were filled whose link went during the names or documents
  * after, `copyDocsCut` (0 or 1); and `copyNo` `moved`, a teammate whose checkpoint moved while this
  * phone took its copy, or whose rows and state came from two checkpoints, so another finishes it.
+ *
+ * From 2026-11-25 (why sharing while LangQuest is open waited): `wait`, `mode` `open`, when the
+ * mode was wanted, the app in front and nothing else owning the radios, yet no room ran for a
+ * minute or more (the app's `openWaitModel`). `waitMs` is how long, uncapped since the mode never
+ * runs under a cover; `heldFeatureMs`, `heldSwitchMs`, `heldAllowMs`, `heldRadiosMs`,
+ * `heldOfferedMs`, `heldAudioMs`, `heldRestMs` and `heldReadyMs` how long each gate input held it
+ * (never the app lock, which is no wait: time behind it would say the person uses it), and `startingMs` how long the gate stood open with no room yet; `restPieces`,
+ * `restStart`, `restRadio`, `restUnwelcome` and `restStopped` the rests that began for each cause;
+ * and `why` (`no-key`, `no-certificate`) when the room's pieces were missing. A wait a cover ended
+ * writes nothing.
+ *
+ * Also from 2026-11-25 (docs/decisions/2026-11-25-text-goes-whole-and-recordings-go-by-want.md): a
+ * session that stopped asking for files at its limit while LangQuest is open says `filesCapped` 1,
+ * and a quiet room sums them, so the field shows how often the limit leaves files for the next meeting.
  */
 export const NEARBY_DIAG_COPY_NO = ['versions', 'not-filled', 'not-allowed', 'not-here', 'malformed', 'moved'] as const;
 
@@ -133,9 +147,11 @@ export const NEARBY_DIAG_SCHEMA = {
       'noRoom', 'cutBackups', 'older', 'clockOff', 'newerApp', 'openMin', 'scanMin', 'pauseMin', 'syncMin', 'viaDirect', 'greets', 'maxMeetMs',
       'docsKept', 'docsRefused', 'docsMissing', 'docsCapped', 'libHeld', 'libTheirs', 'libGot', 'libServed',
       'granted', 'exchanged', 'copyWhole', 'copyFilled', 'copyDocsKept', 'copyDocsMissing', 'copyDocsRefused', 'copyParts', 'copyNos',
-      'exchangeOlder', 'exchangeNoPieces', 'exchangeLeft', 'docsUnreadable', 'copyDocsUnreadable', 'copyDocsCut'],
+      'exchangeOlder', 'exchangeNoPieces', 'exchangeLeft', 'docsUnreadable', 'copyDocsUnreadable', 'copyDocsCut',
+      'waitMs', 'heldFeatureMs', 'heldSwitchMs', 'heldAllowMs', 'heldRadiosMs', 'heldOfferedMs', 'heldAudioMs', 'heldRestMs', 'heldReadyMs',
+      'startingMs', 'restPieces', 'restStart', 'restRadio', 'restUnwelcome', 'restStopped', 'filesCapped'],
     t: {
-      event: ['room', 'session', 'find', 'blocked', 'deliver'],
+      event: ['room', 'session', 'find', 'blocked', 'deliver', 'wait'],
       mode: ['screen', 'open', 'join'],
       stop: ['asked', 'idle', 'wait', 'run', 'level', 'no-key', 'rest'],
       role: ['i', 'r'],
@@ -220,7 +236,7 @@ export function sessionDiagOf(report: NearbySessionReport, ms: number, mode?: Ne
     n: {
       ms, fallbacks: report.fallbacks, events: got.events, sent: sent.events, refused: got.refused, overBudget: got.overBudget,
       files: files.got, served: files.served, fileFails: files.failed, keyRefused: report.handedKeyRefused, farAhead: report.farAhead.length,
-      noRoom: flag(files.noRoom), cutBackups: flag(files.cutBackups), older: flag(report.older), clockOff: flag(report.clockOff),
+      noRoom: flag(files.noRoom), cutBackups: flag(files.cutBackups), older: flag(report.older), clockOff: flag(report.clockOff), ...(files.capped ? { filesCapped: 1 } : {}),
       newerApp: flag(report.newerAppNeeded),
       ...(topUp ? { docsKept: topUp.kept, docsRefused: topUp.refused, docsMissing: topUp.missing, docsCapped: flag(topUp.capped), docsUnreadable: topUp.unreadable ?? 0 } : {}),
       ...(lib ? { libHeld: lib.held, libTheirs: lib.theirs, libGot: lib.got, libServed: lib.served } : {}),
@@ -275,6 +291,8 @@ export interface NearbySyncedTally {
   docsCapped: number;
   /** Documents that came whole but in a format this build cannot read (review item 28). */
   docsUnreadable: number;
+  /** Sessions that stopped asking for files at their limit (2026-11-25). */
+  filesCapped: number;
   /** Library files got and served. */
   libGot: number;
   libServed: number;
@@ -282,7 +300,7 @@ export interface NearbySyncedTally {
 }
 
 export const emptySyncedTally = (): NearbySyncedTally => ({
-  events: 0, sent: 0, files: 0, served: 0, fileFails: 0, fallbacks: 0, viaDirect: 0, docsKept: 0, docsRefused: 0, docsMissing: 0, docsCapped: 0, docsUnreadable: 0, libGot: 0, libServed: 0,
+  events: 0, sent: 0, files: 0, served: 0, fileFails: 0, fallbacks: 0, viaDirect: 0, docsKept: 0, docsRefused: 0, docsMissing: 0, docsCapped: 0, docsUnreadable: 0, filesCapped: 0, libGot: 0, libServed: 0,
   ms: 0
 });
 
@@ -293,6 +311,7 @@ export function addSynced(sum: NearbySyncedTally, report: NearbySessionReport, m
   sum.files += report.files.got;
   sum.served += report.files.served;
   sum.fileFails += report.files.failed;
+  sum.filesCapped += flag(report.files.capped);
   sum.fallbacks += report.fallbacks;
   if (report.linkKind === 'wifi-direct') sum.viaDirect += 1;
   if (report.topUp) {

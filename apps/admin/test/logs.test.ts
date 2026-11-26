@@ -26,7 +26,7 @@ async function deps(answer: (url: string, init?: RequestInit) => unknown, over: 
       const url = String(input);
       calls.push({ url, init });
       const body = answer(url, init);
-      return typeof body === 'string' ? new Response(body) : Response.json(body);
+      return body instanceof Response ? body : typeof body === 'string' ? new Response(body) : Response.json(body);
     }) as typeof fetch,
     tokenSha256: await sha256(TOKEN),
     verify: async (token: string, rule: OidcRule) => (token === AGENT_JWT && rule === READ_RULES[0]
@@ -163,18 +163,22 @@ describe('EAS and GitHub', () => {
     expect(d.calls[0]!.url).toBe('https://api.github.com/repos/o/r/actions/jobs/123/logs');
   });
 
-  it('answers a 4xx when the provider refuses what was asked, and a 502 only for its key or its own fault', async () => {
-    const d = await deps(() => ({}));
-    const answering = (status: number) => { d.fetcher = (async () => new Response('{"message":"x"}', { status, headers: { 'content-type': 'application/json' } })) as typeof fetch; };
-    const asked = [{ source: 'github-api', path: 'actions/runs/1' }, { source: 'github-job-log', job: '1' }, { source: 'cloudflare-graphql', query: 'query { a }' }];
-    for (const [provider, gate] of [[404, 404], [422, 422], [429, 429], [401, 502], [403, 502], [500, 502], [503, 502]] as const) {
-      answering(provider);
-      for (const body of asked) {
-        const res = await handleLogs(post(body, AGENT_JWT), d);
-        expect(res.status, `${body.source} ${provider}`).toBe(gate);
-        expect((await res.json()).error).toContain(`HTTP ${provider}`);
-      }
-    }
+  it('answers a path the provider does not have as the reader\'s mistake, not a server failure', async () => {
+    // The Worker counts every 5xx on the ops paths as a server failure (LAN-327).
+    const status = async (provider: number, body: Record<string, unknown>) => {
+      const d = await deps(() => new Response('{"message":"Not Found"}', { status: provider }));
+      const res = await handleLogs(post(body, AGENT_JWT), d);
+      return { status: res.status, error: (await res.json()).error as string };
+    };
+    const runJobs = { source: 'github-api', path: 'actions/runs/1/jobs' };
+    expect(await status(404, runJobs)).toMatchObject({ status: 400, error: expect.stringContaining('HTTP 404') });
+    expect((await status(422, runJobs)).status).toBe(400);
+    expect((await status(404, { source: 'eas-updates' })).status).toBe(400);
+    expect((await status(410, { source: 'github-job-log', job: '123' })).status).toBe(400);
+    expect((await status(429, runJobs)).status).toBe(429);
+    expect((await status(403, runJobs)).status).toBe(502);
+    expect((await status(500, runJobs)).status).toBe(502);
+    expect((await status(503, { source: 'github-job-log', job: '123' })).status).toBe(502);
   });
 });
 

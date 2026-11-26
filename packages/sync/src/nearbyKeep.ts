@@ -19,6 +19,12 @@ export interface NearbyPeerRecord {
   gen: number;
   mine: string;
   theirs: string;
+  /**
+   * The fingerprint of the files this phone held when the two finished (`filesFingerprint`,
+   * 2026-11-25): a different one now makes the pair worth another session. Absent from a record
+   * written before it, which then counts as unchanged.
+   */
+  files?: string;
 }
 
 /**
@@ -124,7 +130,8 @@ const isMet = (m: unknown): m is NearbyMetRecord => {
 
 const isPeer = (p: unknown): p is NearbyPeerRecord => {
   const r = p as Partial<NearbyPeerRecord> | null;
-  return typeof r === 'object' && r !== null && typeof r.tag === 'string' && typeof r.gen === 'number' && typeof r.mine === 'string' && typeof r.theirs === 'string';
+  return typeof r === 'object' && r !== null && typeof r.tag === 'string' && typeof r.gen === 'number' && typeof r.mine === 'string' && typeof r.theirs === 'string' &&
+    (r.files === undefined || typeof r.files === 'string');
 };
 
 export function nearbyKeepOf(meta: NearbyMeta, at: { orgId: string; streamId: string }): NearbyKeep {

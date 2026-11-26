@@ -1,6 +1,6 @@
 import { ORG_STREAM, type LanguageState, type OrgState } from '@langquest-next/core';
 import { base64urlDecode, base64urlEncode, joinPassStop, newcomerProfileId, type ChainLink, type JoinPass } from '@langquest-next/core/nearby';
-import { ensureDeviceId, LanguageSession, OfflineError, ORG_MATERIALIZER, SyncClient, type Transport } from '@langquest-next/sync';
+import { ensureDeviceId, keepOfflineUnopened, LanguageSession, OfflineError, ORG_MATERIALIZER, SyncClient, type Transport } from '@langquest-next/sync';
 import {
   drawOpening, joinOnlyKeep, joinOnlyPort, nearbyKeepOf, NearbySession, openingPinOf, QR_SALT, qrSessionKeyOf, sessionDiagOf, wifiDirectOptions,
   type NearbyCopySource, type NearbyFileMoves, type NearbyJoinOwn, type NearbySessionReport, type StartingCopyTarget
@@ -214,6 +214,8 @@ export async function joinWithCode(radio: PhoneRadio, code: JoinCode, name: stri
         if (!hooks.still() || await phoneNotEmpty(worn)) throw new OfflineError('the join was left');
         const next = await keepGrant(asked, g, {
           keepLocalPerson, keepChains, keepFindKeys, keepOpenOrgs: keepOpenOrgsFromJoin, seed: (pairs) => AsyncStorage.multiSet(pairs),
+          // The passages the inviter chose for this person, kept offline so the join brings their recordings (2026-11-25).
+          keepOffline: async (orgId, languageId, unitIds) => keepOfflineUnopened(await getStore(), orgId, languageId, unitIds),
           missed: (what) => noteExpected('join', new Error(`the ${what} was not kept`))
         });
         granted = next;
@@ -399,6 +401,8 @@ export async function letInWithPass(o: {
   giveHandedOver?: boolean;
   /** Settles when the person stops or leaves: the code comes down then, not at its end. */
   stopped?: Promise<void>;
+  /** The passages the new person will work on, chosen with the role: kept offline on their phone, so the join brings their recordings (2026-11-25). */
+  kept?: readonly string[];
   hooks: InviterHooks; onSession(session: NearbySession | null): void;
 }): Promise<InviterOutcome> {
   const onGive = await onGiveGroup(o.radio);
@@ -477,6 +481,8 @@ async function letInOn(onGive: boolean, o: Parameters<typeof letInWithPass>[0]):
         as: 'inviter', pass: o.pass, discovery: { key: findKey.key, gen: findKey.gen, floor: findKey.floor },
         // What this phone last heard the server say of the organization, so the newcomer shares while open as this phone does.
         features: sharesOpen ? ['nearby', 'nearby_join', 'nearby_open'] : ['nearby', 'nearby_join'],
+        // What the new person will work on, chosen with the role (docs/decisions/2026-11-25-text-goes-whole-and-recordings-go-by-want.md).
+        ...(o.kept?.length ? { kept: o.kept } : {}),
         // The role was chosen before the code was shown; the tap only says yes or no.
         tap: async (who) => ((await hooks.tap({ name: who.name, profileId: who.profileId, pictures: who.pictures })) ? o.roleId : null),
         // On the clock Hello checks with, as the session that signs the link does (`nearbyHelloNow`).

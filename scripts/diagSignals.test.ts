@@ -114,6 +114,31 @@ describe('diagnostic signals', () => {
     expect(t.join('\n')).toMatch(/organizations could not be fetched \(http503\) 2 times/);
   });
 
+  // docs/decisions/2026-11-25-text-goes-whole-and-recordings-go-by-want.md: how often the limit while open left files for later.
+  it('says how often sessions while LangQuest was open stopped at their file limit, and nothing when none did', () => {
+    const t = texts({ a: install({ nearby: { openTotals: { count: 3, openMin: 20, filesCapped: 2 } } }) }).join('\n');
+    expect(t).toMatch(/info: While LangQuest was open 2 sessions stopped at their limit of about 100 MB of files, leaving the rest for the next meeting\./);
+    expect(texts({ a: install({ nearby: { openTotals: { count: 3, openMin: 20 } } }) }).join('\n')).not.toMatch(/limit of about 100 MB/);
+  });
+
+  // 2026-11-25: a newcomer's phone came online, and nothing said when first contact went through.
+  it('says when a person let in offline got their sign-in and certificate, and when first contact was refused', () => {
+    const t = texts({ a: install({ auth: [
+      { op: 'first_contact', outcome: 'ok', code: null, action: 'session', count: 1, lastAt: 'T1', maxMs: 400, last: { ms: 400, attempt: 3 } },
+      { op: 'first_contact', outcome: 'ok', code: null, action: 'certificate', count: 1, lastAt: 'T2', maxMs: 300, last: { ms: 300, attempt: 4 } }
+    ] }) });
+    expect(t).toContain('info: First contact (session) went through at T1, on turn 3.');
+    expect(t).toContain('info: First contact (certificate) went through at T2, on turn 4.');
+    const refused = texts({ a: install({ auth: [
+      { op: 'first_contact', outcome: 'expired', code: 'expired', action: null, count: 2, lastAt: 'T', maxMs: 200, last: { ms: 200, attempt: 1 } }
+    ] }) });
+    expect(refused).toContain('problem: First contact for a person let in offline was refused ("expired") 2 times: their work stays on the phone, and an ordinary invite lets the same id in.');
+    const needsCode = texts({ a: install({ auth: [
+      { op: 'first_contact', outcome: 'refused', code: 'needs_code', action: null, count: 1, lastAt: 'T', maxMs: 200, last: { ms: 200, attempt: 1 } }
+    ] }) });
+    expect(needsCode).toContain('watch: First contact found this account\'s key sign-in over once: a helper\'s code signs the person in, and their work stays on the phone meanwhile.');
+  });
+
   it("notices a member's phone that syncs the organization but never opened the language", () => {
     const t = texts({ a: install({ orgSync: { count: 4, p95Ms: 1000, applyMs: 10, pulled: 3, outcomes: { ok: 4 }, lastAt: 'T' } }) });
     expect(t.join('\n')).toMatch(/synced the organization \(4 times, last T\) but recorded nothing about this language/);
@@ -177,6 +202,16 @@ describe('diagnostic signals', () => {
     expect(left).toMatch(/watch: Share nearby heard another iPhone by its advert alone in 1 room but closed before Connect was offered/);
     // Offered and tapped: a session followed, and nothing needs saying.
     expect(texts({ b: install({ nearby: { rooms: [{ at: 'T', stop: 'asked', heard: 0, echoed: 0, alone: 1, maybe: 1, taps: 1, sessions: 1, done: 1 }], ends: { done: 1 }, links: { awdl: 1 } } }) })).toEqual([]);
+  });
+
+  // 2026-11-25: a phone let in offline shared nothing for about 21 minutes after its join, and nothing said why.
+  it('says what held sharing while LangQuest is open over a minute with the app in front, the longest first, and why rests began', () => {
+    const t = texts({ a: install({ nearby: { openWaits: {
+      count: 2, waitMs: 1_350_000, maxWaitMs: 1_260_000, heldAudioMs: 1_200_000, heldAllowMs: 90_000, startingMs: 60_000, restPieces: 1,
+      why: { 'no-certificate': 1 }
+    } } }) }).join('\n');
+    expect(t).toMatch(/watch: Sharing while LangQuest was open waited over a minute 2 times with the app in front \(longest 21 min\): held by audio playing or recording 20 min, permission not allowed 90\.0 s, starting 60\.0 s; rests began for: the room's certificate or key missing once \(no-certificate\)\./);
+    expect(texts({ a: install({ nearby: { openWaits: null } }) }).join('\n')).not.toMatch(/waited over a minute/);
   });
 
   // 2026-11-24 (docs/nearby-sync-plan.md 15.8): enough to see how sharing while LangQuest is open works for a team.

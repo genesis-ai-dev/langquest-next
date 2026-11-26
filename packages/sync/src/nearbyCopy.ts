@@ -484,6 +484,13 @@ export class LibraryDocsSender {
     })());
   }
 
+  /** The documents on the list that this phone holds: what a newcomer with none asks for, one by one (Let someone in's bar). */
+  async listedHeld(): Promise<ReadonlySet<string>> {
+    const { list, held } = await this.list();
+    const here = new Set(held);
+    return new Set([...list].filter((h) => here.has(h)));
+  }
+
   async answer(ask: CopyAsk): Promise<Omit<CopyPart, 't'> | CopyNoReason> {
     const docs = this.docs;
     if (ask.part === 'shared') {
@@ -627,6 +634,142 @@ export async function libraryFilesNamed(library: NearbyLibrary): Promise<{ files
   return { files, links: [...links].sort() };
 }
 
+/** How far a starting copy has gone, in characters: what has gone, of about how much (`CopyTally`). */
+export interface CopyProgress { sent: number; total: number }
+
+/**
+ * Before any has gone, a row's and a document's length in characters: 100,000 rows were 50 MB
+ * (review P8), and FIA's 1,525 English guides 65 MB. Each is replaced by the average of those gone.
+ */
+const ROW_CHARS_GUESS = 500;
+const DOC_CHARS_GUESS = 40_000;
+
+/**
+ * The inviter's estimate of a starting copy's progress, for Let someone in's bar (2026-11-25).
+ * The plan is what a newcomer with nothing asks for: every passage whose rows follow the language's
+ * state, with how many rows it holds (`StartingCopy.kept.units`), and every document on the
+ * language's list this phone holds. An item that has gone counts its own length; one under way, its
+ * length once its text is built (`size`), else what has gone of it or its estimate, whichever is
+ * more; one not yet asked, its estimate: its rows times the rows' average length so far, or the
+ * documents' average. So the total settles as items go, and may move either way; the screen never
+ * moves the bar back. Items off the plan (the state, names, an older version) count once asked.
+ * Pure: no clock and no text held, only lengths.
+ */
+export class CopyTally {
+  private readonly items = new Map<string, { sent: number; size: number | null; done: boolean }>();
+  /** Items begun and not finished: a few at a time. */
+  private readonly open = new Set<string>();
+  private sent = 0;
+  private doneChars = 0;
+  private plan: { units: ReadonlyMap<string, number>; docs: ReadonlySet<string>; rows: number } | null = null;
+  /** Of the plan's items, those begun: their rows, and how many documents. */
+  private seen = { rows: 0, docs: 0 };
+  /** Finished passages' rows and characters, and documents' count and characters, for the averages. */
+  private finished = { rows: 0, rowChars: 0, docs: 0, docChars: 0 };
+
+  /** What a newcomer with nothing will ask for. Set once; items already counted are counted against it then. */
+  planned(units: ReadonlyMap<string, number>, docs: ReadonlySet<string>): void {
+    if (this.plan) return;
+    let rows = 0;
+    for (const n of units.values()) rows += n;
+    this.plan = { units, docs, rows };
+    for (const [key, item] of this.items) {
+      this.noteSeen(key);
+      if (item.done) this.noteFinished(key, item.sent);
+    }
+  }
+
+  /** An item's whole length, once its text is built. */
+  size(key: string, chars: number): void {
+    const item = this.item(key);
+    if (!item.done) item.size = chars;
+  }
+
+  /** One part that went: its item, where it began, its length, and whether it was the last. A part asked again counts only what goes past what went. */
+  part(key: string, start: number, chars: number, last: boolean): void {
+    const item = this.item(key);
+    if (item.done) return;
+    const reached = start + chars;
+    if (reached > item.sent) {
+      this.sent += reached - item.sent;
+      item.sent = reached;
+    }
+    if (!last) return;
+    item.done = true;
+    item.size = item.sent;
+    this.open.delete(key);
+    this.doneChars += item.sent;
+    this.noteFinished(key, item.sent);
+  }
+
+  /** Null until the plan is known. `sent` never above `total`. */
+  progress(): CopyProgress | null {
+    const plan = this.plan;
+    if (!plan) return null;
+    const { finished } = this;
+    const rowChars = finished.rows > 0 ? finished.rowChars / finished.rows : ROW_CHARS_GUESS;
+    const docChars = finished.docs > 0 ? finished.docChars / finished.docs : DOC_CHARS_GUESS;
+    let total = this.doneChars;
+    for (const key of this.open) {
+      const item = this.items.get(key)!;
+      total += item.size ?? Math.max(item.sent, this.estimate(key, rowChars, docChars));
+    }
+    total += (plan.rows - this.seen.rows) * rowChars + (plan.docs.size - this.seen.docs) * docChars;
+    return { sent: this.sent, total: Math.max(Math.round(total), this.sent) };
+  }
+
+  private item(key: string): { sent: number; size: number | null; done: boolean } {
+    let item = this.items.get(key);
+    if (!item) {
+      item = { sent: 0, size: null, done: false };
+      this.items.set(key, item);
+      this.open.add(key);
+      this.noteSeen(key);
+    }
+    return item;
+  }
+
+  private estimate(key: string, rowChars: number, docChars: number): number {
+    const plan = this.plan!;
+    if (key.startsWith('rows:')) return (plan.units.get(key.slice(5)) ?? 0) * rowChars;
+    return key.startsWith('doc:') && plan.docs.has(key.slice(4)) ? docChars : 0;
+  }
+
+  private noteSeen(key: string): void {
+    const plan = this.plan;
+    if (!plan) return;
+    if (key.startsWith('rows:')) this.seen.rows += plan.units.get(key.slice(5)) ?? 0;
+    else if (key.startsWith('doc:') && plan.docs.has(key.slice(4))) this.seen.docs += 1;
+  }
+
+  private noteFinished(key: string, chars: number): void {
+    const plan = this.plan;
+    if (!plan) return;
+    if (key.startsWith('rows:')) {
+      const rows = plan.units.get(key.slice(5)) ?? 0;
+      if (rows > 0) {
+        this.finished.rows += rows;
+        this.finished.rowChars += chars;
+      }
+    } else if (key.startsWith('doc:')) {
+      this.finished.docs += 1;
+      this.finished.docChars += chars;
+    }
+  }
+}
+
+/** A copy ask's item, as `CopyTally` names it, and where its part begins; null for an ask no part answers. */
+function tallyKeyOf(ask: CopyAsk): { key: string; start: number } | null {
+  if (ask.part === 'rows') {
+    const key = rowsKey(ask.after);
+    return key ? { key: `rows:${key[0]}`, start: key[1] } : null;
+  }
+  const start = offsetOf(ask.after);
+  if (start === null) return null;
+  if (ask.part === 'doc') return ask.hash ? { key: `doc:${ask.hash}`, start } : null;
+  return { key: ask.part === 'state' ? `state:${ask.stream ?? ''}` : ask.part, start };
+}
+
 /**
  * A sender's side for one session. It works out the documents this language uses once, and
  * holds each text it has built, so every part of one text comes from the same text.
@@ -639,6 +782,9 @@ export class StartingCopySender {
   private languageCopy: Promise<StartingCopy | null> | null = null;
   /** The list of section 5.12 from the copy's own states, so the sender and the newcomer work out the same one. */
   private readonly library: LibraryDocsSender;
+  /** How far the copy has gone, for Let someone in's bar (2026-11-25). */
+  private readonly tally = new CopyTally();
+  private planning: Promise<void> | null = null;
 
   constructor(private readonly source: NearbyCopySource, private readonly languageId: string, before?: NearbyListedDocs) {
     this.library = new LibraryDocsSender(source.docs, async () => {
@@ -669,14 +815,44 @@ export class StartingCopySender {
         const rows = [...this.texts.keys()].filter((k) => k.startsWith('rows:'));
         for (const k of rows.slice(0, Math.max(0, rows.length - TEXTS_HELD + 1))) this.texts.delete(k);
       }
-      held = build().catch((): CopyNoReason => 'not-here');
+      held = build().catch((): CopyNoReason => 'not-here').then((text) => {
+        if (!isNo(text)) this.tally.size(key, text.length);
+        return text;
+      });
       this.texts.set(key, held);
     }
     return held;
   }
 
-  /** The answer to one ask. */
+  /** How far the copy has gone, in characters, once what a newcomer will ask is known; null before. */
+  progress(): CopyProgress | null {
+    return this.tally.progress();
+  }
+
+  /**
+   * The plan the tally counts against: the passages whose rows follow the language's state, and the
+   * documents on its list that this phone holds, worked out once, beside the first answers. The walk
+   * is the one `held` needs anyway.
+   */
+  private async plan(): Promise<void> {
+    const copy = await this.language();
+    if (!copy) return;
+    const docs = await this.library.listedHeld();
+    this.tally.planned(new Map((copy.kept?.units ?? []).map((u) => [u.unitId, u.rows])), docs);
+  }
+
+  /** The answer to one ask, counted for the bar. */
   async answer(ask: CopyAsk): Promise<Omit<CopyPart, 't'> | CopyNoReason> {
+    this.planning ??= this.plan().catch(() => undefined);
+    const got = await this.reply(ask);
+    if (typeof got !== 'string') {
+      const at = tallyKeyOf(ask);
+      if (at) this.tally.part(at.key, at.start, got.body.length, got.next === null);
+    }
+    return got;
+  }
+
+  private async reply(ask: CopyAsk): Promise<Omit<CopyPart, 't'> | CopyNoReason> {
     const done = (text: string | CopyNoReason, part: string, stream?: string): Omit<CopyPart, 't'> | CopyNoReason => {
       if (isNo(text)) return text;
       const got = partOf(text, ask.after);

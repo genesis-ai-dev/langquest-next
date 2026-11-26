@@ -21,6 +21,11 @@ export interface GrantStores {
    * replaces it (Carl, 2026-11-24).
    */
   keepOpenOrgs?(profileId: string, orgIds: readonly string[]): Promise<void>;
+  /**
+   * Keep passages offline in the grant's language: those the inviter chose for the newcomer to work
+   * on, so the join brings their recordings (docs/decisions/2026-11-25-text-goes-whole-and-recordings-go-by-want.md).
+   */
+  keepOffline?(orgId: string, languageId: string, unitIds: readonly string[]): Promise<void>;
   /** A key that could not be kept: the copy still comes, and Find waits for the next grant or first contact. */
   missed?(what: string): void;
 }
@@ -32,6 +37,8 @@ export interface CheckedGrant {
   discovery: { key: string; gen: number; floor: number };
   /** The organization's nearby features, as the inviter's phone last heard them. */
   features?: readonly string[];
+  /** The passages the inviter chose for the newcomer to work on (2026-11-25). */
+  kept?: readonly string[];
 }
 
 /** Keep a checked grant. Throws when the record may not take it, so the session sends nothing more and no copy is asked for. */
@@ -45,6 +52,8 @@ export async function keepGrant(asked: LocalPerson, grant: CheckedGrant, stores:
   if (!(await stores.keepFindKeys(next.profileId, JSON.stringify(find)))) stores.missed?.('discovery key');
   // A phone that joined offline has not heard the server say the organization shares while open: the inviter's phone has.
   if (grant.features?.includes('nearby_open')) await stores.keepOpenOrgs?.(next.profileId, [grant.orgId]);
+  // What the inviter chose for them to work on, kept offline before the steps after the copy open the language (2026-11-25).
+  if (grant.kept?.length) await stores.keepOffline?.(grant.orgId, grant.languageId, grant.kept);
   // Seeded before the copy, so a copy finished later from another teammate still opens this organization and language.
   await stores.seed(seedsFor({ profileId: next.profileId, orgId: grant.orgId, languageId: grant.languageId, name: next.name, names: {} }));
   return next;

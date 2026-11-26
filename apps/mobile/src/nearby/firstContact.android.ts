@@ -1,12 +1,13 @@
 import { firstContactText, nearbyBytes, newcomerProfileId } from '@langquest-next/core/nearby';
 import { OfflineError } from '@langquest-next/sync';
 import * as Crypto from 'expo-crypto';
+import { recordAuth, since } from '../diagnostics/authDiag';
 import { noteExpected } from '../diagnostics/report';
 import { setSession } from '../server/auth';
 import { readLocalPerson, updateLocalPerson } from '../server/localPerson';
 import { joinNearby } from '../server/nearby';
 import { installKey } from '../server/nearbyKey';
-import { afterJoin, firstContactStep, joinAnswerOf, tokenSubject, type FirstContactBlock } from '../session/firstContactModel';
+import { afterJoin, firstContactStep, joinAnswerOf, joinRefusalRecord, tokenSubject, type FirstContactBlock } from '../session/firstContactModel';
 import { membershipOf, type LocalPerson } from '../session/localPersonModel';
 import { gateOpened } from '../sync/firstContactGate.android';
 import { nobleSha256, signWith } from './nearbyCryptoModel';
@@ -29,6 +30,8 @@ export interface Turn {
 
 let queue: Promise<unknown> = Promise.resolve();
 let pending: { serverAs: string | null; run: Promise<Turn> } | null = null;
+/** Turns since the app started, for field diagnostics' `attempt`: which turn went through. */
+let turns = 0;
 
 /**
  * One turn of first contact for whoever holds a session here (`serverAs`), or with an invite's
@@ -48,6 +51,7 @@ export function firstContactTurn(serverAs: string | null, token?: string): Promi
 }
 
 async function turn(serverAs: string | null, token: string | undefined): Promise<Turn> {
+  turns += 1;
   try {
     let person = await readLocalPerson();
     const step = firstContactStep(person, serverAs, token !== undefined);
@@ -82,6 +86,7 @@ async function join(person: LocalPerson, token: string | undefined): Promise<Tur
     requestId = person.requestId ?? id;
   }
   const proof = signWith(key.seed, nearbyBytes('firstContact', firstContactText({ profileId: person.profileId, deviceId: person.deviceId, publicKey: key.publicKey, requestId })));
+  const started = Date.now();
   const res = await joinNearby({ chain: person.chain!, proof, profileId: person.profileId, requestId, ...(token !== undefined ? { token } : {}) });
   const answer = joinAnswerOf(res.status, res.body);
   if (!answer) {
@@ -90,6 +95,9 @@ async function join(person: LocalPerson, token: string | undefined): Promise<Tur
   }
   if (answer.kind === 'later') return { offline: true };
   const next = afterJoin(person, answer, Date.now());
+  // When first contact ended without a session, and why, in field diagnostics (2026-11-25).
+  const refusal = joinRefusalRecord(answer);
+  if (refusal) recordAuth('first_contact', refusal.outcome, { code: refusal.code, n: { ms: since(started), attempt: turns } });
   if (!next.adopt) {
     // Refused, or the account needs a helper's code: the person and their work stay, and a screen says why.
     await updateLocalPerson(person.profileId, () => next.person);
@@ -106,6 +114,8 @@ async function join(person: LocalPerson, token: string | undefined): Promise<Tur
   const kept = await updateLocalPerson(person.profileId, () => ({ ...next.person, stage: 'joined' }));
   // The streams were turned away as offline until now: they sync at once, not after their backoff.
   gateOpened();
+  // When the sign-in came, and on which turn (2026-11-25): a newcomer's phone that came online said nothing of it.
+  recordAuth('first_contact', 'ok', { action: 'session', n: { ms: since(started), attempt: turns } });
   return { offline: false, person: kept ?? { ...next.person, stage: 'joined' } };
 }
 
@@ -113,8 +123,10 @@ async function join(person: LocalPerson, token: string | undefined): Promise<Tur
 async function certificate(person: LocalPerson): Promise<Turn> {
   const m = membershipOf(person);
   if (!m) return { offline: false };
+  const started = Date.now();
   const answered = await firstCertificate({ actorId: person.profileId, orgId: m.orgId, org: null, languageId: m.languageId });
   if (!answered) return { offline: true };
   await updateLocalPerson(person.profileId, (p) => ({ ...p, stage: 'done' }));
+  recordAuth('first_contact', 'ok', { action: 'certificate', n: { ms: since(started), attempt: turns } });
   return { offline: false };
 }
