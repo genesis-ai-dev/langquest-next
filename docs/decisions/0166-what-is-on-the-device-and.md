@@ -1,6 +1,6 @@
 # 166. What is on the device and what waits to upload is shown by passage: a download button on every passage, an upload bar while anything waits, and the Sync screen by passage with a record of what went up
 
-Date: 2026-10-25 · By: Caleb Koster · Status: accepted
+Date: 2026-10-25 · By: Caleb Koster · Status: partly superseded by 2026-11-25-text-goes-whole-and-recordings-go-by-want
 
 Reason: a tester asked whether translators can work fully offline and then
 sync, after the app "would not load" with the phone offline (a build from

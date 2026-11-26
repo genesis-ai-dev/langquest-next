@@ -9,7 +9,7 @@ import { useLetInOffered } from '../nearby/useLetIn';
 import { useNearbyOffered } from '../nearby/useNearby';
 import { useNearbyTeammates, useQuietUntil } from '../nearby/useNearby.native';
 import { quietLineOf, type QuietLine } from '../nearby/quietUntilModel';
-import { useWhileOpenNow } from '../nearby/useNearbyWhileOpen.native';
+import { useWhileOpenRow } from '../nearby/useNearbyWhileOpen.native';
 import { teammatesFoldLine } from '../nearby/readyToCarryModel';
 import { nearbyRowWords } from '../nearby/shareNearbyModel';
 import { Card, Disclosure, Group, Ico, Row } from '../ui/kit';
@@ -37,8 +37,10 @@ import type { Ctx } from './ctx';
  *
  * Above the row, where Share nearby can run here, the Teammates fold (15.4): each teammate and how
  * recent the newest work held from them is, as Ready to carry says, so a person sees where they
- * stand without opening Share nearby. Folded, its line names the least recent teammate. While the
- * phone shares quietly with LangQuest open (15.6), the row's line says so, and names nobody. Offline,
+ * stand without opening Share nearby. Folded, its line names the least recent teammate. Where the
+ * phone shares quietly with LangQuest open (15.6), the row's line says it is on, that it shares
+ * now, or that Share nearby says what it needs (a permission, or offline a radio), and names
+ * nobody (`nearbyRowWords`, Carl 2026-11-25). Offline,
  * where it may share that way, each teammate's row also says until when, as far as this phone
  * knows; from three days before it asks the two to meet on Share nearby, and after, that it has
  * stopped (15.8, `quietUntilOf`).
@@ -47,7 +49,9 @@ export function NearbyRow(props: { ctx: Ctx }) {
   const { ctx } = props;
   const { offered, whyNot } = useNearbyOffered(ctx);
   const letIn = useLetInOffered(ctx);
-  const words = nearbyRowWords(whyNot, letIn);
+  // Sharing while LangQuest is open, where it is on: that it is, that it shares now, or that Share nearby says what it needs (15.6).
+  const open = useWhileOpenRow(ctx, offered && whyNot === null);
+  const words = nearbyRowWords(whyNot, letIn, open);
   const farAhead = farAheadOf(ctx);
   const refusals = useDeliveryRefusals(ctx);
   const team = useNearbyTeammates(ctx, offered && whyNot === null);
@@ -56,8 +60,6 @@ export function NearbyRow(props: { ctx: Ctx }) {
   const quiet = useQuietUntil(ctx, offered && whyNot === null);
   const now = Date.now();
   const [teamOpen, setTeamOpen] = useState(false);
-  // Sharing quietly while LangQuest is open: said here, never with a name (15.6).
-  const quietNow = useWhileOpenNow() && whyNot === null;
   return (
     <>
       {teamLine ? (
@@ -78,7 +80,7 @@ export function NearbyRow(props: { ctx: Ctx }) {
       ) : null}
       {offered ? (
         <Group>
-          <Row icon="swap" label={t('nearby.row')} sub={quietNow ? t('nearby.whileOpenNow') : t(words.sub)} help={t(words.help)}
+          <Row icon="swap" label={t('nearby.row')} sub={t(words.sub)} help={t(words.help)}
             badge={t('nearby.experimental')} badgeTone="amber" disabled={whyNot !== null} muted={whyNot !== null}
             onPress={() => ctx.go('share_nearby')} last />
         </Group>

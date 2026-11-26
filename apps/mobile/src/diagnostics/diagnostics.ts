@@ -183,15 +183,14 @@ export interface TransferTimings {
  * or not. Rethrows so the caller's backoff still applies. `src` defaults to
  * `lang`, a language's own upload and download lists; guide media, hand-over,
  * streamed play, source audio, help and study files name theirs. Answers
- * what `run` answered. `classify` names a failure the caller knows better
- * than the status does (a public file store's 403 is a file it lacks, not a
- * refused sign-in, LAN-318); when it answers nothing, the status decides.
+ * what `run` answered. `classify` says why it failed, for a source whose
+ * statuses mean something else than our server's (study files: LAN-318).
  */
 export async function timedTransfer<T extends number | { bytes: number }>(
   dir: 'up' | 'down',
   where: { orgId: string; streamId: string; src?: TransferSource },
   run: (timings: TransferTimings) => Promise<T>,
-  classify?: (e: unknown) => FailureClass | undefined
+  classify: (e: unknown) => FailureClass = classifyTransferFailure
 ): Promise<T> {
   const started = Date.now();
   const timings: TransferTimings = {};
@@ -201,7 +200,7 @@ export async function timedTransfer<T extends number | { bytes: number }>(
     diagnostics.transfer(dir, { ...where, ...timings, bytes, ms: Date.now() - started });
     return result;
   } catch (e) {
-    diagnostics.transfer(dir, { ...where, ...timings, bytes: 0, ms: Date.now() - started, failure: classify?.(e) ?? classifyTransferFailure(e) });
+    diagnostics.transfer(dir, { ...where, ...timings, bytes: 0, ms: Date.now() - started, failure: classify(e) });
     throw e;
   }
 }

@@ -830,7 +830,11 @@ Steps:
 Expected:
 - Step 1: the line reads "Download needs a connection" and does nothing when
   tapped: no download offered, no toast, no "Kept on this device"
-  (decision 166).
+  (decision 166). On a phone where Share nearby can run, keeping it is
+  offered offline instead: the line reads "A teammate's phone can bring it",
+  and once kept, "Waiting for a teammate's phone"
+  (docs/decisions/2026-11-25-text-goes-whole-and-recordings-go-by-want.md);
+  the web, where this test runs, never can.
 - Step 2: the toast ends "Your team gets it when this device is connected."
   The upload bar says "{n} recordings waiting to upload · Offline", never
   "Uploading".

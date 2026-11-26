@@ -750,6 +750,20 @@ real phone, and section 13 what stays open.
 
 ### 5.6 Audio
 
+**Text whole, recordings by want (2026-11-25,
+docs/decisions/2026-11-25-text-goes-whole-and-recordings-go-by-want.md).** Every member keeps a
+language's events, state and the documents it uses; a recording moves only when the phone that
+takes it wants it, for one of the purposes below. Nothing is pushed. A person adds to what their
+phone wants by keeping a passage or a book offline, and where Share nearby can run that works
+offline too (`useKeepToggle` and `offlineLook` in `apps/mobile/src/sync/`, from
+`useNearbyCanRun`): the passage says a teammate's phone can bring it, then that it waits for one,
+and any teammate who holds its files brings them, since a kept passage is needed. A book that would
+not fit above the 500 MB kept for recording is still not kept, offline as online. A newcomer's
+first passages come from the inviter's choice on Let someone in (14.1). While LangQuest is open a
+session moves at most `NEARBY_OPEN_FILE_BYTES`, about 100 MB, with one teammate, both ways
+together, in this order, and stops asking past it (`files.capped`, which also has the room pick the
+pair again, as `docsAgain` does); Share nearby and a join have no limit.
+
 The list a phone asks for follows the purposes in section 1, in order:
 
 1. **Needed.** Files for the passages in its offline scope (`defaultOfflineScope`: asked
@@ -993,9 +1007,10 @@ protocol version.
   "today", "since you were last online" or "not since you were last online", with the newest
   work held from them (`batchKeys`' `firstHlc`, the author's clock), which adds no new record
   and counts work relayed by a third phone. Since 2026-11-24 the words say so outright, because
-  a bare "Today" read as "we shared today": "Has their work up to 3:05 PM today", "Has their work
-  up to Dec 4, 3:05 PM", "Nothing new from them since you were last online"
-  (`apps/mobile/src/nearby/carryWords.ts`). No meeting
+  a bare "Today" read as "we shared today": "This phone has their work up to 3:05 PM today",
+  "This phone has their work up to Dec 4, 3:05 PM", "Nothing new from them since you were last
+  online" (`apps/mobile/src/nearby/carryWords.ts`; "This phone" from 2026-11-25, Carl: the line
+  had no subject and read too terse). No meeting
   time is kept (section 5.12, The store). So the person leaving for town can see that
   nothing is left behind. When a teammate could not send what was pruned, it says that
   older work will come from the server. If a batch carries a stamp far ahead, it says one
@@ -1470,7 +1485,7 @@ type Message =
   | { t: 'bye'; reason: 'done' | 'nothing' | 'busy' | 'protocol' | 'identity' | 'not-member' | 'stopped' }
   // Phase 6, with the abilities let-in and starting-copy (section 14.1):
   | { t: 'join-ask'; installKey: string; idSalt: string; profileId: string; deviceId: string; name: string; proof: string } // the newcomer, first
-  | { t: 'join-grant'; chain: ChainLink[]; proof: string; discoveryKey: string; gen: number; floor: number; features?: string[]; revoked?: { text: string; kid: string; sig: string } } // the inviter, after one tap; the pass is inside the chain; `revoked` as a `revoked` message carries it (2026-11-24)
+  | { t: 'join-grant'; chain: ChainLink[]; proof: string; discoveryKey: string; gen: number; floor: number; features?: string[]; revoked?: { text: string; kid: string; sig: string }; kept?: string[] } // the inviter, after one tap; the pass is inside the chain; `revoked` as a `revoked` message carries it (2026-11-24); `kept`, the passages the newcomer will work on (2026-11-25)
   | { t: 'copy-ask'; part: 'state' | 'rows' | 'names' | 'doc' | 'held' | 'labels' | 'shared'; stream?: string; after?: string; hash?: string; lang?: string } // 'held' only to a phone that says copy-library; 'labels', with `lang`, only to one that says copy-labels; 'shared' only to one that says copy-shared (2026-11-24)
   | { t: 'copy-part'; part: string; stream?: string; next: string | null; body: string; seq?: number } // body at most 900 KiB; `seq` on a `rows` part, the sender's checkpoint (2026-11-24)
   | { t: 'copy-no'; reason: 'versions' | 'not-filled' | 'not-allowed' | 'not-here' };
@@ -2254,6 +2269,7 @@ function choosePartner(me: { tag: string; summary: string }, inRange: {
   listed: boolean; // its key is on the revocation list
   dueAnyway: boolean; // from the room's own timer, so this stays pure
   docsAgain?: boolean; // its last session here ended docsAgain (14.1, review item 15)
+  filesChanged?: boolean; // the files this phone holds changed since the two finished (2026-11-25)
 }[]): { partner: string; connect: boolean } | null;
 ```
 
@@ -2265,7 +2281,8 @@ unless `dueAnyway` says the two have not exchanged for a set time, which overrid
 this rule, because it rests on what others claim. That gives each pair at most one extra
 session, so five phones need 10 pairings at worst, not 6, and only after the wait. A phone
 whose last session with it ended `docsAgain` keeps it whatever the summaries and `finished`
-say, a set number of times a run (14.1, Again after the events). It
+say, a set number of times a run (14.1, Again after the events). So does one whose files have
+changed here since the two finished (`filesChanged`, below, A gap per teammate). It
 prefers one never met, then the lowest `position`, then the lowest tag. `connect` is
 `echoed && (older || me.tag < partner)`, and the other side waits with a time-out from
 JavaScript, then calls it again with connecting allowed. A phone that answers `busy`, or gives no
@@ -2480,6 +2497,21 @@ to disk only, so a walk over FIA's 1,525 English guides (65 MB) never holds them
   `wantsWhatIHave`) or documents do (`docsAgain`): a review mark alone waits. The room's summary
   is worked out again only after a write (`SyncClient.writeStamp`) or a minute, and each find tag
   once per key and generation (review P1).
+- **Files gained since** (2026-11-25,
+  docs/decisions/2026-11-25-text-goes-whole-and-recordings-go-by-want.md as amended). The summary
+  says nothing of the files a phone holds outside holdings (confirmed recordings it downloaded,
+  library files), so a phone that gained some online, as an inviter whose chapter audio a library
+  version named by hash, never met its teammates again for them: it read "Up to date". A pair's
+  record (`NearbyPeerRecord.files`) now keeps `filesFingerprint` of the files this phone held as
+  the two finished (`NearbyFileMoves.fingerprint`: their count, sum and exclusive-or of hash
+  heads, the same in any order). The room compares it with the phone's own now
+  (`NearbyRoomFacts.filesFingerprint`); a difference makes that teammate worth a session
+  (`filesChanged`), after the gap above and the usual wait for the other to connect, which counts
+  the pair finished. The summary, and so "Up to date" and the quiet mode's rest, are unchanged,
+  since teammates hold different files by design. A record from before it has no fingerprint and
+  counts as unchanged. What it cannot do: a library version that arrived on one phone from the
+  server is not current on another until that phone hears it from the server, since organization
+  changes do not travel between phones (14.1); only a starting copy carries them.
 - **Names in the app's language** (2026-11-24, review item 13). Between phones that say
   `copy-labels`, a member's top-up and a newcomer's copy also ask `labels` for the app's language
   (`takeLabels`): the names other organizations give the followed items the language uses, from
@@ -3857,6 +3889,18 @@ it does today (decision 54).
      `nearby_open` (`nearbyOpenOrgs:<profile>`) until its first contact replaces it, so it
      shares while LangQuest is open as its inviter does. An older inviter sends none, and an
      older newcomer ignores the field.
+   - **What they will work on** (2026-11-25,
+     docs/decisions/2026-11-25-text-goes-whole-and-recordings-go-by-want.md). Before the code,
+     beside the role, the inviter may pick a book the new person will work on ("They will work
+     on", `WorkSetChoice` on Let someone in, `letInBooks`). The grant carries its passages
+     (`join-grant` `kept`, at most `NEARBY_GRANT_KEPT_MAX`, 1,000, each once), and the newcomer's
+     phone keeps them offline in the grant's language (`keepGrant`'s `keepOffline`,
+     `keepOfflineUnopened`) before the steps after the copy open it, so the recordings the
+     inviter's phone holds of them come on the join's link rather than never: before, the team's
+     confirmed recordings were in no purpose of a newcomer's (5.6), and their Map called them not
+     on the phone. The passages around them are not added. This build offers a book; choosing
+     passages one by one is left for later. An older inviter sends none, and an older newcomer
+     ignores the field.
    - **The revocation list** (2026-11-24, review item 11). The grant carries the Worker's list
      as the inviter's phone holds it (`join-grant` `revoked`, exactly a `revoked` message's
      text, `kid` and signature). The newcomer checks it against the Worker's keys for the
@@ -3929,6 +3973,17 @@ it does today (decision 54).
    delete it, unless you will pass it on." and a second: until the phone reaches the internet,
    install no other version of LangQuest on it, since the copy would be removed and a teammate
    would have to give it again (2026-11-24, review item 26).
+
+   While the copy goes, Let someone in shows a bar beside the parts sent (Carl, 2026-11-25).
+   The inviter sees only the asks it answers, so it estimates in characters (`CopyTally` in
+   `packages/sync/src/nearbyCopy.ts`, `copyServed.progress`). It counts against what a newcomer
+   with nothing asks for: each passage whose rows follow the state, with its rows
+   (`kept.units`), and each document on the language's list that it holds. An item not yet
+   asked counts at the average length of those gone (500 characters a row and 40,000 a
+   document before any has). The bar never moves back and stops short of the end until the
+   copy is whole. Then, while the newest work and the guides' files follow on the same link
+   (`join.exchange`), the screen says so over a moving bar, since nothing measures them. No
+   message changes: the newcomer's screen still counts parts.
 5. **Working.** The app runs with a *local person*: an actor id and no server session, in
    `secureStorage` (`src/server/localPerson.ts`). Only one per install, because a local
    person cannot sign out and Sign In is unreachable for them.
@@ -4012,6 +4067,11 @@ it does today (decision 54).
    `accountFromChain`, so one implementation can be tested here with fakes.
    `supabase/functions/join` stays untouched for current builds, and Edge Functions cannot
    import core.
+   - **What field diagnostics say (2026-11-25).** A newcomer's phone came online and nothing
+     said when first contact went through, since only its failures were noted. An `auth`
+     record, op `first_contact`, says `ok` with action `session` when the join route's
+     session is saved and `certificate` when the certificate route answers, or how it was
+     refused (`joinRefusalRecord`), with the call's ms and the turn since the app started.
    - **The account.** `accountFromChain` takes a two-link chain only, and `checkChain` has
      already recomputed the id from the key, so it cannot name an existing member, an
      imported v2 person who has not signed in yet, or anyone else (section 5.12, Chains).
@@ -4721,8 +4781,8 @@ running room. Today only Share nearby shows it.
 
 - **A Teammates fold on Sync and offline** (`apps/mobile/src/screens/sync.tsx`), shown where the
   organization has `nearby` on and this phone holds a certificate. Its line says the least recent
-  teammate ("Furthest behind: Sam, nothing new since you were last online", or "Has today's work
-  from every teammate"), and it opens to one row each: name, and the words Share nearby uses for
+  teammate ("Furthest behind: Sam, nothing new since you were last online", or "This phone has
+  today's work from every teammate"), and it opens to one row each: name, and the words Share nearby uses for
   what this phone holds of their work, up to when. Its help says it is not when the two last
   shared: a teammate who has not worked today shows an older time. It is computed with an empty
   `inRange`.
@@ -4819,6 +4879,26 @@ nothing, so the mode does nothing until they open it once; the reminder in 15.5 
 a name popping up in front of others is its own exposure. Sync and offline's status sentence says
 "Sharing with teammates nearby while LangQuest is open" while the gate is open, and the Teammates
 fold (15.4) and What was shared on Share nearby show what moved.
+
+Where the mode is on for the person (the organization's `nearby_open`, the switch, no cover), the
+Share nearby row's line on Sync and offline says so even while the room does not run (Carl,
+2026-11-25: a person let in offline saw only the row's jobs and could not tell it was on).
+`nearbyRowWords` picks one of three: sharing now while the room runs; "On, but this phone needs
+something allowed or turned on. Open Share nearby to see what." where a permission is missing
+(online too, since it is granted once, before the person is where there is no internet) or,
+offline, a radio is off; else "On: shares with teammates nearby while LangQuest is open without
+internet". `useWhileOpenRow` reads the permissions and radios without a prompt, again on coming
+back to Sync or to the front; what is not read yet counts as on.
+
+**Why it waited (2026-11-25).** A phone let in offline shared nothing for about 21 minutes after
+its join, and no record said why: the gate wrote nothing, nor did a rest after the room's pieces
+were missing. Now a wait of a minute or more, with the mode wanted, the app in front, no screen
+owning the radios and no room running, writes one `nearby` `wait` record as it ends
+(`openWaitModel`, docs/diagnostics.md): how long, how long each gate input held it, how long the
+gate stood open with no room yet, the rests that began by cause, and `no-key` or
+`no-certificate` when the pieces were missing. A locked screen, the app lock (time behind it would say the person uses
+it), Share nearby, online and a cover are no wait, and a wait a cover ended records nothing. `npm run diag` shows their totals, and a
+signal says what held them.
 
 **The flag.** A third feature, `nearby_open`, granted per organization by staff as `nearby_join`
 is (decision 220), and only with `nearby` on. It needs the check in

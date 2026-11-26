@@ -17,8 +17,8 @@
 // language's clearing never takes another's files; a file from before this
 // build kept those lists is never cleared, since a language not opened since
 // may need it and nothing on the phone says.
-import type { FailureClass } from '@langquest-next/sync';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { classifyTransferFailure, type FailureClass } from '@langquest-next/sync';
 import { Directory, File, Paths } from 'expo-file-system';
 import { Platform } from 'react-native';
 import { noteExpected } from '../diagnostics/report';
@@ -215,14 +215,15 @@ export function refusedBy(e: unknown): boolean {
 }
 
 /**
- * How the download tally names a failed study file. One its source refused
- * is a file the source lacks (`failNotFound`), never a refused sign-in: these
- * are public addresses fetched with no sign-in, and FIA's file store answers
- * 403 for a file it does not have. Tallied as `failAuth`, they raised the ops
- * dashboard's "refused for sign-in" line (LAN-318). Else the status decides.
+ * Why a study download failed, for field diagnostics. A study file is asked
+ * for with no sign-in, so its source cannot refuse one: FIA's public file
+ * store answers 403 for a file it does not have, as S3 does when anyone may
+ * read a file but not list them. Such a 401 or 403 is tallied as not found,
+ * not as a refused sign-in (LAN-318: the ops dashboard said sign-in failed).
  */
-export function studyFailure(e: unknown): FailureClass | undefined {
-  return refusedBy(e) ? 'notFound' : undefined;
+export function studyFailure(e: unknown): FailureClass {
+  const failure = classifyTransferFailure(e);
+  return failure === 'auth' ? 'notFound' : failure;
 }
 
 export function studyWanted(): ReadonlyMap<string, string[]> {

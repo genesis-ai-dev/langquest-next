@@ -6,7 +6,7 @@ import { NOTHING_TO_CARRY } from '../src/nearby/readyToCarryModel';
 import { nearbyRowShown } from '../src/nearby/nearbyRowModel';
 import {
   connectHelp, endedWords, FOLD_WORDS, linesShown, nearbyRowWords, PERMISSION_WORDS, PHONE_WORDS, phoneWords, RADIO_WORDS, SEEN_WORDS, stageOf, STOP_WORDS, teammatesShown, TEAMMATE_WORDS,
-  WHY_NOT_WORDS
+  WHY_NOT_WORDS, type WhileOpenFacts
 } from '../src/nearby/shareNearbyModel';
 
 // Share nearby's states (docs/nearby-sync-plan.md 5.8, section 8): tested through the model, since
@@ -74,6 +74,37 @@ describe('the Share nearby row on Sync', () => {
       rowSub: 'Share work with teammates without internet',
       rowSubJoin: 'Share work with teammates, or bring in a new person, without internet'
     });
+  });
+
+  // Where the organization has sharing while LangQuest is open on and the switch is on (15.6), the line says the mode is
+  // on, rather than the row's jobs: a person let in offline saw the plain line and could not tell it was on (Carl, 2026-11-25).
+  const open = (over: Partial<WhileOpenFacts> = {}): WhileOpenFacts => ({ running: false, offline: true, permissions: 'granted', radiosOff: [], ...over });
+
+  it('says the mode is on where it is on, online or offline, and that it shares while its room runs', () => {
+    expect(nearbyRowWords(null, null, open())).toEqual({ sub: 'nearby.whileOpenOn', help: 'nearby.rowHelpJoin' });
+    expect(nearbyRowWords(null, 'no-pass', open({ offline: false }))).toEqual({ sub: 'nearby.whileOpenOn', help: 'nearby.rowHelp' });
+    expect(nearbyRowWords(null, null, open({ running: true })).sub).toBe('nearby.whileOpenNow');
+    // An Android that asks nothing runs it as granted, as `openMayRun` does.
+    expect(nearbyRowWords(null, null, open({ permissions: 'none' })).sub).toBe('nearby.whileOpenOn');
+  });
+
+  it('sends the person to Share nearby when a permission is missing, and offline when a radio is off', () => {
+    for (const permissions of ['needed', 'approximate', 'blocked'] as const) {
+      expect(nearbyRowWords(null, null, open({ permissions })).sub, permissions).toBe('nearby.whileOpenNeeds');
+      // Allowing is done once, so it is asked for online too, before the person goes where there is no internet.
+      expect(nearbyRowWords(null, null, open({ permissions, offline: false })).sub, permissions).toBe('nearby.whileOpenNeeds');
+    }
+    expect(nearbyRowWords(null, null, open({ radiosOff: ['bluetooth'] })).sub).toBe('nearby.whileOpenNeeds');
+    // Radios go on and off all day: online, where the mode never runs, a radio off says nothing.
+    expect(nearbyRowWords(null, null, open({ offline: false, radiosOff: ['wifi'] })).sub).toBe('nearby.whileOpenOn');
+  });
+
+  it('counts what it has not read yet as on, and says why the row cannot run before anything of the mode', () => {
+    expect(nearbyRowWords(null, null, open({ permissions: null, radiosOff: null })).sub).toBe('nearby.whileOpenOn');
+    expect(nearbyRowWords('no-key', null, open({ running: true }))).toEqual({ sub: 'nearby.why.noKey', help: 'nearby.rowHelp' });
+    // Not on for this person here (the organization, the switch, a cover): the row's jobs, as before.
+    expect(nearbyRowWords(null, null, null)).toEqual({ sub: 'nearby.rowSubJoin', help: 'nearby.rowHelpJoin' });
+    for (const k of ['whileOpenOn', 'whileOpenNeeds', 'whileOpenNow']) expect(has(en, `nearby.${k}`), k).toBe(true);
   });
 });
 

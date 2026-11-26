@@ -1,5 +1,5 @@
 import { saysOffline } from '../src/sync/networkWake';
-import { fillBanner, fits, groupLook, groupOffline, groupSpoken, letGoWords, noRoomWords, offlineLook, referenceUnits, workKept } from '../src/sync/offlineModel';
+import { fillBanner, fits, groupLook, groupOffline, groupProgress, groupSpoken, keepAsk, letGoWords, noRoomWords, offlineLook, referenceUnits, workKept } from '../src/sync/offlineModel';
 import type { KeptOffline } from '../src/sync/offlineText';
 import { waitingCounts } from '../src/sync/uploadsModel';
 
@@ -60,6 +60,40 @@ describe('the download line tells the truth', () => {
 });
 
 // LAN-316: a book's or a section's passages as one download, by the same rules as one passage's.
+// docs/decisions/2026-11-25-text-goes-whole-and-recordings-go-by-want.md: where Share nearby can run, keeping a passage
+// offline is a want any teammate's phone fills, so offline it is offered and says who brings it. A person let in offline
+// could not ask for the team's recordings at all, and the Map called them not on this phone (Carl, 2026-11-25).
+describe('offline where Share nearby can run, a teammate brings what is kept', () => {
+  const nearby = { offline: true, downloading: false, nearby: true };
+  it('offers keeping a passage, says a teammate\'s phone can bring it, and keeps saying "needs a connection" elsewhere', () => {
+    expect(offlineLook(NOT_KEPT, nearby)).toMatchObject({ kind: 'none', label: "A teammate's phone can bring it" });
+    expect(offlineLook(NOT_KEPT, { ...nearby, nearby: false })).toMatchObject({ kind: 'noConnection', label: 'Download needs a connection' });
+    // Online, nothing changes.
+    expect(offlineLook(NOT_KEPT, { ...nearby, offline: false })).toMatchObject({ kind: 'none', label: 'Download for offline' });
+  });
+
+  it('says a kept passage waits for a teammate, with how much is here', () => {
+    expect(offlineLook(kept({}), nearby)).toMatchObject({ kind: 'partial', label: "1 of 3 files here · a teammate's phone can bring the rest" });
+    expect(offlineLook(kept({ audio: 0, here: 0 }), nearby)).toMatchObject({ kind: 'partial', label: "Waiting for a teammate's phone" });
+    expect(offlineLook(kept({ ready: true, here: 3 }), nearby)).toMatchObject({ kind: 'ready', label: 'On this device' });
+    expect(offlineLook(kept({}), { ...nearby, nearby: false })).toMatchObject({ kind: 'partial', label: 'Only 1 of 3 files on this device' });
+  });
+
+  it('a book: offers Download offline under the same room rule, and says a teammate brings what is kept', () => {
+    const MB = 1024 * 1024;
+    const ids = ['GEN.1', 'GEN.2', 'GEN.3'];
+    const none = groupOffline(ids, new Map(), new Set());
+    const off = { offline: true, downloading: false, cost: { bytes: 20 * MB }, room: 100 * MB, nearby: true };
+    expect(groupLook(none, off)).toMatchObject({ kind: 'none', tap: 'keep', size: '20 MB', blocked: null });
+    // A book that would not fit is still not kept, offline as online (decision of 2026-11-20 on a book's download).
+    expect(groupLook(none, { ...off, cost: { bytes: 300 * MB } })).toMatchObject({ kind: 'noRoom', tap: 'keep' });
+    expect(groupLook(none, { ...off, nearby: false })).toMatchObject({ tap: null, blocked: 'Download needs a connection' });
+    const allChosen = groupOffline(ids, new Map(), new Set(ids));
+    expect(groupLook(allChosen, off)).toMatchObject({ title: "Waiting for a teammate's phone · 0 of 3", tone: 'waiting', sub: "A teammate's phone can bring the rest." });
+    expect(groupLook(allChosen, { ...off, nearby: false })).toMatchObject({ title: 'Connect to finish downloading · 0 of 3', sub: 'Connect to finish before you travel.' });
+  });
+});
+
 describe("a book's download line tells the truth", () => {
   const MB = 1024 * 1024;
   const ids = ['GEN.1', 'GEN.2', 'GEN.3'];
@@ -246,6 +280,60 @@ describe("a book's download line tells the truth", () => {
     const work = all([{ reason: 'asked', ready: true }, { reason: 'worked', ready: true }, { reason: 'worked', ready: true }]);
     // Nothing to remove: its second line says why they are kept.
     expect(groupLook(work, online)).toMatchObject({ tap: 'why', sub: 'Kept because you were asked to work on these passages, or have worked on them.' });
+  });
+
+  // Carl, 2026-11-25: a book's download says how much data will come and asks to confirm or cancel before it starts.
+  it('asks before a book downloads, saying how much its recordings are, what else comes and the room there is', () => {
+    const cost = { bytes: 240 * MB, files: 120, here: 0, room: 3 * 1024 * MB };
+    expect(keepAsk('Luke', 97, cost, false)).toEqual({
+      title: 'Download Luke for offline?', size: '240 MB', what: 'Recordings for 97 passages',
+      lines: ["Their reference material comes too. Its size isn't known until it arrives.", 'This device has room for 3 GB.'],
+      confirm: 'Download · 240 MB',
+      help: "Keeps every passage's recordings and reference material on this device, so they work without a connection."
+    });
+    expect(keepAsk('Luke', 1, cost, false).what).toBe('Recordings for 1 passage');
+    // A browser cannot say how much room it has: nothing is said of it.
+    expect(keepAsk('Luke', 97, { ...cost, room: null }, false).lines).toEqual(["Their reference material comes too. Its size isn't known until it arrives."]);
+    // Offline where Share nearby runs, a teammate's phone brings them.
+    expect(keepAsk('Luke', 97, cost, true)).toMatchObject({
+      lines: expect.arrayContaining(["They come from teammates' phones when you meet, or from the internet once you're online."]),
+      help: expect.stringMatching(/^Keeps every passage's recordings and reference material on this phone\./)
+    });
+  });
+
+  it('says why there is no size to say: not worked out, recordings here already, or none made yet', () => {
+    const room = null;
+    expect(keepAsk('Luke', 97, { bytes: null, files: null, here: null, room }, false)).toMatchObject({
+      size: null, confirm: 'Download', lines: ["Their size couldn't be worked out now.", "Their reference material comes too. Its size isn't known until it arrives."]
+    });
+    // A book let go keeps its files until room is needed.
+    expect(keepAsk('Luke', 97, { bytes: 0, files: 0, here: 6, room }, false).lines[0]).toBe("Their recordings are on this device already.");
+    expect(keepAsk('Luke', 97, { bytes: 0, files: 0, here: 0, room }, false).lines[0]).toBe('None are recorded yet. Recordings come as they are made.');
+    // Files whose size the server has not said: no size, and nothing claimed about them.
+    expect(keepAsk('Luke', 97, { bytes: 0, files: 4, here: 0, room }, false)).toMatchObject({ size: null, lines: ["Their reference material comes too. Its size isn't known until it arrives."] });
+  });
+
+  it("counts a book's download in files once it is asked for, from each passage's own counts", () => {
+    const filesOf = (o: Partial<KeptOffline>[]) => {
+      const g = all(o);
+      return groupProgress(g, ids, new Map(ids.map((id, i) => [id, kept(o[i] ?? {})])));
+    };
+    // Recordings that can come, study files and reference audio: a recording not sent yet is not counted, so it can end.
+    expect(filesOf([
+      { here: 1, toFetch: 2, notSent: 1, studyHere: 3, studyTotal: 12, refHere: 0, refTotal: 2 },
+      { ready: true, here: 3, toFetch: 0, studyHere: 12, studyTotal: 12 },
+      { here: 0, toFetch: 4 }
+    ])).toEqual({ here: 19, total: 36 });
+    // Every passage here: the book is on this device, and the header says so.
+    expect(filesOf([{ ready: true }, { ready: true }, { ready: true }])).toBeNull();
+    // Kept, and they need no file at all: nothing to count.
+    expect(filesOf([{ here: 0, toFetch: 0 }, { here: 0, toFetch: 0 }, { here: 0, toFetch: 0 }])).toBeNull();
+    // From the tap until the passages just kept are counted, which can take seconds: checking, not a count that jumps.
+    const justKept = counted({ 'GEN.1': kept({ ready: true, here: 3, toFetch: 0 }) });
+    expect(groupProgress(groupOffline(ids, justKept, new Set(ids)), ids, justKept)).toBe('checking');
+    // While a download is offered its button is there instead, and before the device has counted there is nothing to say.
+    expect(groupProgress(some, ids, counted({ 'GEN.1': kept({ reason: 'worked' }) }))).toBeNull();
+    expect(groupProgress(groupOffline(ids, null, new Set()), ids, counted({}))).toBeNull();
   });
 
   it('is spoken as its two lines', () => {
