@@ -124,6 +124,7 @@ the page loads to exactly one section.
 | Work safety | work the server refused, by reason (`sync` records); what arrived and how late, and events stamped ahead of the clock (the projection pass's sample); the nightly fold canary; languages behind the projection pass, since when each waits and how many passes have ended since (a language waits up to one pass by design; two or more passes that left it behind raise a line, `PASSES_LEFT_BEHIND`), overdue snapshots and the largest languages (`diag.ops_pipeline`); and, as its own part, Nearby sync over the last 7 days (`diag.ops_nearby`): each organization with nearby, joining offline or sharing while open on and what its phones did, how many times Share nearby ran and how many times it ran while open (each from start to stop, not a sync) and how many of those synced with a teammate, the quiet mode's minutes on the air, paused, scanning and syncing, phones turned away by reason, sessions that did not finish, and teammates' work carried to the server, with three lines: Find failing on `NEARBY_FIND_FAILING_INSTALLS` installs in a day (`nearby-find-failing`), carried work refused as stamped ahead (`nearby-carried-ahead`), and a revoked phone near an organization's team (`nearby-revoked-near`, a person decides, no Linear issue) | `DIAG_DATABASE_URL`, migrations `20261023100000_ops_dashboard.sql`, `20261118051742_projection_passes_since.sql`, `20261124110000_ops_nearby.sql` |
 | Builds and stuck phones | each update in the field with its crash-free share (a rollback alert), reducer and protocol versions, browsers by web commit, time to a usable Map, stuck phones, and phones gone quiet by account (`diag.ops_quiet_accounts`) | `DIAG_DATABASE_URL` |
 | Release health | merges on `main`, Worker deploys and EAS updates over 14 days against errors phones reported; the commit each host serves; hosted migrations against `main` (`diag.migrations_applied` and the files on GitHub) | `DIAG_DATABASE_URL`; the Cloudflare, Expo and GitHub tokens add to the timeline |
+| The line of merges | at the top of the Releases page, read only when that page opens (`/ops/api/timeline`): every pull request merged into `main` in the last 30 days, the commit of each production EAS update and store build, when production phones first ran each bundle and the failures each hour (`diag.ops_release_line`, migration `20261126233000_ops_release_line.sql`), the commit the web app serves, and each Linear issue's title and report time (the app Worker's `issue-info`). No line of its own. See "The line of merges" below | `ADMIN_GITHUB_TOKEN`; `ADMIN_EXPO_TOKEN`, `DIAG_DATABASE_URL` and the app Worker's `LINEAR_API_KEY` add to it |
 | Job container | each server job's object, asked through the app Worker's read-only `JobStatus` entrypoint (`APP_JOBS` binding): running or not, since when, its limit | the binding |
 | Scheduled database jobs, Database detail, Push and Inbox, Integrations, Support queue, Security and limits | `diag.ops_cron`, `ops_database`, `ops_push`, `ops_integrations`, `ops_support`, `ops_limits`, and job runs (`push_delivery`, `webhook_dispatch`, `account_delete`, `worker_requests` for the rate limits' refusals). The longest query and oldest transaction name their role, client and wait (never the query's text) and leave out background work that always runs: every backend that is not a client's (autovacuum, WAL senders, pg_cron's and pg_net's workers) and Realtime's sessions, listed apart (migration `20261026160000_ops_database_who.sql`). To see its text, "Which query is it" below | `DIAG_DATABASE_URL`, the migration |
 | App Worker | requests by route, server errors, rate-limit refusals and time taken, from the request tally | `DIAG_DATABASE_URL` |
@@ -221,6 +222,45 @@ The same holds for a claim on an issue
 issue's card says "Claimed by" and the display name of the Global Viewer who
 claimed it. The page gets the name and whether the claim is the viewer's own,
 never a profile id.
+
+## The line of merges
+
+The Releases page opens with every change merged into `main` in the last 30
+days, on a line to scale (docs/decisions/2026-11-26-release-timeline-on-the-releases-page.md).
+
+- **A card for each merge**: its areas by the paths of its files (App,
+  UI/UX, Dashboard, Backend, Videos, Agents and jobs, Tests, Docs, each with
+  parts; `areaOf` in `apps/admin/src/sources/timeline.ts`), its pull request,
+  its title, the first Linear issue it names or what people see, who merged
+  it, and where it is. Cards that have no room go into a "+N" that zooms in.
+  The deepest zoom gives any three changes in a row room for two cards, so
+  every card shows.
+- **A dot on the center line**: green when a production phone ran a bundle
+  that holds it, blue while it is on its way, a ring when it did not change
+  the phone app, a diamond when a store build was made from it.
+- **Its own line under the center line**: reported (the earliest issue it
+  names, when Linear says, before the merge), work started (its first commit,
+  or its pull request when that is earlier), merged, the first iPhone and the
+  first Android phone. A bundle holds every merge up to its commit (an
+  update's, as Expo says, else 15 minutes before its id's time; a store
+  build's version time), and only runs at or after the merge count.
+- **Failures each hour** behind it, from `diag.hourly` (and `diag.daily`
+  before its 14 days): failures shown to people, errors, failed downloads,
+  sign-in trouble, server errors, failed jobs and database timers. "Choose
+  failures" picks the kinds.
+- **Filters**: areas and their parts, words, who merged it, where it is, how
+  it reached phones, its issue, and whether it changes the database.
+- **A tap** on a card, a dot or a line lights that change and dims the rest,
+  and opens its detail under the line: its line in steps, why it was made,
+  what people see, failures in the 24 hours before and after the first phone
+  ran it, where it is now (each platform, the web app, the database, store
+  review from the Pipeline part), who merged it, and Ask Claude (card
+  `page:releases/pr-<number>`). Nothing shows on hover.
+
+The Worker reads GitHub's search in 5-day windows side by side, keeps what it
+read for six hours and then reads only the last day again. Without
+`ADMIN_GITHUB_TOKEN` the line says to add it; without Expo or the database
+it shows the rest and says what it could not read.
 
 ## A tap and its record
 

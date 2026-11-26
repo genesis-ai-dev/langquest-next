@@ -21,6 +21,13 @@ export class LinearError extends Error {
 /** An issue's status in Linear, as ops.user_issues keeps it (migration 20261124200000_user_issue_states_now.sql). */
 export interface IssueState { issue: string; state: string; closed: boolean; closedAt: string | null; fixedBy: number | null }
 
+/**
+ * An issue as the Releases page's line of merges shows it
+ * (docs/decisions/2026-11-26-release-timeline-on-the-releases-page.md): its
+ * title, when it was reported, and its status.
+ */
+export interface IssueInfo { issue: string; title: string; createdAt: string; state: string; closed: boolean }
+
 /** A pull request of this repository that Linear links to an issue (scripts/user-issues.mjs PR_URL). */
 const PR_LINK = /^https:\/\/github\.com\/genesis-ai-dev\/langquest-next\/pull\/([0-9]{1,8})/;
 
@@ -37,13 +44,15 @@ export function linearIssues(fetcher: Fetch, key: string) {
     return json.data;
   }
   let teamId: string | undefined;
+  const numbersOf = (identifiers: string[]) =>
+    [...new Set(identifiers.map((id) => Number(id.split('-')[1])).filter((n) => Number.isInteger(n) && n > 0))].slice(0, 100);
   return {
     /**
      * The team's issues by their ids (LAN-12), at most 100: each one's status, whether that status closes it
      * (scripts/user-issues.mjs isClosed: done, canceled or a duplicate; not Outage), and when it closed.
      */
     async states(identifiers: string[]): Promise<IssueState[]> {
-      const numbers = [...new Set(identifiers.map((id) => Number(id.split('-')[1])).filter((n) => Number.isInteger(n) && n > 0))].slice(0, 100);
+      const numbers = numbersOf(identifiers);
       if (!numbers.length) return [];
       const data = await gql<{ issues: { nodes: { identifier: string; state: { name: string; type: string }; completedAt: string | null; canceledAt: string | null; attachments: { nodes: { url: string }[] } }[] } }>(
         `query($key: String!, $numbers: [Float!]) { issues(first: 100, filter: { team: { key: { eq: $key } }, number: { in: $numbers } }) {
@@ -52,6 +61,15 @@ export function linearIssues(fetcher: Fetch, key: string) {
         const prs = i.attachments.nodes.map((a) => Number(PR_LINK.exec(a.url ?? '')?.[1])).filter((n) => n > 0);
         return { issue: i.identifier, state: i.state.name, closed: isClosedState(i.state), closedAt: i.completedAt ?? i.canceledAt ?? null, fixedBy: prs.length ? Math.max(...prs) : null };
       });
+    },
+    /** The team's issues by their ids, at most 100: each one's title, when it was made, and its status. */
+    async info(identifiers: string[]): Promise<IssueInfo[]> {
+      const numbers = numbersOf(identifiers);
+      if (!numbers.length) return [];
+      const data = await gql<{ issues: { nodes: { identifier: string; title: string; createdAt: string; state: { name: string; type: string } }[] } }>(
+        `query($key: String!, $numbers: [Float!]) { issues(first: 100, filter: { team: { key: { eq: $key } }, number: { in: $numbers } }) {
+          nodes { identifier title createdAt state { name type } } } }`, { key: TEAM_KEY, numbers });
+      return data.issues.nodes.map((i) => ({ issue: i.identifier, title: i.title.slice(0, 300), createdAt: i.createdAt, state: i.state.name, closed: isClosedState(i.state) }));
     },
     /**
      * Closes one of the team's issues: as done (the team's first status of the kind `completed`: Live) or as

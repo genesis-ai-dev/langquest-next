@@ -127,7 +127,7 @@ function refFetch(n) {
   }, 120);
 }
 
-const REF_SKIP = 'script,style,textarea,input,select,option,button,svg,#rf,.ref,[contenteditable]';
+const REF_SKIP = 'script,style,textarea,input,select,option,button,svg,#rf,.ref,[contenteditable],#rline';
 /** Marks every number in the text under root: a link that is only the number becomes the mark; elsewhere a span does. */
 function refWrap(root) {
   const walk = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {

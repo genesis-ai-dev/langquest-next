@@ -7,7 +7,7 @@ import {
   CALLBACK_PATH, consentUrl, exchangeCode, languageOfChannel, myChannel, readState, revoke, setHome, signState, YouTubeError,
   type ChannelLanguage, type Client, type Fetch
 } from '../../../server/youtube';
-import { LinearError, linearIssues, type IssueState } from '../../../server/linear';
+import { LinearError, linearIssues, type IssueInfo, type IssueState } from '../../../server/linear';
 import { fileSuggestion } from './fileSuggestion';
 import { startRun, type RunStart, type RunWorkflow } from './startRun';
 import { CARD, PAGE, QUESTION_MAX } from '../../../server/cardQuestions';
@@ -88,7 +88,12 @@ export type Action =
    */
   | { kind: 'issue-close'; issue: string; as: 'completed' | 'canceled' }
   /** The page shows these open issues: their states in Linear, kept now, so a close made in Linear shows at once. */
-  | { kind: 'issue-states'; issues: string[] };
+  | { kind: 'issue-states'; issues: string[] }
+  /**
+   * The issues the Releases page's line of merges names: each one's title, when it was reported and its status
+   * (docs/decisions/2026-11-26-release-timeline-on-the-releases-page.md). It reads only.
+   */
+  | { kind: 'issue-info'; issues: string[] };
 
 /** A line as the page showed it when the admin tapped Resolved (migration 20261124013000_ops_line_resolves.sql). */
 export interface ResolvedLine {
@@ -105,7 +110,7 @@ export interface ResolvedLine {
 }
 
 export type ActionResult =
-  | { ok: true; result: string; run?: RunStart }
+  | { ok: true; result: string; run?: RunStart; issues?: IssueInfo[] }
   | { ok: false; status: 400 | 401 | 403 | 404 | 502 | 503; error: string };
 
 export interface ActionDeps {
@@ -148,6 +153,8 @@ export interface ActionDeps {
   closeIssue(issue: string, as: 'completed' | 'canceled'): Promise<string | null>;
   /** These issues' states in Linear (server/linear.ts states), or null where Linear is not set up. */
   issueStates(issues: string[]): Promise<IssueState[] | null>;
+  /** These issues' titles, report times and states in Linear (server/linear.ts info), or null where Linear is not set up. */
+  issueInfo(issues: string[]): Promise<IssueInfo[] | null>;
   /** States kept on the dashboard (`ops_user_issue_states`): how many rows changed. */
   keepIssueStates(states: IssueState[]): Promise<number>;
   /** A Linear issue claimed or released by this person (`ops_issue_claim`): `claimed`, `released`, `taken` or `not_yours`. */
@@ -265,10 +272,10 @@ export function parseAction(input: unknown): Action | null {
     const c = input as { issue?: unknown; as?: unknown };
     return typeof c.issue === 'string' && ISSUE.test(c.issue) && (c.as === 'completed' || c.as === 'canceled') ? { kind: 'issue-close', issue: c.issue, as: c.as } : null;
   }
-  if (a.kind === 'issue-states') {
+  if (a.kind === 'issue-states' || a.kind === 'issue-info') {
     const l = (input as { issues?: unknown }).issues;
     return Array.isArray(l) && l.length >= 1 && l.length <= ISSUE_STATES_MAX && l.every((x) => typeof x === 'string' && ISSUE.test(x))
-      ? { kind: 'issue-states', issues: [...new Set(l as string[])] } : null;
+      ? { kind: a.kind, issues: [...new Set(l as string[])] } : null;
   }
   if (a.kind === 'user-issue-note') {
     const issue = (input as { issue?: unknown }).issue;
@@ -330,6 +337,7 @@ function nameOf(action: Action): { name: string; target: string } {
     case 'replies-seen': return { name: 'replies_seen', target: 'replies' };
     case 'issue-close': return { name: 'issue_close', target: action.issue };
     case 'issue-states': return { name: 'issue_states', target: `${action.issues.length} issues` };
+    case 'issue-info': return { name: 'issue_info', target: `${action.issues.length} issues` };
     default: return { name: NAMES[action.kind], target: 'youtube' };
   }
 }
@@ -438,6 +446,11 @@ export async function act(deps: ActionDeps, token: string, input: unknown): Prom
       const changed = states && states.length ? await deps.keepIssueStates(states) : 0;
       if (changed > 0) await deps.record({ profileId: who.profileId, action: name, target, result: 'ok', detail: `changed:${changed}` });
       return { ok: true, result: states === null ? 'not_set_up' : `changed:${changed}` };
+    }
+    if (action.kind === 'issue-info') {
+      // A read: nothing is logged but a refusal or a failure.
+      const issues = await deps.issueInfo(action.issues);
+      return issues === null ? { ok: true, result: 'not_set_up', issues: [] } : { ok: true, result: `read:${issues.length}`, issues };
     }
     if (action.kind === 'replies-seen') {
       await deps.record({ profileId: who.profileId, action: name, target, result: 'ok' });
@@ -632,6 +645,7 @@ export function actionDeps(env: Env): ActionDeps {
     },
     closeIssue: async (issue, as) => env.LINEAR_API_KEY ? await linearIssues((input, init) => fetch(input, init), env.LINEAR_API_KEY).close(issue, as) : null,
     issueStates: async (issues) => env.LINEAR_API_KEY ? await linearIssues((input, init) => fetch(input, init), env.LINEAR_API_KEY).states(issues) : null,
+    issueInfo: async (issues) => env.LINEAR_API_KEY ? await linearIssues((input, init) => fetch(input, init), env.LINEAR_API_KEY).info(issues) : null,
     keepIssueStates: async (states) => {
       const { data, error } = await db().rpc('ops_user_issue_states', { p: { states } });
       if (error) throw new Error(`ops_user_issue_states: ${error.message}`);
