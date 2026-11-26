@@ -157,6 +157,21 @@ function lineCard(a, group) {
       const pics = issue ? fixPictures(record, issue, !!shown, ud && ud.diagrams ? ud.diagrams[issue] : null) : '';
       const claude = shown ? fixLine(shown, { tab: f.state === 'merged' || f.state === 'stuck' ? 'merged' : '' }) : '';
       const kv = (label, html) => html ? '<div><h5 class="imh">' + esc(label) + '</h5>' + html + '</div>' : '';
+      const next = (record && !record.pr && planGoing(record) ? planLine(record.plan) : '') + (n ? '<p class="inext">' + esc(n) + '</p>' : '') + (fixed ? (n ? '<small class="muted">' + fixed + '</small>' : '<p>' + fixed + '</p>') : row && row.solution ? (n ? '<small class="muted">' : '<p>') + esc(row.solution) + (n ? '</small>' : '</p>') : '');
+      // The issue's card in Claude's words (pageIssues.ts issueCardOf), as on the User issues page: it replaces Wrong and Known.
+      const card = issue && ud && ud.cards ? issueCardOf(ud.cards[issue]) : null;
+      if (card) return {
+        lines: [
+          ['Came back', a.backWhy ? '<p>' + esc(a.backWhy) + '</p>' : ''],
+          ['About', '<p>' + esc(card.about) + '</p>'],
+          ['Events', eventsHtml(card.events)],
+          ['Known', card.known ? '<p>' + esc(card.known) + '</p>' : ''],
+          way.pill[1] === 'you' && card.options.length ? ['Decide', choiceHtml(card, pr && f && f.state === 'open' ? pr : null)] : ['Next', next]
+        ],
+        bar: side,
+        more: (pics ? '<div class="ipics">' + pics + '</div>' : '') + (way.at ? '<div class="iprog">' + stepsHtml(way.steps, way.at) + '</div>' : '') +
+          kv('The fix', row && row.solution && fixed ? '<p>' + esc(row.solution) + '</p>' : '') + kv('What Claude did', claude)
+      };
       return {
         lines: [
           // Claude found that the problem an admin resolved came back (pageResolve.ts).
@@ -164,7 +179,7 @@ function lineCard(a, group) {
           ['Wrong', row && row.problem ? '<p>' + esc(row.problem) + '</p>' : ''],
           ['Known', row && row.known ? '<p>' + esc(row.known) + '</p>' : ''],
           // The cause is not proven yet: what Claude does next, and when, leads (pageIssues.ts planLine).
-          ['Next', (record && !record.pr && planGoing(record) ? planLine(record.plan) : '') + (n ? '<p class="inext">' + esc(n) + '</p>' : '') + (fixed ? (n ? '<small class="muted">' + fixed + '</small>' : '<p>' + fixed + '</p>') : row && row.solution ? (n ? '<small class="muted">' : '<p>') + esc(row.solution) + (n ? '</small>' : '</p>') : '')]
+          ['Next', next]
         ],
         bar: side,
         more: (pics ? '<div class="ipics">' + pics + '</div>' : '') + (way.at ? '<div class="iprog">' + stepsHtml(way.steps, way.at) + '</div>' : '') +
