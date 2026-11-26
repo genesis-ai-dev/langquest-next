@@ -288,7 +288,10 @@ hypotheses drawn from the numbers:
 - **Failures by cause**: link drops, sign-in refused (401/403), not on the
   server (404), too large to upload (413, retried for ever), the server
   saw a different file (422), other 4xx, 5xx, hash mismatch, gone from the
-  device, disk; for the language's lists and each other source.
+  device, disk; for the language's lists and each other source. A study
+  file comes from a public address with no sign-in, so a 403 or 404 for one
+  counts as not there (`studyFailure`, LAN-318): FIA's store answers 403 for
+  a file it does not have.
 - **Sign-in that cannot be renewed** (`unrenewed`), and sync errors by
   phase and code (`pull:57014`, a statement timeout).
 - **Work refused** for membership, as invalid, or for a clock ahead.

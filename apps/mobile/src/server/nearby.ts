@@ -1,5 +1,6 @@
 import { NotAuthorizedError, OfflineError } from '@langquest-next/sync';
 import { Platform } from 'react-native';
+import { isStoppedRequest, limitedFetch } from './sessionSafeFetch';
 import { supabase } from './supabase';
 
 /**
@@ -12,7 +13,10 @@ import { supabase } from './supabase';
 /** The Worker's address, as blobTransport.ts reads it. */
 const apiUrl = process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, '') || (Platform.OS === 'web' ? '' : null);
 
-/** A bearer-token POST to the Worker; `OfflineError` when it cannot be reached. */
+/**
+ * A bearer-token POST to the Worker; `OfflineError` when it cannot be reached or does not answer
+ * in time (`limitedFetch`). Read its body with `bodyOf`.
+ */
 export async function post(path: string, body: unknown): Promise<Response> {
   if (apiUrl === null) throw new Error('No Worker is set up for this build (EXPO_PUBLIC_API_URL).');
   const { data, error } = await supabase.auth.getSession();
@@ -20,7 +24,7 @@ export async function post(path: string, body: unknown): Promise<Response> {
   const token = data.session?.access_token;
   if (!token) throw new Error('Not signed in.');
   try {
-    return await fetch(`${apiUrl}${path}`, {
+    return await limitedFetch(`${apiUrl}${path}`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
       body: JSON.stringify(body)
@@ -28,6 +32,16 @@ export async function post(path: string, body: unknown): Promise<Response> {
   } catch (e) {
     // i18n-ignore: the error's message, for diagnostics
     throw new OfflineError(e instanceof Error ? e.message : 'The Worker could not be reached.');
+  }
+}
+
+/** An answer's JSON; `OfflineError` when its body stopped coming in time, as a lost network does. */
+export async function bodyOf(res: Response): Promise<unknown> {
+  try {
+    return await res.json() as unknown;
+  } catch (e) {
+    if (isStoppedRequest(e)) throw new OfflineError(e.message);
+    throw e;
   }
 }
 
@@ -58,11 +72,11 @@ export interface CertificateRequest {
 export async function requestCertificate(request: CertificateRequest): Promise<{ kind: 'answer'; body: unknown } | { kind: 'later'; status: number; limited: boolean }> {
   const res = await post('/api/nearby/certificate', request);
   if (res.status === 429 || res.status === 503) {
-    const body = res.status === 429 ? await res.json().catch(() => null) as unknown : null;
+    const body = res.status === 429 ? await bodyOf(res).catch(() => null) : null;
     return { kind: 'later', status: res.status, limited: typeof body === 'object' && body !== null && (body as Record<string, unknown>)['limited'] === true };
   }
   if (res.status !== 200) throw new NearbyCallError(res.status);
-  return { kind: 'answer', body: await res.json() as unknown };
+  return { kind: 'answer', body: await bodyOf(res) };
 }
 
 const isText = (v: unknown, max: number): v is string => typeof v === 'string' && v.length >= 1 && v.length <= max;
@@ -80,7 +94,7 @@ export async function attestPulled(orgId: string, streamId: string, afterSeq: nu
   // i18n-ignore: the error's message, for diagnostics
   if (res.status === 403) throw new NotAuthorizedError('Not allowed to read this language.');
   if (res.status !== 200) throw new NearbyCallError(res.status);
-  const body = await res.json() as unknown;
+  const body = await bodyOf(res);
   if (body === null) return null;
   const { text, kid, sig } = (typeof body === 'object' ? body : {}) as Record<string, unknown>;
   if (!isText(text, 1_000_000) || !isText(kid, 64) || !isText(sig, 200)) throw new NearbyCallError(res.status);
@@ -109,7 +123,7 @@ export async function joinNearby(request: JoinRequest): Promise<{ status: number
   if (apiUrl === null) throw new Error('No Worker is set up for this build (EXPO_PUBLIC_API_URL).');
   let res: Response;
   try {
-    res = await fetch(`${apiUrl}/api/nearby/join`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(request) });
+    res = await limitedFetch(`${apiUrl}/api/nearby/join`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(request) });
   } catch (e) {
     // i18n-ignore: the error's message, for diagnostics
     throw new OfflineError(e instanceof Error ? e.message : 'The Worker could not be reached.');

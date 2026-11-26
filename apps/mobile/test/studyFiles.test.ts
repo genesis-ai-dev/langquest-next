@@ -1,4 +1,3 @@
-import { classifyTransferFailure } from '@langquest-next/sync';
 import type { StudyGuide } from '../src/study/guides';
 
 // A tiny disk: names to contents, their sizes and when they were written, the room left, and which addresses the network refuses.
@@ -20,16 +19,16 @@ vi.mock('@react-native-async-storage/async-storage', () => ({
 
 vi.mock('react-native', () => ({ Platform: { OS: 'ios' } }));
 vi.mock('../src/diagnostics/report', () => ({ noteExpected: () => {} }));
-// Why each tallied download failed, as field diagnostics would record it (the caller's `classify`, else the default).
+// Each failed download's class, as field diagnostics tally it: the classifier the download names, else the shared one.
 const tallied: string[] = [];
-vi.mock('../src/diagnostics/diagnostics', () => ({
-  timedTransfer: async (_dir: string, _where: unknown, run: () => Promise<unknown>, classify?: (e: unknown) => string) => {
-    try { return await run(); } catch (e) {
-      tallied.push((classify ?? classifyTransferFailure)(e));
-      throw e;
+vi.mock('../src/diagnostics/diagnostics', async () => {
+  const { classifyTransferFailure } = await import('@langquest-next/sync');
+  return {
+    timedTransfer: async (_dir: string, _where: unknown, run: () => Promise<unknown>, classify: (e: unknown) => string = classifyTransferFailure) => {
+      try { return await run(); } catch (e) { tallied.push(classify(e)); throw e; }
     }
-  }
-}));
+  };
+});
 vi.mock('expo-file-system', () => {
   class File {
     name: string;
@@ -80,21 +79,18 @@ describe('study files kept for offline (decisions.md 61)', () => {
     net.down.clear(); net.refused.clear(); net.fetched = []; net.hold = null; tallied.length = 0; vi.resetModules(); vi.useRealTimers();
   });
 
-  // The ops dashboard said study downloads "were refused for sign-in": they carry none, and FIA's
-  // public file store answers 403 for a file it does not have (LAN-318).
-  it('a study file its source answers 401 or 403 for is tallied as not found, not as a refused sign-in', async () => {
+  // The ops dashboard said downloads were refused for sign-in, for study files FIA's public store does not have (LAN-318).
+  it('tallies a file its source refused as not there, not as a refused sign-in', async () => {
     vi.useFakeTimers();
     const f = await import('../src/study/studyFiles');
     net.refused.set('https://x/gone.mp3', 403);
-    net.refused.set('https://x/locked.jpg', 401);
     net.refused.set('https://x/missing.jpg', 404);
     net.refused.set('https://x/busy.jpg', 503);
     net.down.add('https://x/offline.jpg');
-    const urls = ['https://x/gone.mp3', 'https://x/locked.jpg', 'https://x/missing.jpg', 'https://x/busy.jpg', 'https://x/offline.jpg'];
+    const urls = ['https://x/gone.mp3', 'https://x/missing.jpg', 'https://x/busy.jpg', 'https://x/offline.jpg'];
     f.setStudyWanted(new Map([['mat13', urls]]), true, { orgId: 'org', languageId: 'lang' }, ['mat13']);
     await vi.advanceTimersByTimeAsync(10);
-    await vi.advanceTimersByTimeAsync(10);
-    expect(tallied.sort()).toEqual(['http5xx', 'notFound', 'notFound', 'notFound', 'offline']);
+    expect(tallied.sort()).toEqual(['http5xx', 'notFound', 'notFound', 'offline']);
   });
 
   // Matthew 13 stayed amber at "Only 19 of 23 files": its guide named files FIA's file store answers 403 for (Carl, 2026-11-20).

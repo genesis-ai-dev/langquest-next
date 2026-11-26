@@ -215,15 +215,14 @@ export function refusedBy(e: unknown): boolean {
 }
 
 /**
- * Why a study download failed, for field diagnostics. A study file is asked
- * for with no sign-in, so its source cannot refuse one: FIA's public file
- * store answers 403 for a file it does not have, as S3 does when anyone may
- * read a file but not list them. Such a 401 or 403 is tallied as not found,
- * not as a refused sign-in (LAN-318: the ops dashboard said sign-in failed).
+ * Why a study download failed, as field diagnostics tally it. Study
+ * addresses are public and the phone sends no sign-in with them, so an
+ * address its source refused (`refusedBy`) is a file that is not there, not
+ * a refused sign-in: FIA's store answers 403 for those, which the ops
+ * dashboard read as sign-in trouble (LAN-318).
  */
 export function studyFailure(e: unknown): FailureClass {
-  const failure = classifyTransferFailure(e);
-  return failure === 'auth' ? 'notFound' : failure;
+  return refusedBy(e) ? 'notFound' : classifyTransferFailure(e);
 }
 
 export function studyWanted(): ReadonlyMap<string, string[]> {

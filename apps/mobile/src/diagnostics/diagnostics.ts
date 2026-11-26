@@ -184,7 +184,7 @@ export interface TransferTimings {
  * `lang`, a language's own upload and download lists; guide media, hand-over,
  * streamed play, source audio, help and study files name theirs. Answers
  * what `run` answered. `classify` says why it failed, for a source whose
- * statuses mean something else than our server's (study files: LAN-318).
+ * statuses mean something else than the server's (study files, LAN-318).
  */
 export async function timedTransfer<T extends number | { bytes: number }>(
   dir: 'up' | 'down',
