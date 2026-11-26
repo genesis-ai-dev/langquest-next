@@ -10,7 +10,7 @@ import { studyComing } from '../study/studyFiles';
 import { referenceComing } from '../sources/referenceCounts';
 import { useSlowly } from '../ui/useSlowly';
 import { keptOfflineMap } from './offlineText';
-import { fits, groupLook, groupOffline, letGoWords, noRoomWords, workKept, type GroupLook } from './offlineModel';
+import { fits, groupLook, groupOffline, groupProgress, keepAsk, letGoWords, noRoomWords, workKept, type GroupCost, type GroupLook, type KeepAsk } from './offlineModel';
 import { useReferenceRevision } from './useOfflineSummary';
 import { useSyncStatus } from './useSyncStatus';
 import { isOffline } from './uploadsModel';
@@ -27,15 +27,6 @@ export function useComing(): (unitId: string) => boolean {
   useReferenceRevision();
   return (unitId) => downloading.has(unitId) || studyComing(unitId) || referenceComing(unitId);
 }
-
-/**
- * What keeping some passages would take: `bytes` of audio to bring down in
- * `files` (both null when the device could not work it out), and the `room`
- * it has for them: what is free above what recording keeps
- * (`BlobStore.roomBytes`), and what it would free for them by itself (the
- * session's `freeable`). `room` is null where the device cannot say.
- */
-type GroupCost = { bytes: number | null; files: number | null; room: number | null; here: number | null };
 
 /**
  * A group's cost, asked a beat after its passages are known and again as the
@@ -88,6 +79,15 @@ export interface GroupOffer {
   remove: { run: () => void; stay: number } | null;
   /** How many passages the group has: none, and it shows nothing. */
   count: number;
+  /**
+   * For a screen that asks before it downloads (a book's, `KeepSheet`): asks the size again, as a tap does, and
+   * says what the download would bring; null, with a toast that says why, when it would not fit (Carl, 2026-11-25).
+   */
+  ask: (name: string) => Promise<KeepAsk | null>;
+  /** Keeps the passages not kept yet, with their reference material: what the sheet's Download does. */
+  keep: () => void;
+  /** Once a download is asked for: how many of the files its kept passages need are here, or still counting (`groupProgress`). */
+  progress: { here: number; total: number } | 'checking' | null;
 }
 
 export function useGroupOffline(ctx: Ctx, unitIds: readonly string[], sized: boolean): GroupOffer {
@@ -111,14 +111,16 @@ export function useGroupOffline(ctx: Ctx, unitIds: readonly string[], sized: boo
   const look = groupLook(g, {
     offline, filling, downloading: unitIds.some(coming), cost, room: answer?.room ?? null, sizing: sized && offering && !answer, nearby
   });
-  const keep = async () => {
-    // Asked again at the tap: a section's button says no size, and room changes.
+  // Asked again at the tap: a section's button says no size, and room changes. Null, and said, when it would not fit.
+  const check = async (): Promise<GroupCost | null> => {
     const now = await ask();
     const bytes = now.bytes ?? 0;
-    if (!fits(bytes, now.room)) { ctx.toast(noRoomWords(bytes, now.room ?? 0)); return; }
-    // With their reference material, as a passage's own button keeps one (decision amended 2026-11-23).
-    await keepOffline(g.toKeep, true);
+    if (!fits(bytes, now.room)) { ctx.toast(noRoomWords(bytes, now.room ?? 0)); return null; }
+    return now;
   };
+  // With their reference material, as a passage's own button keeps one (decision amended 2026-11-23).
+  const keepNow = () => keepOffline(g.toKeep, true);
+  const keep = async () => { if (await check()) await keepNow(); };
   // A download that cannot run now says why at the tap (Carl, 2026-11-23): its button stays where it is, dimmed.
   const blocked = look.blocked;
   const onPress = look.tap === 'keep' ? () => { void keep(); }
@@ -126,13 +128,20 @@ export function useGroupOffline(ctx: Ctx, unitIds: readonly string[], sized: boo
     : blocked ? () => ctx.toast(blocked)
     : undefined;
   const remove = g.chosen.length ? { run: () => { void keepOffline(g.chosen, false); ctx.toast(letGoWords(g)); }, stay: workKept(g) } : null;
-  return { look, onPress, remove, count: unitIds.length };
+  const fromTeammate = offline && nearby;
+  return {
+    look, onPress, remove, count: unitIds.length,
+    ask: async (name) => { const now = await check(); return now ? keepAsk(name, g.toKeep.length, now, fromTeammate) : null; },
+    keep: () => { void keepNow(); },
+    progress: groupProgress(g, unitIds, counted)
+  };
 }
 
 /**
  * A book's passages as one download, for a screen that says where they stand
  * in its header (`GroupStatusLine`) and offers the download over them
- * (`GroupOfflineBar`): both from one count, with the size said before the tap.
+ * (`GroupOfflineBar`): both from one count, with the size said before the tap
+ * and again in the sheet that asks before it starts.
  */
 export function useBookOffline(ctx: Ctx, unitIds: readonly string[]): GroupOffer {
   return useGroupOffline(ctx, unitIds, true);

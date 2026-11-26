@@ -157,38 +157,46 @@ async function answer(request: Request, deps: ApiDeps): Promise<Response> {
     return json(400, { error: 'That organization id is not valid.' });
   }
   const began = Date.now();
+  const times: ReportsTimes = { signIn: 0, access: 0, organization: 0, answer: 0 };
   const token = /^Bearer (.+)$/.exec(request.headers.get('authorization') ?? '')?.[1];
   const profileId = token ? await deps.profileOf(token) : null;
+  times.signIn = Date.now() - began;
   if (!profileId) return json(401, { error: 'Sign in again.' });
-  const signedIn = Date.now();
-  const fresh = url.searchParams.get('fresh') === '1';
-  let checked = signedIn;
   let out: OrgReportsResponse | null;
+  const fresh = url.searchParams.get('fresh') === '1';
   try {
     // Membership first, as the token routes do, so nobody wakes an
     // organization's object, or makes it read the database again with
     // fresh=1, by naming it.
     // A Global Viewer whose access is on reads every organization's, every language of it (decisions.md 158).
-    const member = (await deps.orgsOf(profileId)).includes(orgId);
-    const everyLanguage = !member && !!(await deps.globalViewerOn?.(token!));
-    checked = Date.now();
-    out = member ? await deps.reports(orgId, profileId, fresh)
-      : everyLanguage ? await deps.reports(orgId, profileId, fresh, true)
+    let step = Date.now();
+    const everyLanguage = (await deps.orgsOf(profileId)).includes(orgId) ? false
+      : (await deps.globalViewerOn?.(token!)) ? true
       : null;
+    times.access = Date.now() - step;
+    step = Date.now();
+    out = everyLanguage === null ? null : everyLanguage ? await deps.reports(orgId, profileId, fresh, true) : await deps.reports(orgId, profileId, fresh);
+    times.organization = Date.now() - step;
   } catch (e) {
     console.error(`reports ${orgId}:`, e);
     return json(502, { error: 'The server could not read this organization just now. Try again.' });
   }
-  const read = Date.now();
   if (!out) return json(403, { error: 'You are not a member of this organization.' });
+  const answerAt = Date.now();
+  const res = await reportsAnswer(request, url, out);
+  times.answer = Date.now() - answerAt;
+  const slow = slowReportsLine(times, fresh, out.rows.length);
+  if (slow) console.warn(slow);
+  return res;
+}
+
+async function reportsAnswer(request: Request, url: URL, out: OrgReportsResponse): Promise<Response> {
   const body = url.searchParams.get('view') === 'summary' ? summarizeReports(out) : withOverdueZero(out);
   // A language moving out of "being prepared" changes the answer, not only its rows.
   const preparing = 'preparing' in body ? body.preparing ?? [] : [];
   // The rows are the big part: written out once, for the validator and for the answer.
   const rowsText = JSON.stringify(body.rows);
   const headers = { etag: await etagOf(preparing.length ? `{"rows":${rowsText},"preparing":${JSON.stringify(preparing)}}` : rowsText), 'x-as-of': body.asOf };
-  const slow = slowReportsLine({ signIn: signedIn - began, access: checked - signedIn, organization: read - checked, answer: Date.now() - read }, fresh, out.rows.length);
-  if (slow) console.warn(slow);
   if (request.headers.get('if-none-match') === headers.etag) return new Response(null, { status: 304, headers: { ...NO_STORE, ...headers } });
   const { rows: _rows, ...rest } = body;
   const restText = JSON.stringify(rest);

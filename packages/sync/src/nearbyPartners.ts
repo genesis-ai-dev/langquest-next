@@ -32,6 +32,12 @@ export interface PartnerInRange {
    * times a run (`NearbyRoomTunables.docsAgainMax`). The teammate counts the pair finished, so it waits to be connected to.
    */
   docsAgain?: boolean;
+  /**
+   * The files this phone holds changed since the two last finished (`NearbyPeerRecord.files`, 2026-11-25): a library
+   * version's chapters filed under their hashes, say, or recordings downloaded online, which no summary says. Worth
+   * another session, not a moment after the last; the teammate counts the pair finished, so it waits to be connected to.
+   */
+  filesChanged?: boolean;
   /** The two finished a session less than `partnerGapMs` ago (review P3): another waits unless files wait. */
   recent?: boolean;
   /**
@@ -55,6 +61,8 @@ export function worthBesidesGreeting(me: { summary: string }, p: PartnerInRange)
   if (p.docsAgain === true) return true;
   // Met a moment ago: only files waiting either way bring them together again so soon (review P3).
   if (p.recent === true && !p.hasWhatIWant && !p.wantsWhatIHave) return false;
+  // Files gained or lost here since the two finished: the summaries cannot say so, and nor can a finished record (2026-11-25).
+  if (p.filesChanged === true) return true;
   // Finished with both summaries as they stand: nothing has changed since, even if the two differ, as they do when one phone has no room.
   if (p.finished && p.finished.mine === me.summary && p.finished.theirs === p.summary) return false;
   // `dueAnyway` overrides only this, because it alone rests on what others claim.
@@ -74,4 +82,24 @@ export function choosePartner(
   const [best] = [...worthIt].sort(lower);
   if (!best) return null;
   return { partner: best.tag, connect: best.echoed && (best.older || opts.waited === true || (best.connectsFirst ?? me.tag < best.tag)) };
+}
+
+/**
+ * A short fingerprint of the files a phone holds, the same in any order (2026-11-25): how many,
+ * and a sum and an exclusive-or of each hash's first eight hex digits. A pair's record keeps the
+ * one this phone had when the two finished, and a different one now makes them worth another
+ * session. Only a phone's own changes are compared with its own, so a rare collision costs only a
+ * meeting not had, which the next change or the day's due meeting makes up.
+ */
+export function filesFingerprint(hashes: Iterable<string>): string {
+  let count = 0;
+  let sum = 0;
+  let xor = 0;
+  for (const hash of hashes) {
+    const head = Number.parseInt(hash.slice(0, 8), 16) || 0;
+    count += 1;
+    sum = (sum + head) >>> 0;
+    xor = (xor ^ head) >>> 0;
+  }
+  return `${count}:${sum.toString(16)}:${xor.toString(16)}`;
 }

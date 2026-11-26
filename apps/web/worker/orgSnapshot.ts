@@ -36,6 +36,7 @@ export class OrgSnapshot extends DurableObject<Env> {
     const folder = this.folderFor(orgId);
     const began = Date.now();
     const out = await folder.reportsFor(profileId, fresh, everyLanguage);
+    // Where a slow call's time went (LAN-319): its wait for its turn, and what the pass did.
     const slow = slowObjectLine(Date.now() - began, began, folder.lastPass);
     if (slow) console.warn(slow);
     return out;

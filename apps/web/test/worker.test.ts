@@ -128,27 +128,37 @@ describe('OrgFolder', () => {
     const folder = new OrgFolder(log, ORG, new MemoryCache(), () => now);
     expect(folder.lastPass).toBeNull();
     await folder.reportsFor('admin');
-    // Cold: both languages folded, each asked for a server snapshot (only din has one, at its head); one page each of _org and nus.
-    expect(folder.lastPass).toMatchObject({ cold: true, forced: false, orgMoved: false, dayTurned: false, languages: 2, inputsRead: 0, folded: 2, fromServer: 2, pages: 2 });
+    // Cold, nothing cached: the organization is folded (one page); din starts from its server snapshot, nus has none and is pulled.
+    expect(folder.lastPass).toEqual({
+      at: now, ms: 0, cold: true, forced: false, orgMoved: true, dayTurned: false,
+      languages: 2, inputsRead: 0, folded: 2, fromServer: 2, pages: 2
+    });
     log.add('_org', 'v1.LanguageRenamed', { languageId: 'din', name: 'Renamed' });
     now += 61_000;
     await folder.reportsFor('admin');
     // The organization moved: every language's summary is made again, from the folds in memory.
     expect(folder.lastPass).toMatchObject({ cold: false, orgMoved: true, dayTurned: false, folded: 2, fromServer: 0, pages: 1 });
     now += 86_400_000;
-    await folder.reportsFor('admin', true);
-    expect(folder.lastPass).toMatchObject({ forced: true, orgMoved: false, dayTurned: true, folded: 2, pages: 0 });
-    now += 61_000;
     await folder.reportsFor('admin');
-    const quiet = folder.lastPass!;
-    expect(quiet).toMatchObject({ at: now, ms: 0, orgMoved: false, dayTurned: false, folded: 0, inputsRead: 0, fromServer: 0, pages: 0 });
-    expect(passLine({ ...quiet, ms: 1200, cold: true, orgMoved: true }))
-      .toBe('1200 ms, cold, organization moved; 2 languages, 0 stored inputs read, 0 folded, 0 server snapshots asked for, 0 pages pulled');
-    // The object's line: quick calls log nothing; a slow one says how long it waited for its turn, or that no pass ran.
-    expect(slowObjectLine(SLOW_REPORTS_MS - 1, now, quiet)).toBeNull();
-    expect(slowObjectLine(1500, now - 500, { ...quiet, ms: 1000 }))
-      .toBe('reports-slow-object: 1500 ms; waited 500 ms for its turn; pass 1000 ms; 2 languages, 0 stored inputs read, 0 folded, 0 server snapshots asked for, 0 pages pulled');
-    expect(slowObjectLine(1200, now + 10_000, quiet)).toBe('reports-slow-object: 1200 ms; no pass');
+    // The next day: nothing moved, but each summary is a day old.
+    expect(folder.lastPass).toMatchObject({ orgMoved: false, dayTurned: true, folded: 2, fromServer: 0, pages: 0 });
+    now += 1_000;
+    await folder.reportsFor('admin', true);
+    // Fresh, with nothing new: no language is touched.
+    expect(folder.lastPass).toMatchObject({ forced: true, orgMoved: false, dayTurned: false, folded: 0, pages: 0 });
+  });
+
+  it('writes a slow pass as one line with no organization, language or person (LAN-319)', () => {
+    const pass = { at: 1_000, ms: 1_200, cold: true, forced: false, orgMoved: true, dayTurned: false, languages: 2, inputsRead: 0, folded: 1, fromServer: 1, pages: 3 };
+    expect(passLine(pass)).toBe('1200 ms, cold, organization moved; 2 languages, 0 stored inputs read, 1 folded, 1 server snapshots asked for, 3 pages pulled');
+    expect(passLine({ ...pass, cold: false, orgMoved: false })).toBe('1200 ms; 2 languages, 0 stored inputs read, 1 folded, 1 server snapshots asked for, 3 pages pulled');
+    // Quick: no line.
+    expect(slowObjectLine(SLOW_REPORTS_MS - 1, 1_000, pass)).toBeNull();
+    // The call waited 300 ms for its turn, then the pass took 1.2 s.
+    expect(slowObjectLine(1_500, 700, pass)).toBe(`reports-slow-object: 1500 ms; waited 300 ms for its turn; pass ${passLine(pass)}`);
+    // The last pass ended before the call began: the call ran none.
+    expect(slowObjectLine(1_500, 5_000, pass)).toBe('reports-slow-object: 1500 ms; no pass');
+    expect(slowObjectLine(1_500, 5_000, null)).toBe('reports-slow-object: 1500 ms; no pass');
   });
 
   it('shares one pass among requests that arrive together', async () => {
@@ -313,23 +323,6 @@ describe('OrgFolder with the report inputs the projection pass stored (decision 
     expect(languagePulls(log)).toEqual([]);
     const folded = await new OrgFolder(orgLog(), ORG, new MemoryCache(), () => at).reportsFor('admin');
     expect(out!.rows).toEqual(folded!.rows);
-  });
-
-  it('counts the stored inputs a pass reads: all of them when the organization moved, none when nothing did (LAN-319)', async () => {
-    let now = at;
-    const log = orgLog();
-    const { source, reads } = withInputs(log, ['din']);
-    const folder = new OrgFolder(source, ORG, new MemoryCache(), () => now);
-    await folder.reportsFor('admin');
-    expect(folder.lastPass).toMatchObject({ cold: true, languages: 2, inputsRead: 1, folded: 1 });
-    now += 61_000;
-    await folder.reportsFor('admin');
-    expect(folder.lastPass).toMatchObject({ cold: false, orgMoved: false, inputsRead: 0, folded: 0 });
-    log.add('_org', 'v1.LanguageRenamed', { languageId: 'nus', name: 'Renamed' });
-    now += 61_000;
-    await folder.reportsFor('admin');
-    expect(folder.lastPass).toMatchObject({ orgMoved: true, inputsRead: 1, folded: 1 });
-    expect(reads()).toBe(2);
   });
 
   it('folds a language the pass has not stored yet, as before', async () => {
@@ -623,33 +616,33 @@ describe('the reports API', () => {
     expect(off.calls).toEqual([]);
   });
 
+  it('logs where a slow request\'s time went, step by step, with no organization, person or token (LAN-319)', async () => {
+    expect(slowReportsLine({ signIn: 100, access: 50, organization: 800, answer: 49 }, false, 2)).toBeNull();
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(Date.UTC(2026, 10, 26, 12));
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    try {
+      const d = deps({
+        profileOf: async (token) => { vi.setSystemTime(Date.now() + 200); return token === 'good' ? 'p1' : null; },
+        reports: async () => { vi.setSystemTime(Date.now() + 1_500); return body; }
+      });
+      expect((await handleApi(get('/api/orgs/o/reports?fresh=1', 'good'), d)).status).toBe(200);
+      expect(warn.mock.calls).toEqual([['reports-slow: 1700 ms; sign-in 200 ms, access 0 ms, organization 1500 ms, answer 0 ms; 0 languages, fresh']]);
+      // A quick request logs nothing.
+      warn.mockClear();
+      expect((await handleApi(get('/api/orgs/o/reports', 'good'), deps())).status).toBe(200);
+      expect(warn).not.toHaveBeenCalled();
+    } finally {
+      warn.mockRestore();
+      vi.useRealTimers();
+    }
+  });
+
   it('tells a stranger no, and a failure apart from a refusal', async () => {
     expect((await handleApi(get('/api/orgs/o/reports', 'good'), deps({ reports: async () => null }))).status).toBe(403);
     const err = vi.spyOn(console, 'error').mockImplementation(() => undefined);
     expect((await handleApi(get('/api/orgs/o/reports', 'good'), deps({ reports: async () => { throw new Error('down'); } }))).status).toBe(502);
     err.mockRestore();
-  });
-
-  it('logs which step of a slow request took the time, with no organization or person, and nothing for a quick one (LAN-319)', async () => {
-    let now = 1_790_000_000_000;
-    const clock = vi.spyOn(Date, 'now').mockImplementation(() => now);
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
-    try {
-      const slow = deps({
-        profileOf: async () => { now += 80; return 'p1'; },
-        reports: async () => { now += 1500; return body; }
-      });
-      expect((await handleApi(get('/api/orgs/org%201/reports?fresh=1', 'good'), slow)).status).toBe(200);
-      expect(warn.mock.calls).toEqual([['reports-slow: 1580 ms; sign-in 80 ms, access 0 ms, organization 1500 ms, answer 0 ms; 0 languages, fresh']]);
-      warn.mockClear();
-      expect((await handleApi(get('/api/orgs/o/reports', 'good'), deps({ reports: async () => { now += 900; return body; } }))).status).toBe(200);
-      expect(warn).not.toHaveBeenCalled();
-    } finally {
-      clock.mockRestore();
-      warn.mockRestore();
-    }
-    expect(slowReportsLine({ signIn: 0, access: 0, organization: SLOW_REPORTS_MS, answer: 0 }, false, 3))
-      .toBe('reports-slow: 1000 ms; sign-in 0 ms, access 0 ms, organization 1000 ms, answer 0 ms; 3 languages');
   });
 
   it('answers a summary view with each language\'s progress alone', async () => {

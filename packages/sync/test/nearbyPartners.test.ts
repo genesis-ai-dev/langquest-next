@@ -1,5 +1,5 @@
 import fc from 'fast-check';
-import { choosePartner, type PartnerInRange } from '../src/nearbyPartners';
+import { choosePartner, filesFingerprint, type PartnerInRange } from '../src/nearbyPartners';
 
 /**
  * Which teammate a phone talks to next (docs/nearby-sync-plan.md 5.11, 5.12). Why: five
@@ -59,6 +59,28 @@ describe('choosePartner', () => {
     expect(choosePartner(me, [{ ...changed, recent: true, hasWhatIWant: true }])).not.toBeNull();
     expect(choosePartner(me, [{ ...changed, recent: true, wantsWhatIHave: true }])).not.toBeNull();
     expect(choosePartner(me, [{ ...changed, recent: true, docsAgain: true }])).not.toBeNull();
+  });
+
+  // 2026-11-25: a phone that gained files since it last finished with a teammate (a library version's chapters filed under
+  // their hashes, recordings downloaded online) said nothing new in its summary, so the two never met again for them.
+  it('a teammate whose files changed here since the two last finished is worth a session, not a moment after, and never a listed one', () => {
+    const same = peer('000000000009', { summary: me.summary, hasWhatIWant: false, wantsWhatIHave: false, finished: { mine: me.summary, theirs: me.summary } });
+    expect(choosePartner(me, [{ ...same, filesChanged: true }])?.partner).toBe('000000000009');
+    expect(choosePartner(me, [{ ...same, filesChanged: true, recent: true }])).toBeNull();
+    expect(choosePartner(me, [{ ...same, filesChanged: true, listed: true }])).toBeNull();
+    expect(choosePartner(me, [same])).toBeNull();
+  });
+
+  it('a fingerprint of the files a phone holds is the same in any order, and changes with any file gained or lost', () => {
+    const hex = fc.stringMatching(/^[0-9a-f]{64}$/);
+    fc.assert(fc.property(fc.uniqueArray(hex, { maxLength: 40 }), hex, (hashes, other) => {
+      fc.pre(!hashes.includes(other));
+      const fp = filesFingerprint(hashes);
+      expect(filesFingerprint([...hashes].reverse())).toBe(fp);
+      expect(filesFingerprint([...hashes, other])).not.toBe(fp);
+      if (hashes.length > 0) expect(filesFingerprint(hashes.slice(1))).not.toBe(fp);
+    }), { numRuns: 200 });
+    expect(filesFingerprint([])).toBe(filesFingerprint(new Set()));
   });
 
   it('a refused pair recorded as finished is not picked again', () => {
