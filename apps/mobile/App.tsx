@@ -68,6 +68,7 @@ import type { FirstContactView } from './src/session/firstContactModel';
 import { noteAuthEvent } from './src/diagnostics/authDiag';
 import { nearbyAfterAuthEvent } from './src/nearby/nearbySignOut';
 import { watchRenewals } from './src/server/renewalWatch';
+import { watchStoppedRequests } from './src/server/stoppedRequests';
 import { C, space } from './src/ui/theme';
 import { recordUserEvent } from './src/account/accountData';
 import { useAccountSync, useDisplayNames, useProfileName } from './src/account/useAccount';
@@ -379,7 +380,8 @@ export default function App() {
     // Back in from the lock on this phone: supabase-js has no event for that (decisions.md 168).
     const offUnlocked = onUnlocked((s) => setAuth(s));
     const unwatch = watchRenewals();
-    return () => { active = false; unsubscribe(); offUnlocked(); unwatch(); };
+    const unwatchStops = watchStoppedRequests();
+    return () => { active = false; unsubscribe(); offUnlocked(); unwatch(); unwatchStops(); };
   }, []);
   // "New version available", and below the minimum version "Please update the app" with sync stopped (decisions.md 154).
   const appVersion = useAppVersion(!!auth);

@@ -4,6 +4,7 @@ import { Platform } from 'react-native';
 import type { BlobStore } from '../sync/blobs';
 import { hashOf, mimeOf, type StoredFile } from '../storage/storedFile';
 import { timedTransfer, type TransferTimings } from '../diagnostics/diagnostics';
+import { limitedFetch, transferLimitMs } from './sessionSafeFetch';
 import { supabase } from './supabase';
 
 /**
@@ -77,9 +78,13 @@ export async function streamUrl(orgId: string, streamId: string, ref: StoredFile
   return url;
 }
 
-/** A link to read a file the server has, valid for ten minutes. The Worker asks the database whether this person may read it. */
+/**
+ * A link to read a file the server has, valid for ten minutes. The Worker asks the database whether
+ * this person may read it. Held to the time limit (`limitedFetch`), so a link that never comes
+ * fails as offline and its transfer is tried again.
+ */
 async function signedUrl(orgId: string, streamId: string, ref: StoredFile): Promise<string> {
-  const res = await fetch(`${api()}/api/blob-urls/${objectPath(orgId, streamId, ref)}`, {
+  const res = await limitedFetch(`${api()}/api/blob-urls/${objectPath(orgId, streamId, ref)}`, {
     headers: { Authorization: `Bearer ${await tokenOf(supabase)}` }
   });
   if (!res.ok) throw new Error(`No link to the file (${res.status})`);
@@ -128,7 +133,8 @@ async function uploadFromWeb(url: string, headers: Record<string, string>, ref: 
     store.recheck(true);
     throw new Error(`no bytes for ${ref.hash} in this browser`);
   }
-  const res = await fetch(url, { method: 'PUT', headers, body: bytes });
+  // Held to a limit that grows with the file, so an upload on a dead connection fails and is tried again (LAN-339).
+  const res = await limitedFetch(url, { method: 'PUT', headers, body: bytes }, transferLimitMs(bytes.byteLength));
   return { status: res.status, body: await res.text() };
 }
 

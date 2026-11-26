@@ -1007,9 +1007,10 @@ protocol version.
   "today", "since you were last online" or "not since you were last online", with the newest
   work held from them (`batchKeys`' `firstHlc`, the author's clock), which adds no new record
   and counts work relayed by a third phone. Since 2026-11-24 the words say so outright, because
-  a bare "Today" read as "we shared today": "Has their work up to 3:05 PM today", "Has their work
-  up to Dec 4, 3:05 PM", "Nothing new from them since you were last online"
-  (`apps/mobile/src/nearby/carryWords.ts`). No meeting
+  a bare "Today" read as "we shared today": "This phone has their work up to 3:05 PM today",
+  "This phone has their work up to Dec 4, 3:05 PM", "Nothing new from them since you were last
+  online" (`apps/mobile/src/nearby/carryWords.ts`; "This phone" from 2026-11-25, Carl: the line
+  had no subject and read too terse). No meeting
   time is kept (section 5.12, The store). So the person leaving for town can see that
   nothing is left behind. When a teammate could not send what was pruned, it says that
   older work will come from the server. If a batch carries a stamp far ahead, it says one
@@ -2268,6 +2269,7 @@ function choosePartner(me: { tag: string; summary: string }, inRange: {
   listed: boolean; // its key is on the revocation list
   dueAnyway: boolean; // from the room's own timer, so this stays pure
   docsAgain?: boolean; // its last session here ended docsAgain (14.1, review item 15)
+  filesChanged?: boolean; // the files this phone holds changed since the two finished (2026-11-25)
 }[]): { partner: string; connect: boolean } | null;
 ```
 
@@ -2279,7 +2281,8 @@ unless `dueAnyway` says the two have not exchanged for a set time, which overrid
 this rule, because it rests on what others claim. That gives each pair at most one extra
 session, so five phones need 10 pairings at worst, not 6, and only after the wait. A phone
 whose last session with it ended `docsAgain` keeps it whatever the summaries and `finished`
-say, a set number of times a run (14.1, Again after the events). It
+say, a set number of times a run (14.1, Again after the events). So does one whose files have
+changed here since the two finished (`filesChanged`, below, A gap per teammate). It
 prefers one never met, then the lowest `position`, then the lowest tag. `connect` is
 `echoed && (older || me.tag < partner)`, and the other side waits with a time-out from
 JavaScript, then calls it again with connecting allowed. A phone that answers `busy`, or gives no
@@ -2494,6 +2497,21 @@ to disk only, so a walk over FIA's 1,525 English guides (65 MB) never holds them
   `wantsWhatIHave`) or documents do (`docsAgain`): a review mark alone waits. The room's summary
   is worked out again only after a write (`SyncClient.writeStamp`) or a minute, and each find tag
   once per key and generation (review P1).
+- **Files gained since** (2026-11-25,
+  docs/decisions/2026-11-25-text-goes-whole-and-recordings-go-by-want.md as amended). The summary
+  says nothing of the files a phone holds outside holdings (confirmed recordings it downloaded,
+  library files), so a phone that gained some online, as an inviter whose chapter audio a library
+  version named by hash, never met its teammates again for them: it read "Up to date". A pair's
+  record (`NearbyPeerRecord.files`) now keeps `filesFingerprint` of the files this phone held as
+  the two finished (`NearbyFileMoves.fingerprint`: their count, sum and exclusive-or of hash
+  heads, the same in any order). The room compares it with the phone's own now
+  (`NearbyRoomFacts.filesFingerprint`); a difference makes that teammate worth a session
+  (`filesChanged`), after the gap above and the usual wait for the other to connect, which counts
+  the pair finished. The summary, and so "Up to date" and the quiet mode's rest, are unchanged,
+  since teammates hold different files by design. A record from before it has no fingerprint and
+  counts as unchanged. What it cannot do: a library version that arrived on one phone from the
+  server is not current on another until that phone hears it from the server, since organization
+  changes do not travel between phones (14.1); only a starting copy carries them.
 - **Names in the app's language** (2026-11-24, review item 13). Between phones that say
   `copy-labels`, a member's top-up and a newcomer's copy also ask `labels` for the app's language
   (`takeLabels`): the names other organizations give the followed items the language uses, from
@@ -4763,8 +4781,8 @@ running room. Today only Share nearby shows it.
 
 - **A Teammates fold on Sync and offline** (`apps/mobile/src/screens/sync.tsx`), shown where the
   organization has `nearby` on and this phone holds a certificate. Its line says the least recent
-  teammate ("Furthest behind: Sam, nothing new since you were last online", or "Has today's work
-  from every teammate"), and it opens to one row each: name, and the words Share nearby uses for
+  teammate ("Furthest behind: Sam, nothing new since you were last online", or "This phone has
+  today's work from every teammate"), and it opens to one row each: name, and the words Share nearby uses for
   what this phone holds of their work, up to when. Its help says it is not when the two last
   shared: a teammate who has not worked today shows an older time. It is computed with an empty
   `inRange`.

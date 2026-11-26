@@ -50,3 +50,16 @@ meetings (the work set too narrow, the limit too small, or wants not reaching
 a teammate who holds the files), or teammates' phones fill, or their
 batteries drain, from files they were asked for (the limit too large, or
 chosen sets too big).
+
+Amended (2026-11-25, Carl Sauder): a phone's new files make it meet its
+teammates again. A test the same day: once the inviter's phone, online, filed
+Matthew's chapter audio under the hashes a new library version named, the two
+phones still read "Up to date", since the summary they advertise says nothing
+of files a phone holds outside holdings, so a want could wait for a meeting
+that never came. A pair's record now keeps a fingerprint of the files this
+phone held as the two finished, and a different one now makes that teammate
+worth another session (`filesChanged`), leaving the summary, "Up to date" and
+the quiet mode's rest as they were, since teammates hold different files by
+design. Left as it was, by Carl's choice: a new library version reaches a
+phone only from the server or in a starting copy, because organization
+changes do not travel between phones (docs/nearby-sync-plan.md 14.1).
