@@ -10,6 +10,8 @@
  * script, like pageStart.ts; everything shown is escaped.
  */
 
+import { eventTime } from '../../../scripts/card-words.mjs';
+
 /** The cards' look, inside page.ts's style element. */
 export const ISSUE_CSS = String.raw`
 .itabs { display: flex; flex-wrap: wrap; gap: 4px; padding: 4px; margin: 12px 0; background: var(--soft); border-radius: 12px; width: fit-content; max-width: 100%; }
@@ -45,6 +47,8 @@ export const ISSUE_CSS = String.raw`
 dl.three { display: grid; grid-template-columns: 76px minmax(0, 1fr); gap: 10px 14px; margin: 0; font-size: 15px; line-height: 1.45; }
 dl.three dt { font-size: 11px; font-weight: 600; letter-spacing: .09em; text-transform: uppercase; color: var(--muted); padding-top: 3px; }
 dl.three dd { margin: 0; min-width: 0; overflow-wrap: anywhere; } dl.three dd p { margin: 0; } dl.three dd small { display: block; font-size: 12.5px; margin-top: 2px; }
+ol.ichoice, ol.ievents { margin: 6px 0 0; padding-left: 22px; } ol.ichoice li, ol.ievents li { margin: 4px 0; } ol.ichoice .tag, ol.ievents .tag { margin-left: 6px; }
+ol.ievents { margin-top: 0; } ol.ievents li.bug { color: var(--ink); } ol.ievents .tag.bad { color: var(--red); background: var(--redbg); }
 .ibar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
 .ibar > a.button { display: inline-flex; align-items: center; text-decoration: none; font-size: 14px; min-height: 44px; }
 .ibar a.button.dark { background: var(--ink); border-color: var(--ink); color: var(--card); }
@@ -348,6 +352,9 @@ function videoWay(a) {
 
 /** Drawing the cards; uses the page's helpers (esc, when, num, safeLink, prLink, pictureStrip, detailParts) and its state (fixData, VIDEOS). */
 export const ISSUE_SCRIPT = String.raw`
+/** When an event on an issue's card happened, in the viewer's own clock (scripts/card-words.mjs eventTime). */
+const eventTime = ${eventTime.toString()};
+const CARD_TZ = (() => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'; } catch { return 'UTC'; } })();
 /** The steps as dots: done, the one it waits at, and those to come; then that in words. Each step is [name, the words while it waits there]. */
 function stepsHtml(steps, at) {
   if (!at) return '';
@@ -445,14 +452,18 @@ function fixPictures(fix, issue, shown, steps) {
     (p.screenshot ? '<p><button type="button" class="link" data-shot="' + esc(p.id) + '" data-what="screenshot">Show screenshot</button></p>' : '') +
     (p.picture ? '<p><button type="button" class="link" data-shot="' + esc(p.id) + '" data-what="picture">Show picture</button></p>' : '')).join('');
 }
-function userIssueCard(r, way, tab, notes, fixes, diagrams) {
+function userIssueCard(r, way, tab, notes, fixes, diagrams, cards) {
   const record = r.issue && fixes ? fixes[r.issue] || null : null;
   const source = issueSource(r.keys);
   const pr = way.pr;
   // A merged pull request that names the issue while Linear still has it open: a part of the work, not the fix.
   const partSaid = () => way.part ? prLink(way.part) + ' merged as a part of the work. ' + esc(r.issue) + ' is still ' + esc(r.state || 'open') + ' in Linear.' : '';
+  // The pull request's title, only when it says more than the card's title ("LAN-12: <the issue's title>" does not).
+  const prTitle = pr && pr.title && pr.title.replace(/^[A-Z]{1,10}-\d+:\s*/, '').trim() !== String(r.title || '').trim() ? pr.title : '';
+  // Why the fix waits, in Claude's words: the choice it asks for is in view, not behind Details (LAN-339).
+  const waitsWhy = record && fixFor(record, pr) && record.decision !== 'merge' && record.why ? record.why : '';
   const solution = {
-    you: () => pr ? prLink(pr) + ' waits on its merge.' + (pr.title ? '<br><small class="muted">' + esc(pr.title) + '</small>' : '') + (record && record.plan && planGoing(record) ? '<br><small class="muted">After the merge: ' + esc(record.plan.next) + '</small>' : '') : noFixSaid(record),
+    you: () => pr ? prLink(pr) + ' waits on its merge.' + (waitsWhy ? '<br><small>' + esc(waitsWhy) + '</small>' : prTitle ? '<br><small class="muted">' + esc(prTitle) + '</small>' : '') + (record && record.plan && planGoing(record) ? '<br><small class="muted">After the merge: ' + esc(record.plan.next) + '</small>' : '') : noFixSaid(record),
     claude: () => prLink(pr) + ' merges without a person when its checks pass.' + (pr && pr.title ? '<br><small class="muted">' + esc(pr.title) + '</small>' : ''),
     merged: () => (pr ? 'Fixed in ' + prLink(pr) + (pr.mergedAt ? ', merged ' + when(pr.mergedAt) : '') + '.' : 'The fix merged.') + ' Linear says ' + esc(r.state || 'open') + '.',
     nofix: () => planGoing(record) ? 'Claude proves the cause first, then writes the fix. ' + esc(planSaid(record.plan).when) + '.' : way.part ? '' : 'No pull request names ' + esc(r.issue) + '. <small class="muted">The page reads open ones, and ones merged in the last 14 days.</small>',
@@ -469,18 +480,27 @@ function userIssueCard(r, way, tab, notes, fixes, diagrams) {
   const pics = fixPictures(record, r.issue, !!fixFor(record, way.pr), r.issue && diagrams ? diagrams[r.issue] : null);
   const fix = fixLine(fixFor(record, way.pr), way);
   const kv = (label, html) => html ? '<div><h5 class="imh">' + esc(label) + '</h5>' + html + '</div>' : '';
+  // The issue's card in Claude's words (docs/card-words.md, "An issue's card"), from the watch, the issue manager
+  // or the job that writes the cards again: it replaces the watch's first lines, which were a short guess.
+  const card = issueCardOf(r.issue && cards ? cards[r.issue] : null);
+  const lines = card ? [
+    ['About', '<p>' + esc(card.about) + '</p>'],
+    ['Events', eventsHtml(card.events)],
+    ['Known', card.known ? '<p>' + esc(card.known) + '</p>' : ''],
+    way.tab === 'you' && card.options.length ? ['Decide', choiceHtml(card, pr)] : ['Next', next]
+  ] : [
+    ['Wrong', r.problem ? '<p>' + esc(r.problem) + '</p>' : keys],
+    ['Known', r.known ? '<p>' + esc(r.known) + '</p>' : ''],
+    ['Next', next]
+  ];
   return issueCard({
     card: r.issue || 'keys:' + ((r.keys || [])[0] || ''), tab: way.tab, claude: way.claude, hidden: !onTab(way, tab),
     tags: (r.issue ? (safeLink(r.issueUrl) ? outLink(r.issueUrl, esc(r.issue), 'lin') : '<b>' + esc(r.issue) + '</b>') : '') + (source ? '<span class="tag">' + esc(source) + '</span>' : '') + claimTag(r.issue),
-    title: r.title || (r.keys || [])[0] || 'A problem with no name',
+    title: (card && card.title) || r.title || (r.keys || [])[0] || 'A problem with no name',
     meta: seen,
     pill: [way.pill, way.level],
     short: {
-      lines: [
-        ['Wrong', r.problem ? '<p>' + esc(r.problem) + '</p>' : keys],
-        ['Known', r.known ? '<p>' + esc(r.known) + '</p>' : ''],
-        ['Next', next]
-      ],
+      lines,
       bar: claimButton(r.issue, !!r.closedAt) + closeButton(r.issue, !!r.closedAt) + (way.tab === 'you' && pr && pr.number ? outLink(safeLink(pr.url) || PR_URL + pr.number, 'Review pull request ' + esc(pr.number), 'button dark') : '') +
         (way.tab === 'claude' && pr && pr.number ? outLink(safeLink(pr.url) || PR_URL + pr.number, 'Open pull request ' + esc(pr.number), 'button') : '') +
         (r.issue && safeLink(r.issueUrl) ? outLink(r.issueUrl, 'Open ' + esc(r.issue) + ' in Linear', 'button') : ''),
@@ -492,6 +512,26 @@ function userIssueCard(r, way, tab, notes, fixes, diagrams) {
     talk: issueTalk(r, notes),
     record: issueRecord(r.issue, r.firstAt ? { at: r.firstAt, who: 'The watch', said: 'found the problem' } : null, [way.pill, way.level])
   });
+}
+/** An issue's card, when it has the parts a card needs (scripts/card-words.mjs issueCardOf); the choice is only on some. */
+function issueCardOf(c) {
+  if (!c || !c.about || !Array.isArray(c.events) || c.events.length < 2) return null;
+  const choice = c.ask && Array.isArray(c.options) && c.options.length >= 2;
+  return { ...c, ask: choice ? c.ask : '', options: choice ? c.options : [] };
+}
+/** What happened, as a numbered list: when (in the viewer's clock), then what; the event that is the bug marked. */
+function eventsHtml(events) {
+  const day = { last: '' };
+  return '<ol class="ievents">' + events.map((e) => {
+    const t = e.at ? eventTime(e, CARD_TZ, day) : '';
+    return '<li' + (e.bug ? ' class="bug"' : '') + '>' + (t ? '<b>' + esc(t) + '.</b> ' : '') + esc(e.happened) + (e.bug ? '<span class="tag bad">The bug</span>' : '') + '</li>';
+  }).join('') + '</ol>';
+}
+/** The choice on a card: the question, then each option with what happens after it, the recommended one first. */
+function choiceHtml(card, pr) {
+  return '<p class="inext">' + esc(card.ask) + '</p><ol class="ichoice">' + card.options.map((o, i) =>
+    '<li><b>' + esc(o.option) + '</b>' + (i === 0 ? '<span class="tag">Recommended</span>' : '') + '<br>' + esc(o.then) + '</li>').join('') + '</ol>' +
+    (pr && pr.number ? '<small class="muted">' + prLink(pr) + ' holds the fix.</small>' : '');
 }
 /** An issue's steps on its card (pageSteps.ts): what the watch and Claude did, who did what on the card, and Claude's answers. */
 function issueRecord(issue, found, turn) {
@@ -545,7 +585,7 @@ function userIssuesHtml(raw) {
   return stats + '<div class="issues"><div class="itabs" role="group" aria-label="Issues by state">' +
     ISSUE_TABS.filter((x) => x[0] !== 'open' || t.count.open).map((x) =>
       '<button type="button" data-itab="' + x[0] + '" aria-pressed="' + (x[0] === t.tab) + '">' + esc(x[1]) + '<span class="count">' + num(t.count[x[0]]) + '</span></button>').join('') + '</div>' +
-    '<div class="icards">' + rows.map((x) => userIssueCard(x.r, x.way, t.tab, d.notes, d.fixes, d.diagrams)).join('') + '</div></div>' + researchPointer();
+    '<div class="icards">' + rows.map((x) => userIssueCard(x.r, x.way, t.tab, d.notes, d.fixes, d.diagrams, d.cards)).join('') + '</div></div>' + researchPointer();
 }
 document.addEventListener('click', (e) => {
   const b = e.target.closest && e.target.closest('[data-itab]');

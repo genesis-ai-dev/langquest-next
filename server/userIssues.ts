@@ -216,7 +216,7 @@ const ISSUE_URL = /^https:\/\/linear\.app\/[A-Za-z0-9/_.-]{1,300}$/;
 const RUN = new RegExp(`^https://github\\.com/${REPOSITORY.replace('/', '\\/')}/actions/runs/[0-9]{1,20}(/attempts/[0-9]{1,5})?$`);
 /** No address may ride along in a note: the database keeps none (docs/diagnostics.md). */
 export const EMAIL = /[^\s@]+@[^\s@]+\.[^\s@]+/;
-export const LOOKED_MAX = { looked: 200, grew: 200, states: 100, notes: 60, fixes: 20, research: 70, handed: 10, tried: 10, diagrams: 20, plans: 20, priorities: 100 } as const;
+export const LOOKED_MAX = { looked: 200, grew: 200, states: 100, notes: 60, fixes: 20, research: 70, handed: 10, tried: 10, diagrams: 20, plans: 20, priorities: 100, cards: 40 } as const;
 
 // ---- what the agent team did with an issue (docs/agent-team.md, scripts/agent-team.mjs) -----------
 
@@ -249,6 +249,55 @@ export interface FixRecord {
    * base64. Both are a display fix's proof; `before` alone shows the problem of an issue with no fix. Never `after` alone.
    */
   before: string | null; after: string | null;
+}
+/** The most characters of each part of an issue's card (scripts/card-words.mjs ISSUE_CARD holds the same numbers). */
+export const ISSUE_CARD = { title: 80, about: 300, happened: 200, known: 300, ask: 300, option: 80, then: 200, events: { min: 2, max: 6 }, options: { min: 2, max: 4 } } as const;
+/**
+ * An issue's card: a title, what it is about (high up), what happened as 2 to 6 events in time order (when, in
+ * UTC, or '' when not known; `bug` on the event that is the bug), what is known (what is safe, who else can have
+ * it), and the choice: the question and 2 to 4 options, each with what happens after it, the recommended one first.
+ */
+export interface IssueEvent { at: string; until: string; about: boolean; happened: string; bug: boolean }
+export interface IssueCard { title: string; about: string; events: IssueEvent[]; known: string; ask: string; options: { option: string; then: string }[] }
+const EVENT_TIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?Z$/;
+
+/** An issue's card as the workflow sent it, checked: null when it sent none. */
+export function parseIssueCard(v: unknown, at: string): IssueCard | null {
+  if (v === undefined || v === null) return null;
+  if (!isObj(v)) throw new LookedError(`${at}: an object`);
+  const text = (field: 'title' | 'about' | 'known' | 'ask', need: boolean): string => {
+    const t = v[field];
+    if (!need && (t === undefined || t === null || t === '')) return '';
+    if (typeof t !== 'string' || !t.trim() || t.length > ISSUE_CARD[field] || EMAIL.test(t)) throw new LookedError(`${at}.${field}: 1 to ${ISSUE_CARD[field]} characters, no address`);
+    return t;
+  };
+  const events = v['events'];
+  if (!Array.isArray(events) || events.length < ISSUE_CARD.events.min || events.length > ISSUE_CARD.events.max) throw new LookedError(`${at}.events: ${ISSUE_CARD.events.min} to ${ISSUE_CARD.events.max}`);
+  // A card with no choice yet (the watch's, before the cause is proven) has no question and no options.
+  const options = v['options'] ?? [];
+  const asks = typeof v['ask'] === 'string' && v['ask'] !== '';
+  if (!Array.isArray(options) || (asks || options.length ? options.length < ISSUE_CARD.options.min || options.length > ISSUE_CARD.options.max : false)) {
+    throw new LookedError(`${at}.options: ${ISSUE_CARD.options.min} to ${ISSUE_CARD.options.max} with a question, none without`);
+  }
+  return {
+    title: text('title', false), about: text('about', true), known: text('known', false), ask: text('ask', options.length > 0),
+    events: events.map((e, n): IssueEvent => {
+      const when = (t: unknown) => t === undefined || t === null || t === '' ? '' : typeof t === 'string' && EVENT_TIME.test(t) && !Number.isNaN(Date.parse(t)) ? t : null;
+      const happened = isObj(e) ? e['happened'] : null;
+      const from = isObj(e) ? when(e['at']) : null, until = isObj(e) ? when(e['until']) : null;
+      if (!isObj(e) || typeof happened !== 'string' || !happened.trim() || happened.length > ISSUE_CARD.happened || EMAIL.test(happened) || from === null || until === null) {
+        throw new LookedError(`${at}.events[${n}]: happened (1 to ${ISSUE_CARD.happened} characters, no address), and at and until as times in UTC or none`);
+      }
+      return { at: from, until, about: e['about'] === true, happened, bug: e['bug'] === true };
+    }),
+    options: options.map((o, n) => {
+      const ok = (t: unknown, max: number) => typeof t === 'string' && t.trim() !== '' && t.length <= max && !EMAIL.test(t);
+      if (!isObj(o) || !ok(o['option'], ISSUE_CARD.option) || !ok(o['then'], ISSUE_CARD.then)) {
+        throw new LookedError(`${at}.options[${n}]: option (1 to ${ISSUE_CARD.option} characters) and then (1 to ${ISSUE_CARD.then}), no address`);
+      }
+      return { option: o['option'] as string, then: o['then'] as string };
+    })
+  };
 }
 /**
  * What the manager does next on an issue whose cause it did not prove yet (docs/agent-team.md "When the cause
@@ -393,6 +442,11 @@ export interface Looked {
   tried: string[];
   /** The diagram of each issue this run filed, for its card. */
   diagrams: { issue: string; steps: DiagramStep[] }[];
+  /**
+   * Each issue's card in plain words (docs/card-words.md, "An issue's card"): from the watch for a new issue, from
+   * the issue manager after its work, or from the job that writes the cards of open issues. Replaces the card it had.
+   */
+  cards: { issue: string; card: IssueCard }[];
   /** What the manager does next on each issue whose cause it did not prove yet, or `next: null` to remove the plan. */
   plans: PlanRecord[];
   /** Each open issue's priority in Linear (0 none, 1 Urgent, 2 High, 3 Medium, 4 Low), for the order the fix team takes them. */
@@ -774,6 +828,17 @@ export function parseLooked(input: unknown): Looked {
     drawn.add(issue);
     return { issue, steps: parseSteps(d['steps'], `${where}.steps`) };
   });
+  const carded = new Set<string>();
+  const cards = list(input, 'cards', LOOKED_MAX.cards).map((c, n) => {
+    const where = `cards[${n}]`;
+    if (!isObj(c)) throw new LookedError(`${where}: an object`);
+    const issue = c['issue'];
+    if (typeof issue !== 'string' || !ISSUE.test(issue) || carded.has(issue)) throw new LookedError(`${where}.issue: a Linear issue (LAN-12), once`);
+    carded.add(issue);
+    const card = parseIssueCard(c['card'], `${where}.card`);
+    if (!card) throw new LookedError(`${where}.card: an object`);
+    return { issue, card };
+  });
   const planned = new Set<string>();
   const plans = list(input, 'plans', LOOKED_MAX.plans).map((x, n): PlanRecord => {
     const where = `plans[${n}]`;
@@ -811,7 +876,7 @@ export function parseLooked(input: unknown): Looked {
     if (!Number.isInteger(priority) || (priority as number) < 0 || (priority as number) > 4) throw new LookedError(`${where}.priority: 0 to 4, as Linear numbers it`);
     return { issue, priority: priority as number };
   });
-  return { sha: input['sha'], runUrl: input['runUrl'], looked, grew, states, notes, fixes, research, report, handed, tried, diagrams, plans, priorities };
+  return { sha: input['sha'], runUrl: input['runUrl'], looked, grew, states, notes, fixes, research, report, handed, tried, diagrams, plans, priorities, cards };
 }
 
 // ---- the logs of the moment (POST /api/user-issues?logs=1) ---------------------------------------

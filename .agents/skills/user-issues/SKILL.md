@@ -296,6 +296,16 @@ The developer reads the issue on their phone, between other things.
     the cause, say what to find first.
   Use your own words. Do not copy what a person wrote, and give no name,
   address or id: the script cuts an address out.
+- `card`: the new issue's card in plain words, as part "The card for your
+  issue" below says, with About, Events and Known. Leave out `ask` and
+  `options` unless a person must decide something now: the issue manager
+  writes the choice when it has a fix. The dashboard shows the card in
+  place of `problem`, `known` and `solution`. Check each card with one
+  naive reader: run `node /home/runner/work/_temp/watch/card-words.mjs
+  --naive .user-issues/decisions.json`, give each prompt it prints (a line
+  "===== where =====" comes before each one) to a new Agent worker
+  (`model: "sonnet"`, `run_in_background: false`) as it is, and mend each
+  line the worker got wrong. One round is enough here.
 - `comment` (known): one or two sentences on what is new.
 - `note` (noise): one line on why it is nothing to fix. (fixed): one line
   on why that pull request fixes it and why the hits came before it.
@@ -555,6 +565,9 @@ With the verdict, `fix.json` also holds:
 - `twins` (at most 1000): the other places with the same mistake, each with
   its file and line, or left out when there are none. Do not fix them in
   this change: the team's research presents them to the developers.
+- `card`: the issue's card in plain words, for every verdict. The
+  dashboard shows it in place of the watch's first lines. Part "The card
+  for your issue" below says how to write it and check it.
 
 These go on the ops dashboard and into the pull request, which is public:
 the rules below hold for them too.
@@ -641,6 +654,133 @@ Claude stops, one plain reason and one recommended action. Before you
 finish, run `node /home/runner/work/_temp/watch/card-words.mjs
 .user-issues/decisions.json` and mend each line it prints, until it prints
 none.
+
+### The card for your issue
+
+Caleb Koster, 2026-11-25, on LAN-339's card: "horribly ambiguous and
+unhelpful. I read it and have no idea what it's talking about." The card
+kept the watch's first guess (it said the phone pushed nothing; the
+recording went up at the restart), the choice you asked for was behind
+Details, and the step line showed the cause in file names, cut off in the
+middle of a word. A newcomer that read only the card was 2 of 5 sure
+what to do. A word check alone did not catch it: every sentence was
+short, and the card still said nothing a person could act on.
+
+You know the issue best when you finish. So you write the card, in
+`fix.json` `card`, for every verdict. The watch wrote a first card when it
+filed the issue (part "How to write it"); yours takes its place, with
+what you proved and the choice:
+
+```json
+"card": {
+  "title": "A phone stops uploading after its network drops during a sync",
+  "about": "The phone app sends each new recording to the server. On Nov 25, a person on Android recorded a key word (how to say an important term). The recording did not go to the server, although the phone was online.",
+  "events": [
+    { "at": "2026-11-25T17:05:00Z", "about": true, "happened": "The phone lost its network during a sync. The phone's request to the server got no answer and no error." },
+    { "at": "2026-11-25T17:05:00Z", "until": "2026-11-25T18:30:00Z", "happened": "The sync waited for that answer and never ended. The network came back, but the app starts no new sync while one runs. Nothing went up.", "bug": true },
+    { "at": "2026-11-25T18:28:00Z", "happened": "The person recorded a key word. The recording waited behind the stuck sync." },
+    { "at": "2026-11-25T18:30:00Z", "happened": "The person opened the app again. A new sync started, and the recording went up in 1 second." }
+  ],
+  "known": "No work was lost. The person could not see that uploads stopped. Any phone that loses its network during a sync can have this problem.",
+  "ask": "Merge pull request 716? The fix stops a request to the server after 2 minutes with no answer. Then the phone starts a new sync.",
+  "options": [
+    { "option": "Merge it with the 2-minute limit", "then": "Phones get the fix in an app update soon after the merge, with no store review. After a network drop, uploads start again within about 2 minutes." },
+    { "option": "Ask Claude for a longer limit", "then": "On a very slow network, one large download can need more than 2 minutes. A longer limit stops it less often. But after a network drop, uploads wait longer." },
+    { "option": "Do not merge", "then": "The problem stays. A person whose uploads stop must close the app and open it again." }
+  ]
+}
+```
+
+- `title` (at most 80 characters): what goes wrong, as a person sees it,
+  for everyone who can have it, not only the one case.
+- `about` (at most 300): start from high up. Which part of LangQuest (the
+  phone app, the web app, a server job, a store), what a person did, and
+  what they saw. Explain each word of the app a newcomer may not know, in
+  a few words ("a key word (how to say an important term)").
+- `events`: zoom in one step. What happened, as 2 to 6 events in time
+  order, from the first cause to what the person saw (Caleb Koster,
+  2026-11-25: a numbered list of events reads more easily than a
+  paragraph). Each has `happened` (at most 200 characters, one or two
+  short sentences about what the app or the person did, never the code),
+  `at` (when, an ISO time in UTC such as `2026-11-25T17:05:00Z`, from the
+  records; leave it out when no record says it), `until` (the end, for an
+  event that lasts), `"about": true` when the time is a close guess, and
+  `"bug": true` on the event that is the bug. The dashboard says each time
+  in the reader's own clock.
+- `known` (at most 300): what is safe and what is not. Say whether work is
+  lost, whether the person is still stuck, whether they can see the
+  problem, and who else can have it. Correct the watch's first lines here:
+  they were a guess from before your work.
+- `ask` (at most 300): the one question the reader must answer, then what
+  the change does, in one or two sentences ("Merge pull request 716? The
+  fix stops ..."). With no pull request: the choice you need ("Where does
+  Remove go?").
+- `options`: 2 to 4, the one you recommend first. `option` (at most 80
+  characters, 12 words) is the action; `then` (at most 200) says what
+  happens after it: what people see, when phones or the web app get it
+  (a merge is a release: the web app at once, the phone app as an update),
+  and the cost or the risk. Always give the option to do nothing, and what
+  it leaves.
+
+Every line follows "Words on a card" above. Put no clock time in the
+words: times go in `at` and `until`, and the dashboard says them in the
+reader's clock. Each line says a new thing.
+
+**Check it with a naive reader.** When `fix.json` is written:
+
+1. Run `node /home/runner/work/_temp/watch/card-words.mjs
+   .user-issues/fix.json` and mend each line it prints.
+2. Run `node /home/runner/work/_temp/watch/card-words.mjs --naive
+   .user-issues/fix.json`. It prints a prompt: the card's text and one
+   line about the app, nothing more.
+3. Start one Agent worker (`model: "sonnet"`, `run_in_background:
+   false`) with that prompt as it is. Do not add to it.
+4. Compare its answer with what you know. Mend each line it got wrong, or
+   called unclear, or each fact it says it needs and the card does not
+   give. Then do steps 1 to 3 once more.
+5. Stop when the reader says the problem, the cause and each option's
+   result as you would, and is 4 or 5 of 5 sure. After two rounds, stop
+   and keep your best card.
+
+`fix.json` is public like the rest: the card has no name, address or id
+of a person, and nothing a person wrote.
+
+### Each open issue's card, written again
+
+The job `cards` runs when a person asks for it (Caleb Koster, 2026-11-26:
+"change other cards' wordings similarly"). The cards of the issues filed
+before 2026-11-26 were the watch's three short lines, a guess from before
+anyone looked at the cause. You write each open issue's card again, as
+part "The card for your issue" says, from what is known now: the issue's
+lines, what the fix team found (`ops.user_issue_fixes`: `why`, `cause`,
+`proof`, `decision`), its steps (`ops.user_issue_steps`), the code,
+production and the logs.
+
+Write `.user-issues/cards.json`: a list, one entry for each open issue,
+at most 40:
+
+```json
+[
+  { "issue": "LAN-339", "card": { "title": "...", "about": "...", "events": [ ... ], "known": "...", "ask": "...", "options": [ ... ] } }
+]
+```
+
+- Give `ask` and `options` only when a person must decide now: a pull
+  request waits on a person's review, or the fix team stopped and needs a
+  choice. Else leave them out, and the card shows what happens next.
+- When the records do not show when a thing happened, leave out `at`.
+  Never make up a time.
+- Check the words: `node /home/runner/work/_temp/watch/card-words.mjs
+  .user-issues/cards.json`, and mend each line it prints.
+- Check each card with a naive reader:
+  `node /home/runner/work/_temp/watch/card-words.mjs --naive
+  .user-issues/cards.json` prints one prompt for each card, each after a
+  line "===== [n].card =====". Give each prompt to its own Agent worker
+  (`model: "sonnet"`, `run_in_background: false`; start several at once),
+  as it is. Mend each card as step 4 above says, and check it once more
+  when the reader was less than 4 of 5 sure. Two rounds at most.
+- A card that does not read (no `about`, fewer than 2 events, a line too
+  long) is left out, and the issue keeps the card it has.
 
 ### Reading production
 

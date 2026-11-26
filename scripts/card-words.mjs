@@ -4,6 +4,11 @@
 // Plain Node, no packages and no imports but Node's own, so a workflow can copy this file next
 // to its script and run it before `npm ci`.
 //
+//   node scripts/card-words.mjs --naive <file.json>
+//       Prints the prompt for a naive reader of each issue's card in the file (fix.json `card`, decisions.json's or
+//       cards.json's): Claude gives each to a new worker, and mends each line the worker got wrong
+//       (docs/card-words.md, "A naive reader").
+//
 //   node scripts/card-words.mjs <file.json> [field ...]
 //       Reads the JSON file, finds each string under one of the fields (by default
 //       CARD_FIELDS), and prints each line that breaks the standard, with where it
@@ -28,7 +33,98 @@ export const JARGON = ['oidc', 'sql', 'rpc', 'regex', 'payload', 'json', 'yaml',
   'wrangler', 'token', 'patch', 'diff', 'stack trace', 'env var', 'refactor', 'mutex', 'fixture', 'regexp', 'stub', 'mock'];
 
 /** The fields of what Claude writes that a person reads on a card, which the command line checks by default. */
-export const CARD_FIELDS = ['title', 'context', 'problem', 'known', 'solution', 'plain', 'answer', 'caption'];
+export const CARD_FIELDS = ['title', 'context', 'problem', 'known', 'solution', 'plain', 'answer', 'caption', 'about', 'happened', 'ask', 'then', 'option'];
+
+/**
+ * The parts of an issue's card that the issue manager writes in fix.json `card` (docs/card-words.md, "An issue's
+ * card"), and the most characters of each. `events`: 2 to 6 { at, until, about, happened, bug } in time order, what
+ * happened (Caleb Koster, 2026-11-25: a numbered list of events reads more easily than a paragraph). `options`:
+ * 2 to 4 { option, then }, the recommended one first.
+ */
+export const ISSUE_CARD = { title: 80, about: 300, happened: 200, known: 300, ask: 300, option: 80, then: 200, events: { min: 2, max: 6 }, options: { min: 2, max: 4 } };
+
+/** A time as fix.json gives it: an ISO time in UTC, or '' when the event has none. */
+const ISO = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?Z$/;
+
+/**
+ * An issue's card, checked and cut: { title, about, events, known, ask, options }, or null when it has no about
+ * or fewer than 2 events. With no question or fewer than 2 options it has no choice (ask '' and no options): the
+ * watch writes such a card before anyone proved the cause. Words only; a person's address is the caller's to take out.
+ */
+export function issueCardOf(raw) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  const line = (v, max) => {
+    const t = typeof v === 'string' ? v.replace(/\s+/g, ' ').trim() : '';
+    return t.length > max ? `${t.slice(0, max - 1)}…` : t;
+  };
+  const time = (v) => (typeof v === 'string' && ISO.test(v) && !Number.isNaN(Date.parse(v)) ? v : '');
+  const events = (Array.isArray(raw.events) ? raw.events : []).slice(0, ISSUE_CARD.events.max)
+    .map((e) => ({ at: time(e?.at), until: time(e?.until), about: e?.about === true, happened: line(e?.happened, ISSUE_CARD.happened), bug: e?.bug === true }))
+    .filter((e) => e.happened).map((e) => (e.at ? e : { ...e, until: '', about: false }));
+  const options = (Array.isArray(raw.options) ? raw.options : []).slice(0, ISSUE_CARD.options.max)
+    .map((o) => ({ option: line(o?.option, ISSUE_CARD.option), then: line(o?.then, ISSUE_CARD.then) })).filter((o) => o.option && o.then);
+  const card = { title: line(raw.title, ISSUE_CARD.title), about: line(raw.about, ISSUE_CARD.about), events,
+    known: line(raw.known, ISSUE_CARD.known), ask: line(raw.ask, ISSUE_CARD.ask), options };
+  if (!card.about || events.length < ISSUE_CARD.events.min) return null;
+  // A card with no choice yet (the watch's first card, before the cause is proven): no question and no options.
+  return card.ask && options.length >= ISSUE_CARD.options.min ? card : { ...card, ask: '', options: [] };
+}
+
+/** The one line of context a naive reader gets: no more than a person who never saw the code knows. */
+export const NAIVE_CONTEXT = 'LangQuest is a phone app for recording Bible translation.';
+
+/**
+ * When an event happened, as a card says it in one time zone: "About 10:05 AM", "10:05 to 11:30 AM"; the day
+ * ("Nov 25, ") before the first time of each day. `day` holds the day said last, so a list says it once.
+ */
+export function eventTime(e, timeZone = 'UTC', day = { last: '' }) {
+  if (!e.at) return '';
+  const part = (iso, o) => new Date(iso).toLocaleString('en-US', { timeZone, ...o });
+  const utc = timeZone === 'UTC';
+  const hm = (iso) => part(iso, { hour: 'numeric', minute: '2-digit', hour12: !utc });
+  const d = part(e.at, { month: 'short', day: 'numeric' });
+  const lead = d !== day.last ? `${d}, ` : '';
+  day.last = d;
+  let from = hm(e.at);
+  const to = e.until ? hm(e.until) : '';
+  // "10:05 to 11:30 AM": the AM or PM once when both times have it.
+  if (to && !utc && from.slice(-2) === to.slice(-2)) from = from.slice(0, -3);
+  const span = (to ? `${from} to ${to}` : from) + (utc ? ' UTC' : '');
+  const t = lead + (e.about ? 'about ' : '') + span;
+  return t.charAt(0).toUpperCase() + t.slice(1);
+}
+
+/** An issue's card as plain text, in the order the dashboard shows it: what a naive reader reads. */
+export function cardText(card, timeZone = 'UTC') {
+  const c = issueCardOf(card);
+  if (!c) return '';
+  const day = { last: '' };
+  return [c.title, '', `About: ${c.about}`, 'What happened:',
+    ...c.events.map((e, i) => `  ${i + 1}. ${e.at ? eventTime(e, timeZone, day) + '. ' : ''}${e.happened}${e.bug ? ' (This is the bug.)' : ''}`),
+    c.known ? `Known: ${c.known}` : '', c.ask ? `Decide: ${c.ask}` : '',
+    ...c.options.map((o, i) => `  ${i + 1}. ${o.option}${i === 0 ? ' (recommended)' : ''}: ${o.then}`)].filter((l, i) => l || i === 1).join('\n');
+}
+
+/**
+ * The prompt for a naive reader (Caleb Koster, 2026-11-25: "assume I am dropping into the card fresh"): a new
+ * worker with no tools gets only the card's text and NAIVE_CONTEXT, and says what it understood. The issue manager
+ * compares the answer with what it knows, and mends each line the reader got wrong or was not sure of.
+ */
+export function naivePrompt(card) {
+  return [
+    'You are a newcomer. Use no tools. Read no files. Answer only from the text below.',
+    `You know one thing: "${NAIVE_CONTEXT}"`,
+    'An admin of the app sees this card on a web dashboard. It is the whole card.',
+    '', '----- CARD -----', cardText(card), '----- END -----', '',
+    'Answer in at most 250 words:',
+    '1. What is the problem, in your own words? Who has it, and how bad is it? Is any work lost?',
+    '2. What is the cause?',
+    '3. What must the admin decide? What happens after each option?',
+    '4. Each word or sentence that is not clear to you, and why.',
+    '5. What you need to know to decide, that the card does not say.',
+    '6. From 1 to 5: how sure are you that you can act on the card? (1 = no idea, 5 = fully clear)'
+  ].join('\n');
+}
 
 /** Words that are the names of things and look like code: allowed. */
 const NAMES = /^(iPhone|iPad|iOS|iPadOS|macOS|eSIM|YouTube|LangQuest|GitHub|TestFlight|WhatsApp|PowerPoint|JavaScript|OpenAI)$/;
@@ -151,7 +247,7 @@ export function cardTexts(value, fields = CARD_FIELDS, at = '') {
   if (!value || typeof value !== 'object') return [];
   return Object.entries(value).flatMap(([k, v]) => {
     const where = at ? `${at}.${k}` : k;
-    if (typeof v === 'string' && fields.includes(k)) return [{ where, text: v, max: k === 'title' ? 20 : LIMITS.line }];
+    if (typeof v === 'string' && fields.includes(k)) return [{ where, text: v, max: k === 'title' ? 20 : k === 'option' ? 12 : k === 'happened' ? 40 : LIMITS.line }];
     return cardTexts(v, fields, where);
   });
 }
@@ -161,11 +257,35 @@ export function fileProblems(value, fields = CARD_FIELDS) {
   return cardTexts(value, fields).flatMap(({ where, text, max }) => cardWordProblems(text, { max }).map((p) => `${where}: ${p}`));
 }
 
+/** Each issue's card in a JSON value (the values under a key `card` that issueCardOf takes), with its place. */
+export function cardsIn(value, at = '') {
+  if (Array.isArray(value)) return value.flatMap((v, i) => cardsIn(v, `${at}[${i}]`));
+  if (!value || typeof value !== 'object') return [];
+  return Object.entries(value).flatMap(([k, v]) => {
+    const where = at ? `${at}.${k}` : k;
+    const card = k === 'card' ? issueCardOf(v) : null;
+    return card ? [{ where, card }] : cardsIn(v, where);
+  });
+}
+
 if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1])) {
-  const [file, ...fields] = process.argv.slice(2);
+  const naive = process.argv[2] === '--naive';
+  const [file, ...fields] = process.argv.slice(naive ? 3 : 2);
   if (!file) {
-    console.error('usage: node scripts/card-words.mjs <file.json> [field ...]');
+    console.error('usage: node scripts/card-words.mjs <file.json> [field ...]\n       node scripts/card-words.mjs --naive <file.json>');
     process.exit(2);
+  }
+  if (naive) {
+    // The prompt for a naive reader of each card in the file (each value under a key `card`): give each one, as
+    // it is, to a new worker. With more than one card, a line "===== <where> =====" comes before each prompt.
+    let cards = [];
+    try { cards = cardsIn(JSON.parse(readFileSync(file, 'utf8'))); } catch { /* said below */ }
+    if (!cards.length) {
+      console.error(`${file} has no card: a card needs about and 2 to 6 events (docs/card-words.md)`);
+      process.exit(1);
+    }
+    for (const { where, card } of cards) console.log(`${cards.length > 1 ? `===== ${where} =====\n` : ''}${naivePrompt(card)}\n`);
+    process.exit(0);
   }
   let problems;
   try {

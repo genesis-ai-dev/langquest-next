@@ -74,6 +74,8 @@ describe('each Overview line opens its card', () => {
     expect(html).toContain("cardHref('userissues', i.issue)");
     expect(html).toContain('data-card="\' + esc(storeCardId(platform, c.title))');
     expect(html).not.toContain('function partLines(');
+    // A line with one Linear issue shows the issue's card in Claude's words, as the User issues page does (docs/card-words.md).
+    expect(html).toContain('issueCardOf(ud.cards[issue])');
     expect(html).not.toMatch(/ style="/);
   });
 });

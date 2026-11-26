@@ -4,6 +4,7 @@ import {
   ACTS, causeProven, changesOf, decisionLines, DEFAULT_PLAN, EFFORTS, gate, isJpeg, isTest, LABELS, logTail, MERGE_MARK, MODE_FILE, MODELS, MODES, modeOf, nextStep, OPEN_HOURS,
   ENDED, NEXT_HOURS, READS_LIMITS, READS_LOGS, runEnd, NEXT_LIMITS, nextOf, pathRefusal, PICTURES, PLAN_TRIES, planNext, planOf, PROBE_DIRS, REASONS, reviewNeeded, saysAskFirst, saysMerge, TRIES, triesOf, VERDICTS, verdictOf, waitingBody, withTry
 } from './agent-team.mjs';
+import { ISSUE_CARD } from './card-words.mjs';
 import * as model from '../server/userIssues';
 
 /** The agent team's rule, in code (docs/agent-team.md, docs/decisions/2026-11-19-an-agent-team-fixes-user-issues.md). */
@@ -46,12 +47,33 @@ describe('the manager', () => {
   it('gives a verdict the script checks: an odd one waits for a developer', () => {
     expect(VERDICTS).toEqual([...model.FIX_VERDICTS]);
     expect(verdictOf({ verdict: 'merge it now' }).verdict).toBe('review');
-    expect(verdictOf(null)).toEqual({ verdict: 'review', cause: '', proof: '', why: '', twins: '', display: false, askFirst: false, next: null });
+    expect(verdictOf(null)).toEqual({ verdict: 'review', cause: '', proof: '', why: '', twins: '', display: false, askFirst: false, next: null, card: null });
     expect(verdictOf({ display: 'yes' }).display).toBe(false);
     expect(verdictOf({ verdict: 'fix', cause: ' a\nb ', twins: 'x'.repeat(5000) })).toMatchObject({ cause: 'a b', twins: expect.stringMatching(/^x{999}…$/) });
     expect(causeProven(verdict())).toBe(true);
     expect(causeProven(verdict({ proof: '' }))).toBe(false);
     expect(causeProven(verdict({ cause: 'A race.' }))).toBe(false);
+  });
+
+  it("keeps the issue's card the manager wrote, checked and cut as the Worker takes it (docs/card-words.md)", () => {
+    expect(ISSUE_CARD).toEqual(model.ISSUE_CARD);
+    const card = { title: 'Uploads stop', about: 'The phone sends recordings.', events: [{ at: '2026-11-25T17:05:00Z', until: '', about: true, happened: 'The phone lost its network during a sync.', bug: false }, { at: '2026-11-25T17:05:00Z', until: '2026-11-25T18:30:00Z', about: false, happened: 'The sync waited for ever.', bug: true }], known: '', ask: 'Merge it?',
+      options: [{ option: 'Merge it', then: 'Phones get the fix.' }, { option: 'Do not merge', then: 'The problem stays.' }] };
+    expect(verdictOf({ card }).card).toEqual(card);
+    expect(verdictOf({ card: { ...card, about: ' a\n b ', ask: 'x'.repeat(400) } }).card).toMatchObject({ about: 'a b', ask: expect.stringMatching(/^x{299}…$/) });
+    // An event with no time has no span; a time that is not UTC is no time.
+    expect(verdictOf({ card: { ...card, events: [{ happened: 'A', until: '2026-11-25T18:30:00Z', about: true }, { at: '25 Nov', happened: 'B' }] } }).card?.events)
+      .toEqual([{ at: '', until: '', about: false, happened: 'A', bug: false }, { at: '', until: '', about: false, happened: 'B', bug: false }]);
+    expect(verdictOf({ card: { ...card, events: card.events.slice(0, 1) } }).card).toBeNull();
+    // A card with no question, or one option, has no choice: the dashboard shows Next in place of Decide.
+    expect(verdictOf({ card: { ...card, options: card.options.slice(0, 1) } }).card).toMatchObject({ ask: '', options: [] });
+    expect(verdictOf({ card: { ...card, ask: '' } }).card).toMatchObject({ ask: '', options: [] });
+    expect(model.parseIssueCard(verdictOf({ card: { ...card, ask: '' } }).card, 'card')).toMatchObject({ ask: '', options: [] });
+    expect(verdictOf({ card: 'Merge it' }).card).toBeNull();
+    // What the Worker takes is what the script sends.
+    const kept = verdictOf({ card: { ...card, options: [...card.options, ...card.options, ...card.options] } }).card;
+    expect(kept?.options).toHaveLength(4);
+    expect(model.parseIssueCard(kept, 'card')).toEqual(kept);
   });
 });
 
