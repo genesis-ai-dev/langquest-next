@@ -232,6 +232,13 @@ reports) and `20261016010000_diag_jobs.sql`, the server's own jobs:
   and organization and language names; never a person's name or email, a
   report's reporter or details, or a command's text
   (`server/opsDashboardSmoke.sql` holds them to it).
+- The line of merges on the ops dashboard's Releases page:
+  `diag.ops_release_line(p_days)` (migration
+  `20261126233000_ops_release_line.sql`), for the last 1 to 90 days: when
+  production iPhones and Android phones first ran each over-the-air update
+  and store build, with how many, and the failure counts by hour and by day.
+  Times and counts only, never an install or profile id
+  (`server/releaseLineSmoke.sql`).
 
 `server/diag-smoke.sql` covers ingest, the allowlist, refusals, the report
 functions, the role boundaries, retention and job runs (`npm run db:test`).

@@ -25,6 +25,7 @@ import { expirySection } from './sources/expiry';
 import { opsSections, orgDetail, type OpsSections } from './sources/ops';
 import { OPS_IDS } from './pageOps';
 import { releasesSection } from './sources/releases';
+import { timelineSection } from './sources/timeline';
 import { adoptionSection } from './sources/adoption';
 import { pipelineSection } from './sources/pipeline';
 import { capacitySection, storageSection } from './sources/storage';
@@ -301,6 +302,8 @@ export async function handle(request: Request, env: Env, keep?: Keep): Promise<R
     if (!numbers) return json({ error: `n is up to ${PRS_MAX} pull request numbers, comma-separated` }, 400);
     return json({ prs: await prInfos(env, numbers) });
   }
+  // The line of merges on the Releases page (sources/timeline.ts): read when that page opens, and not for Needs attention, which it has no line for.
+  if (section === 'timeline') return json(await memo('timeline', fresh, () => settle('timeline', () => timelineSection(env), 25_000), keep));
   const provider = PROVIDERS[section];
   if (provider) return json(await memo(section, fresh, () => settle(section, () => provider(env)), keep));
   return json({ error: 'Not found' }, 404);

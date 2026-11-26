@@ -65,6 +65,23 @@ describe('linear', () => {
     expect(bodies[1]!.variables).toEqual({ input: { teamId: 'team-1', title: 'Tutorial feedback: a', description: 'd' } });
   });
 
+  it('reads issues by their ids for the line of merges: title, when it was made, and whether its status closes it', async () => {
+    const bodies: { query: string; variables: Record<string, unknown> }[] = [];
+    const linear = linearIssues(async (_url, init) => {
+      bodies.push(JSON.parse(String(init?.body)));
+      return Response.json({ data: { issues: { nodes: [
+        { identifier: 'LAN-298', title: 'The v2 import failed', createdAt: '2026-11-17T22:34:00Z', state: { name: 'Live', type: 'completed' } },
+        { identifier: 'LAN-339', title: 'Sync stops', createdAt: '2026-11-25T18:40:36Z', state: { name: 'Outage', type: 'canceled' } }
+      ] } } });
+    }, 'lin_key');
+    expect(await linear.info(['LAN-298', 'LAN-339', 'LAN-298'])).toEqual([
+      { issue: 'LAN-298', title: 'The v2 import failed', createdAt: '2026-11-17T22:34:00Z', state: 'Live', closed: true },
+      { issue: 'LAN-339', title: 'Sync stops', createdAt: '2026-11-25T18:40:36Z', state: 'Outage', closed: false }
+    ]);
+    expect(bodies[0]!.variables).toEqual({ key: 'LAN', numbers: [298, 339] });
+    expect(await linear.info([])).toEqual([]);
+  });
+
   it('turns a refusal into a code', async () => {
     const linear = linearIssues(async () => Response.json({ errors: [{ extensions: { code: 'AUTHENTICATION_ERROR' } }] }, { status: 400 }), 'bad');
     await expect(linear.create('t', 'd')).rejects.toEqual(new LinearError('authentication_error'));

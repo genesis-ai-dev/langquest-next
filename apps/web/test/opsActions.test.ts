@@ -39,6 +39,7 @@ function deps(over: Partial<Deps> = {}): Deps & { rows: unknown[]; done: string[
     closeIssue: async (issue, as) => { done.push(`close ${issue} ${as}`); return as === 'completed' ? 'Live' : 'Canceled'; },
     issueStates: async (issues) => { done.push(`states ${issues.join(',')}`); return issues.map((issue) => ({ issue, state: 'Live', closed: true, closedAt: '2026-10-28T08:00:00Z', fixedBy: 700 })); },
     keepIssueStates: async (states) => { done.push(`keep ${states.map((x) => x.issue + ':' + x.state).join(',')}`); return states.length; },
+    issueInfo: async (issues) => { done.push(`info ${issues.join(',')}`); return issues.map((issue) => ({ issue, title: 'The v2 import failed', createdAt: '2026-11-17T22:34:00Z', state: 'Live', closed: true })); },
     claimIssue: async (issue, claim, by) => {
       done.push(`${claim ? 'claim' : 'release'} ${issue} by ${by}`);
       return issue === 'LAN-500' ? (claim ? 'taken' : 'not_yours') : claim ? 'claimed' : 'released';
@@ -632,5 +633,28 @@ describe('an issue closed from its card, and its state in Linear at once (docs/d
     expect(await act(same, 'aal2', { kind: 'issue-states', issues: ['LAN-327'] })).toEqual({ ok: true, result: 'changed:0' });
     expect(same.rows).toEqual([]);
     expect(await act(deps({ issueStates: async () => null }), 'aal2', { kind: 'issue-states', issues: ['LAN-327'] })).toEqual({ ok: true, result: 'not_set_up' });
+  });
+});
+
+describe('the issues the Releases page\'s line of merges names (docs/decisions/2026-11-26-release-timeline-on-the-releases-page.md)', () => {
+  it('takes 1 to 100 issue ids, each once', () => {
+    expect(parseAction({ kind: 'issue-info', issues: ['LAN-298', 'LAN-298', 'LAN-339'] })).toEqual({ kind: 'issue-info', issues: ['LAN-298', 'LAN-339'] });
+    for (const bad of [{ kind: 'issue-info', issues: [] }, { kind: 'issue-info', issues: ['LAN-1)'] }, { kind: 'issue-info' },
+      { kind: 'issue-info', issues: Array.from({ length: 101 }, (_, i) => 'LAN-' + (i + 1)) }]) {
+      expect(parseAction(bad), JSON.stringify(bad)).toBeNull();
+    }
+  });
+
+  it('answers each issue\'s title, report time and state, logs nothing but a refusal, and says when Linear is not set up', async () => {
+    const d = deps();
+    expect(await act(d, 'aal2', { kind: 'issue-info', issues: ['LAN-298'] })).toEqual({
+      ok: true, result: 'read:1', issues: [{ issue: 'LAN-298', title: 'The v2 import failed', createdAt: '2026-11-17T22:34:00Z', state: 'Live', closed: true }]
+    });
+    expect(d.done).toEqual(['info LAN-298']);
+    expect(d.rows).toEqual([]);
+    expect(await act(deps({ issueInfo: async () => null }), 'aal2', { kind: 'issue-info', issues: ['LAN-298'] })).toEqual({ ok: true, result: 'not_set_up', issues: [] });
+    const refused = deps();
+    expect(await act(refused, 'aal1', { kind: 'issue-info', issues: ['LAN-298'] })).toMatchObject({ ok: false, status: 403 });
+    expect(refused.rows).toEqual([{ profileId: VIEWER, action: 'issue_info', target: '1 issues', result: 'refused' }]);
   });
 });
