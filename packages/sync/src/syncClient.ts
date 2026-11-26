@@ -10,6 +10,7 @@ import type { CopyNeed, CopyReadiness, EventStore, LocalEvent, NearbyClaimableBo
 import { WriteQueue } from './writeQueue';
 import { ClientTooOldError, EventTooLargeError, NotAuthorizedError, OfflineError, UnrenewedError, NOT_LISTED_TEXT, rejectCodeOf, type RejectCode } from './types';
 import { downloadPieces, fetchSnapshot } from './snapshotFetch';
+import { REQUEST_LIMIT_MS, withRequestLimit } from './requestLimit';
 import type { DIAG_SCHEMA, Diagnostics } from './diagnostics';
 import { FILE, holdsKept, KeptLanguage, LINE, PART_KINDS, SnapshotRows, SPLIT_MAPS } from './keptLanguage';
 import { KeptLines, lineRow } from './keptLines';
@@ -161,6 +162,12 @@ export interface SyncClientOptions<S = LanguageState> {
    * sync, split into waiting on the network and working on the phone.
    */
   diag?: Diagnostics;
+  /**
+   * How long one call to the server may go without an answer before the sync
+   * stops waiting, as offline, and counts it on the `expected` tally
+   * (`withRequestLimit`). REQUEST_LIMIT_MS when left out; short in tests.
+   */
+  requestLimitMs?: number;
   /**
    * Nearby sharing, from `nearbyClient(platform)` in `@langquest-next/sync/nearby`: only the
    * Android app passes it, so the web app does not carry that code. Without it the client
@@ -342,6 +349,11 @@ export class SyncClient<S = LanguageState> {
   get streamId(): string { return this.opts.streamId; }
 
   constructor(private readonly opts: SyncClientOptions<S>) {
+    // Every call this client and its parts make waits at most so long, so no call holds the stream's turn for ever (LAN-339).
+    this.opts = {
+      ...opts,
+      transport: withRequestLimit(opts.transport, opts.requestLimitMs ?? REQUEST_LIMIT_MS, (call) => opts.diag?.expected('sync request', call, 'no_answer'))
+    };
     this.m = opts.materializer ?? (LANGUAGE_MATERIALIZER as unknown as Materializer<S>);
     this.state = this.m.empty();
     this.writer.onChange(() => this.publish());
@@ -361,7 +373,7 @@ export class SyncClient<S = LanguageState> {
       ? new KeptLines(opts.store, opts.orgId, opts.streamId, this.kept, (b) => this.commit(b), () => this.state as unknown as LanguageState, opts.build ?? '')
       : null;
     this.fill = this.kept && this.lines && (opts.keptFormat ?? KEPT_CHECKPOINT_FORMAT) >= 2
-      ? new KeptFill(opts.store, opts.transport, opts.orgId, opts.streamId, this.m.version, this.kept, this.lines, (b) => this.commitFill(b), () => this.state as unknown as LanguageState, opts.fillPageRows)
+      ? new KeptFill(opts.store, this.opts.transport, opts.orgId, opts.streamId, this.m.version, this.kept, this.lines, (b) => this.commitFill(b), () => this.state as unknown as LanguageState, opts.fillPageRows)
       : null;
     this.fillBudgetMs = opts.fillBudgetMs ?? 2_000;
     this.nearbyPart = opts.nearby?.(this.nearbyPort()) ?? null;

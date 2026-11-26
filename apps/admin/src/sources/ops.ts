@@ -334,7 +334,7 @@ export interface Integrations {
 /** The app Worker's request tally over a day (apps/web/worker/requestTally.ts), summed by diag.totals. */
 export const TOTALS_SQL = `select coalesce(diag.totals(array_agg(n)), '{}'::jsonb) as v from diag.job_runs where job = $1 and started_at > now() - interval '1 day'`;
 
-export const ROUTES = ['reports', 'blobs_get', 'blobs_put', 'blob_access', 'r2_put', 'record_blob', 'agent_api', 'agent_list', 'mcp', 'device', 'links', 'nearby', 'tutorials', 'bible', 'automation', 'webhook', 'ops', 'other'] as const;
+export const ROUTES = ['reports', 'blobs_get', 'blobs_put', 'blob_access', 'r2_put', 'record_blob', 'agent_api', 'agent_list', 'mcp', 'device', 'links', 'nearby', 'tutorials', 'webhook', 'bible', 'automation', 'ops', 'other'] as const;
 
 export interface RouteRow { route: string; requests: number; s4xx: number; s5xx: number; s429: number; lt100ms: number; lt1s: number; lt10s: number; over10s: number }
 
@@ -354,8 +354,11 @@ export function routeRows(totals: Record<string, number>): RouteRow[] {
  * `agent_list`, a page of a language's passages: a partner paging through every language of its
  * organization makes the organization's Durable Object open each language from its own storage,
  * 2 to 19 s a page in the nightly bulk read of 2026-11-17 (making it faster: LAN-292).
+ * `automation`, the doors only the team's GitHub workflows open: the watch's and the card questions'
+ * calls build this dashboard's lines, so they wait on its providers as `ops` does, and no person
+ * waits. On 2026-11-26 they were 12 of the 25 slow requests that made `other` warn (LAN-328).
  */
-export const SLOW_BY_DESIGN: ReadonlySet<string> = new Set(['agent_list']);
+export const SLOW_BY_DESIGN: ReadonlySet<string> = new Set(['agent_list', 'automation']);
 
 export function workerAlerts(rows: RouteRow[]): Alert[] {
   const out: Alert[] = [];

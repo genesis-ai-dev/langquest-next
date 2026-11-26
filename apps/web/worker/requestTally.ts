@@ -18,11 +18,12 @@ export type RouteClass =
   | 'reports' | 'agent_api' | 'agent_list' | 'mcp' | 'webhook' | 'device' | 'links' | 'nearby' | 'tutorials' | 'bible' | 'automation' | 'ops' | 'other';
 
 /**
- * The doors only the team's own GitHub workflows open, each with the job's
- * OpenID Connect token (githubOidc.ts): the watch for user issues, the card
- * questions, the tutorial review and the filming. No person waits on them.
+ * The doors only the team's GitHub workflows open, each with its OIDC token: the watch for user
+ * issues, card questions, the tutorial review and the tutorial intake. The watch's and the card
+ * questions' calls build the ops dashboard's lines (apps/admin/src/lines.ts), so they wait on the
+ * same providers as the dashboard, 10 s and more: no person waits for them (LAN-328).
  */
-const AUTOMATION_PATHS = ['/api/user-issues', '/api/card-questions', '/api/tutorial-review', '/api/tutorial-filmed'];
+const AUTOMATION = ['/api/user-issues', '/api/card-questions', '/api/tutorial-review', '/api/tutorial-filmed'];
 
 /** Which kind of request this is; null for what is not counted (the web app and its files). */
 export function routeClass(method: string, path: string): RouteClass | null {
@@ -45,10 +46,9 @@ export function routeClass(method: string, path: string): RouteClass | null {
   if (path.startsWith('/api/nearby/') || path === '/api/relay') return 'nearby';
   // The tutorial videos: people play them, and the intake job asks for each film whether it is stored.
   if (path.startsWith('/api/tutorials/')) return 'tutorials';
-  // Bible Brain through the Worker (bible.ts): a list the Worker has not kept yet waits on FCBH's own
-  // server, seconds for a language's Bibles (LAN-328), so it counts apart from the app's own pages.
+  // A Bible's list and pages, which a cache miss asks of the Bible's publisher (bible.ts).
   if (path.startsWith('/api/bible/')) return 'bible';
-  if (AUTOMATION_PATHS.some((p) => path === p || path.startsWith(`${p}/`))) return 'automation';
+  if (AUTOMATION.some((p) => path === p || path.startsWith(`${p}/`))) return 'automation';
   if (path.startsWith('/api/') || path === '/connect' || path.startsWith('/r/') || path.startsWith('/v/') || path.startsWith('/apk/') || path === '/videos') return 'other';
   return null;
 }

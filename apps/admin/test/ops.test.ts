@@ -135,11 +135,13 @@ describe('the app Worker and support', () => {
     // A partner paging through every language waits seconds a page by design (2026-11-17); a page that fails still warns.
     expect(workerAlerts(routeRows({ agent_list_2xx: 100, agent_list_lt1s: 40, agent_list_lt10s: 50, agent_list_over10s: 10 }))).toEqual([]);
     expect(workerAlerts(routeRows({ agent_list_2xx: 90, agent_list_5xx: 10 })).map((a) => a.level)).toEqual(['problem']);
+    // The team's workflows wait on the dashboard's lines, and no person waits for them (LAN-328); their failures still warn.
+    expect(workerAlerts(routeRows({ automation_2xx: 300, automation_lt100ms: 140, automation_lt1s: 140, automation_over10s: 20 }))).toEqual([]);
+    expect(workerAlerts(routeRows({ automation_2xx: 90, automation_5xx: 10 })).map((a) => a.level)).toEqual(['problem']);
+    // A slow Bible list warns on its own, apart from the workflows' time.
+    expect(workerAlerts(routeRows({ bible_2xx: 60, bible_lt1s: 45, bible_lt10s: 15 })).map((a) => a.subject)).toEqual(['bible']);
     // The API's quick calls still warn when slow.
     expect(workerAlerts(routeRows({ agent_api_2xx: 100, agent_api_lt1s: 90, agent_api_lt10s: 10 })).map((a) => a.level)).toEqual(['watch']);
-    // Bible Brain's lookups and the team's workflows are read as routes of their own (LAN-328): a slow one names itself.
-    expect(workerAlerts(routeRows({ bible_2xx: 100, bible_lt100ms: 80, bible_lt10s: 20, other_2xx: 100, other_lt100ms: 100 })).map((a) => a.subject)).toEqual(['bible']);
-    expect(routeRows({ automation_2xx: 3 }).map((r) => r.route)).toEqual(['automation']);
   });
 
   it('warns before a content report passes the 24 hours the Terms promise', () => {

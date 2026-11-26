@@ -204,9 +204,9 @@ reports) and `20261016010000_diag_jobs.sql`, the server's own jobs:
   isolate (`worker_requests`: `<route>_<2xx…5xx>`, `<route>_429` for a rate
   limit's refusal, and the time taken as `<route>_lt100ms`, `_lt1s`,
   `_lt10s` or `_over10s`; routes include `device` and `links`, the two
-  rate-limited ones, `ops`, the ops dashboard, `bible`, Bible Brain through
-  the Worker, and `automation`, the doors only the team's GitHub workflows
-  open; `other` is the rest), invitation email (`invite_email`, from
+  rate-limited ones, `ops`, the ops dashboard, `bible`, a Bible's lists and
+  pages, and `automation`, the doors only the team's GitHub workflows open,
+  whose time the dashboard does not warn about), invitation email (`invite_email`, from
   `send-invite`, with the email service's code), and Forgot password email
   (`password_reset_email`, from `password-reset`, likewise).
 - `diag.job_schedule` says how often each runs; `diag.jobs()` gives each
