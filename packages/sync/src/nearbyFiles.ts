@@ -8,6 +8,7 @@ import type { LibraryFileOrigins } from './libraryFileOrigins';
 import type { LanguageSessionOptions } from './languageSession';
 import { nearbyKeepOf } from './nearbyKeep';
 import type { NearbyMarks } from './nearbyMarks';
+import { filesFingerprint } from './nearbyPartners';
 import type { NearbyFileMoves, NearbyFetchJob } from './nearbySession';
 import type { SyncClient } from './syncClient';
 import { TransferWorker } from './transferWorker';
@@ -649,6 +650,8 @@ class LanguageNearbyFiles implements NearbyFilesPart {
         const plan = await port.plan.plan({ hashes: present });
         return present.filter((h) => plan.refs.has(h) && plan.verdict(h)?.stored !== true).sort();
       },
+      // What this phone holds now, for the room: a file gained since two teammates finished makes them meet again (2026-11-25).
+      fingerprint: () => filesFingerprint(this.here()),
       holds: () => this.choice()?.hold === true,
       shed: (holdings) => this.shed(holdings),
       take: (job) => this.take(job),

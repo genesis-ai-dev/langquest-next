@@ -23,7 +23,7 @@
 import { spawnSync } from 'node:child_process';
 import { writeFileSync } from 'node:fs';
 import { REDUCER_VERSION } from '../packages/core/src/index';
-import { buildLabel, jobSignals, signals, throughput, type InstallSummary, type JobStat, type Member, type LanguageHealth, type NearbyCopyField, type NearbyLibraryField, type RpcStat } from './diagSignals';
+import { buildLabel, jobSignals, OPEN_WAIT_HELD, OPEN_WAIT_RESTS, signals, throughput, type InstallSummary, type JobStat, type Member, type LanguageHealth, type NearbyCopyField, type NearbyLibraryField, type RpcStat } from './diagSignals';
 
 if (process.argv.includes('--hosted')) {
   const rest = process.argv.slice(1).filter((a) => a !== '--hosted');
@@ -213,6 +213,12 @@ function installLines(install: string, x: InstallSummary & { roles?: string; lan
     out.push(`- share nearby: ${n.rooms?.length ?? 0} rooms (last ${n.lastAt ?? '?'}), stopped ${(n.rooms ?? []).map((r) => (r.mode === 'open' ? `${r.stop} (open)` : r.stop)).join(', ') || '-'}; heard ${rt.heard ?? 0}, echoed ${rt.echoed ?? 0}, bare adverts ${rt.alone ?? 0}, taps ${rt.taps ?? 0}/${rt.maybe ?? 0}, pipes failed ${rt.pipeFails ?? 0}, strangers ${rt.strangers ?? 0}`);
     const o = n.openTotals;
     if (o?.count) out.push(`- while open: ${o.count} runs, ${o.openMin ?? 0} min (off ${o.pauseMin ?? 0}, scanning ${o.scanMin ?? 0}, syncing ${o.syncMin ?? 0}); met anyone in ${o.met ?? 0}; ${o.done ?? 0} sessions finished, ${o.viaDirect ?? 0} over Wi-Fi Direct; events ${o.events ?? 0} in, ${o.sent ?? 0} out; files ${o.files ?? 0} in, ${o.served ?? 0} out${library(o)}; longest wait to meet ${s(o.maxMeetMs)}`);
+    const w = n.openWaits;
+    if (w?.count) {
+      const held = (Object.keys(OPEN_WAIT_HELD) as (keyof typeof OPEN_WAIT_HELD)[]).filter((k) => w[k]).map((k) => `${k} ${s(w[k])}`);
+      const rests = (Object.keys(OPEN_WAIT_RESTS) as (keyof typeof OPEN_WAIT_RESTS)[]).filter((k) => w[k]).map((k) => `${k} ${w[k]}`);
+      out.push(`- while open, waited a minute or more with the app in front: ${w.count}, ${s(w.waitMs)} in all, longest ${s(w.maxWaitMs)}; held ${held.join(', ') || '-'}; rests ${rests.join(', ') || '-'}${w.why ? ` ${JSON.stringify(w.why)}` : ''}`);
+    }
     if (n.refusals) out.push(`- turned away: ${Object.entries(n.refusals).map(([k, c]) => `${k} ×${c}`).join(', ')}`);
     if (n.deliver?.count) out.push(`- delivered teammates' work: ${n.deliver.count} times, ${n.deliver.events ?? 0} of ${n.deliver.sent ?? 0} events new, ${n.deliver.refused ?? 0} refused${n.deliver.stopped ? `, stopped early ${JSON.stringify(n.deliver.stopped)}` : ''}`);
     if (n.sessionTotals) out.push(`- nearby sessions: ${n.sessionTotals.count ?? 0}, ended ${JSON.stringify(n.ends ?? {})}, links ${JSON.stringify(n.links ?? {})}, fallbacks ${n.sessionTotals.fallbacks ?? 0}; events ${n.sessionTotals.events ?? 0} in, ${n.sessionTotals.sent ?? 0} out; files ${n.sessionTotals.files ?? 0} in, ${n.sessionTotals.served ?? 0} out, ${n.sessionTotals.fileFails ?? 0} failed${library(n.sessionTotals)}${copies(n.sessionTotals)}`);

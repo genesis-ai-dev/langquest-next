@@ -60,6 +60,20 @@ describe('the days teammates were met on Share nearby', () => {
 });
 
 // The review of 2026-11-24, item 7: a pass lets in `maxUses` people, and this phone is its only user, so it counts them.
+// 2026-11-25: a pair's record also keeps the fingerprint of the files this phone held when the two finished, so a file gained
+// since makes them meet again. A record from before it has none, and still counts.
+describe('the record of a pair that finished', () => {
+  it('keeps the files fingerprint, reads a record without one, and drops one whose fingerprint is not text', async () => {
+    const meta = metaOf();
+    const keep = nearbyKeepOf(meta, { orgId: 'o1', streamId: 'L1' });
+    await keep.recordPeer({ tag: 't1', gen: 1, mine: 'aaaaaaaa', theirs: 'bbbbbbbb', files: '3:abc:def' });
+    expect(await keep.peers()).toEqual([{ tag: 't1', gen: 1, mine: 'aaaaaaaa', theirs: 'bbbbbbbb', files: '3:abc:def' }]);
+    const key = [...meta.rows.keys()].find((k) => k.includes('eers'))!;
+    meta.rows.set(key, JSON.stringify([{ tag: 't1', gen: 1, mine: 'a', theirs: 'b' }, { tag: 't2', gen: 1, mine: 'a', theirs: 'b', files: 7 }]));
+    expect(await keep.peers()).toEqual([{ tag: 't1', gen: 1, mine: 'a', theirs: 'b' }]);
+  });
+});
+
 describe('the people a phone let in under each pass', () => {
   it('counts each person once, stops at the pass\'s count, keeps a few passes, and reads a damaged row as nothing', async () => {
     const meta = metaOf();
