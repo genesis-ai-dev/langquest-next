@@ -3,7 +3,7 @@ import fc from 'fast-check';
 import { type AnyEvent } from '@langquest-next/core';
 import { NEARBY_BATCH_MAX_EVENTS, utf8Encode, type ChainLink } from '@langquest-next/core/nearby';
 import { NEARBY_MESSAGE_MAX } from '../src/nearbyLink';
-import { NEARBY_COPY_PART_MAX_CHARS, NEARBY_HOLDINGS_MESSAGE_FILES, encodeMessage, parseMessage, utf8Decode, type Message } from '../src/nearby';
+import { NEARBY_COPY_PART_MAX_CHARS, NEARBY_GRANT_KEPT_MAX, NEARBY_HOLDINGS_MESSAGE_FILES, encodeMessage, parseMessage, utf8Decode, type Message } from '../src/nearby';
 
 const KEY = 'iojj3XQJ8ZX9UtstPLpdcspnCb8dlBIb83SIAbQPb1w';
 const SIG = `${'A'.repeat(85)}A`;
@@ -50,6 +50,8 @@ const EVERY: Message[] = [
   { t: 'join-grant', chain: CHAIN, proof: SIG, discoveryKey: KEY, gen: 2, floor: 1, features: ['nearby', 'nearby_open'] },
   // 2026-11-24: the Worker's revocation list the inviter holds, as a `revoked` message carries it.
   { t: 'join-grant', chain: CHAIN, proof: SIG, discoveryKey: KEY, gen: 2, floor: 1, revoked: { text: '{"v":1}', kid: 'k1', sig: SIG } },
+  // 2026-11-25: the passages the inviter chose for the newcomer to work on, which their phone keeps offline.
+  { t: 'join-grant', chain: CHAIN, proof: SIG, discoveryKey: KEY, gen: 2, floor: 1, kept: ['GEN.1', 'GEN.2'] },
   { t: 'copy-ask', part: 'doc', stream: 'lang1', after: '10', hash: HASH },
   { t: 'copy-ask', part: 'state' },
   // 2026-11-24: which documents the sender holds, asked only of a phone whose Hello names copy-library.
@@ -118,6 +120,20 @@ describe('nearby messages', () => {
     }
   });
 
+  // docs/decisions/2026-11-25-text-goes-whole-and-recordings-go-by-want.md: the inviter picks the newcomer's first work set. An older
+  // inviter sends none and an older newcomer reads past it; a list too long, or of anything but ids, is malformed.
+  it('a join grant carries the passages a newcomer will work on, each once, bounded, or none', () => {
+    const grant = { t: 'join-grant', chain: CHAIN, proof: SIG, discoveryKey: KEY, gen: 2, floor: 1 };
+    const read = (kept: unknown) => parseMessage(utf8Encode(JSON.stringify({ ...grant, kept })));
+    expect(read(['GEN.1', 'GEN.2', 'GEN.1'])).toEqual({ kind: 'message', message: { ...grant, kept: ['GEN.1', 'GEN.2'] } });
+    expect(read([])).toEqual({ kind: 'message', message: grant });
+    expect(read(undefined)).toEqual({ kind: 'message', message: grant });
+    expect(read(Array.from({ length: NEARBY_GRANT_KEPT_MAX }, (_, i) => `u${i}`)).kind).toBe('message');
+    for (const bad of ['GEN.1', ['GEN.1', 7], [''], ['x'.repeat(257)], Array.from({ length: NEARBY_GRANT_KEPT_MAX + 1 }, (_, i) => `u${i}`)]) {
+      expect(read(bad).kind, JSON.stringify(bad).slice(0, 40)).toBe('malformed');
+    }
+  });
+
   it('what is not a message at all is malformed', () => {
     for (const bad of ['', 'nope', '[]', 'null', '5', '{}', '{"t":5}', '{"t":null}']) expect(parseJson(bad).kind).toBe('malformed');
     expect(parseMessage(new Uint8Array([0xff, 0xfe])).kind).toBe('malformed');
@@ -129,7 +145,7 @@ describe('nearby messages', () => {
       const wire = JSON.parse(Buffer.from(encodeMessage(m)).toString('utf8')) as Record<string, unknown>;
       for (const k of Object.keys(wire).filter((x) => x !== 't')) {
         const stayedOptional = (m.t === 'host' && k !== 'kind') || (m.t === 'holdings' && (k === 'sig' || k === 'chain')) || (m.t === 'copy-ask' && k !== 'part') || (m.t === 'copy-part' && (k === 'stream' || k === 'seq')) ||
-          (m.t === 'join-grant' && (k === 'features' || k === 'revoked')) || (m.t === 'arrange' && k === 'soon');
+          (m.t === 'join-grant' && (k === 'features' || k === 'revoked' || k === 'kept')) || (m.t === 'arrange' && k === 'soon');
         // A discovery key's number is for `handedKeyHolds` to judge (below).
         for (const bad of [{ bad: 1 }, [{ bad: 1 }, 2], ...(m.t === 'discovery-key' ? [] : [-1])]) {
           const out = parse({ ...wire, [k]: bad });

@@ -71,16 +71,19 @@ describe('the Worker request tally', () => {
     expect(routeClass('GET', '/ops-dashboard')).toBe('ops');
     expect(routeClass('GET', '/ops-dashboard/x')).toBe('ops');
     expect(routeClass('GET', '/ops/api/runs')).toBe('ops');
-    // Bible Brain's proxy and the team's own workflows each count apart, so `other` holds only quick calls and pages (LAN-328).
+    // Bible Brain's lookups wait on FCBH when the Worker has not kept the answer (LAN-328); they count on their own.
     expect(routeClass('GET', '/api/bible/bibles')).toBe('bible');
-    expect(routeClass('GET', '/api/bible/file/ENGKJVO1DA/GEN/1')).toBe('bible');
+    expect(routeClass('GET', '/api/bible/text/ENGESVO_ET/GEN/1')).toBe('bible');
+    // The team's own workflows, which no person waits on, count apart too.
     expect(routeClass('GET', '/api/user-issues')).toBe('automation');
     expect(routeClass('POST', '/api/card-questions')).toBe('automation');
     expect(routeClass('GET', '/api/tutorial-review/fixes')).toBe('automation');
-    expect(routeClass('PUT', '/api/tutorial-pictures/a.png')).toBe('automation');
+    expect(routeClass('PUT', '/api/tutorial-review/pictures/abc.png')).toBe('automation');
     expect(routeClass('POST', '/api/tutorial-filmed')).toBe('automation');
-    expect(routeClass('GET', '/api/tutorial-reviewer')).toBe('other');
-    expect(routeClass('GET', '/api/help-audio/en/index.json')).toBe('other');
+    // What anyone reads stays where it was.
+    expect(routeClass('GET', '/api/tutorial-pictures/abc.png')).toBe('other');
+    expect(routeClass('GET', '/api/user-issuesx')).toBe('other');
+    expect(routeClass('GET', '/api/source-audio')).toBe('other');
     expect(routeClass('GET', '/index.html')).toBeNull();
   });
 

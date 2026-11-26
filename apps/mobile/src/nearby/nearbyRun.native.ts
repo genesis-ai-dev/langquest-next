@@ -2,7 +2,7 @@ import type { OrgState } from '@langquest-next/core';
 import { summaryOf, summaryText, type ChainLink, type DiscoveryKey, type Holdings, type RevocationList } from '@langquest-next/core/nearby';
 import { ensureDeviceId, type SyncInspection } from '@langquest-next/sync';
 import {
-  nearbyFirstDayWithin, nearbyGreetDue, nearbyKeepOf, NEARBY_DIAG_SCHEMA, NearbyRoom, NearbySession, type FindTunables, type NearbyDiagInput, type NearbyCrypto, type NearbyGate, type NearbyGenerations, type NearbyRoomEvent,
+  nearbyFirstDayWithin, nearbyGreetDue, nearbyKeepOf, NEARBY_DIAG_SCHEMA, NEARBY_OPEN_FILE_BYTES, NearbyRoom, NearbySession, type FindTunables, type NearbyDiagInput, type NearbyCrypto, type NearbyGate, type NearbyGenerations, type NearbyRoomEvent,
   type NearbyRoomFacts, type NearbySessionReport, type NearbySigner, type NearbyCopySource, type NearbyLibrary, type StartingCopyTarget
 } from '@langquest-next/sync/nearby';
 import * as Crypto from 'expo-crypto';
@@ -188,7 +188,8 @@ export function nearbyRoomOf(a: NearbyRoomArgs): NearbyRoom {
   const notesMetForMs = mode === 'screen' ? a.notesMetForMs : undefined;
   return new NearbyRoom({
     radio, crypto: pieces.crypto, keys: () => ({ gen: key.gen, key: key.key, floor: key.floor }),
-    facts: factsOf(a, keep, () => nearbyNamesOf(language, orgId), notesMetForMs),
+    // A file gained since two teammates finished makes them meet again, as no summary says it (2026-11-25).
+    facts: { ...factsOf(a, keep, () => nearbyNamesOf(language, orgId), notesMetForMs), filesFingerprint: () => moves?.fingerprint?.() ?? null },
     ...roomLimitsFor(worn, mode),
     mode,
     // An iPhone's awdl and joinDirect go through as its module says them, joinDirect while the tunable allows it; neither while open.
@@ -212,7 +213,10 @@ export function nearbyRoomOf(a: NearbyRoomArgs): NearbyRoom {
         arrange: { radio, radios: args.radios }, time, onProgress: a.progress,
         ...(a.copy ? { copy: a.copy } : {}), ...(a.takeCopy ? { takeCopy: a.takeCopy } : {}), ...(a.library ? { library: a.library } : {}),
         ...(a.freshWithinMs !== undefined ? { freshWithinMs: a.freshWithinMs } : {}),
-        ...(notesMetForMs !== undefined ? { notesMetForMs } : {})
+        ...(notesMetForMs !== undefined ? { notesMetForMs } : {}),
+        // While LangQuest is open a session moves about 100 MB of files with one teammate, most wanted first; Share nearby has no
+        // limit (docs/decisions/2026-11-25-text-goes-whole-and-recordings-go-by-want.md).
+        ...(mode === 'open' ? { fileBytes: NEARBY_OPEN_FILE_BYTES } : {})
       });
     }
   });

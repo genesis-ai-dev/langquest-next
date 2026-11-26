@@ -1,6 +1,6 @@
 import { joinRows } from './carriedApkModel';
 import type { LetInWhyNot } from './letInModel';
-import type { NearbyPermission, PermissionReason, RadioOff } from './nearbyPermissionsModel';
+import type { NearbyPermission, PermissionReason, PermissionsState, RadioOff } from './nearbyPermissionsModel';
 import type { NearbySessionLine, NearbyStop, NearbyTeammate, NearbyView, NearbyWhyNot, TeammateState } from './nearbyRunModel';
 import type { CarrySeen } from './readyToCarryModel';
 
@@ -53,20 +53,48 @@ export const WHY_NOT_WORDS = {
 } as const satisfies Record<NearbyWhyNot, string>;
 
 /**
- * The Share nearby row's line on Sync (docs/nearby-sync-plan.md 5.8): why it cannot run while it
- * cannot, else its jobs: sharing work progress with teammates both ways, and bringing in a new
- * person only on the terms that show Let someone in on Share nearby (`joinRows`: joining on for
- * this organization and a pass to let people in), so nobody is told of a job the screen will not
- * offer them. Help mode says the same. Getting the install file is on Ready for offline's list,
- * not here (docs/decisions/2026-11-18-sync-and-offline-one-screen.md).
+ * What the Sync row knows of sharing while LangQuest is open (15.6), where it is on for this
+ * person here: the organization's `nearby_open` as last heard, the switch, no cover. Read without
+ * a prompt (`useWhileOpenRow`); `null` is not read yet.
  */
-export function nearbyRowWords(whyNot: NearbyWhyNot | null, letIn: LetInWhyNot | null): {
-  sub: (typeof WHY_NOT_WORDS)[NearbyWhyNot] | 'nearby.rowSub' | 'nearby.rowSubJoin';
+export interface WhileOpenFacts {
+  /** Its room runs now. */
+  running: boolean;
+  offline: boolean;
+  permissions: PermissionsState | null;
+  radiosOff: readonly RadioOff[] | null;
+}
+
+/**
+ * The Share nearby row's line on Sync (docs/nearby-sync-plan.md 5.8): why it cannot run while it
+ * cannot. Where the phone shares while LangQuest is open (15.6), that it does: sharing now while
+ * its room runs; else that it is on, or, where a permission is missing or (offline) a radio is
+ * off, that Share nearby says what to turn on (Carl, 2026-11-25: a person let in offline saw only
+ * the row's jobs and could not tell it was on). A permission is asked for online too, since it is
+ * granted once and before the person is where there is no internet; a radio only offline, where
+ * the mode runs. What is not read yet counts as on. Otherwise the row's jobs: sharing work with
+ * teammates both ways, and bringing in a new person only on the terms that show Let someone in on
+ * Share nearby (`joinRows`: joining on for this organization and a pass to let people in), so
+ * nobody is told of a job the screen will not offer them. Help mode names the jobs either way.
+ * Getting the install file is on Ready for offline's list, not here
+ * (docs/decisions/2026-11-18-sync-and-offline-one-screen.md).
+ */
+export function nearbyRowWords(whyNot: NearbyWhyNot | null, letIn: LetInWhyNot | null, open: WhileOpenFacts | null = null): {
+  sub: (typeof WHY_NOT_WORDS)[NearbyWhyNot] | 'nearby.rowSub' | 'nearby.rowSubJoin' | 'nearby.whileOpenNow' | 'nearby.whileOpenOn' | 'nearby.whileOpenNeeds';
   help: 'nearby.rowHelp' | 'nearby.rowHelpJoin';
 } {
   if (whyNot !== null) return { sub: WHY_NOT_WORDS[whyNot], help: 'nearby.rowHelp' };
-  if (joinRows(letIn, null).letIn === null) return { sub: 'nearby.rowSub', help: 'nearby.rowHelp' };
-  return { sub: 'nearby.rowSubJoin', help: 'nearby.rowHelpJoin' };
+  const join = joinRows(letIn, null).letIn !== null;
+  const help = join ? 'nearby.rowHelpJoin' : 'nearby.rowHelp';
+  if (open) return { sub: whileOpenLine(open), help };
+  return { sub: join ? 'nearby.rowSubJoin' : 'nearby.rowSub', help };
+}
+
+function whileOpenLine(open: WhileOpenFacts): 'nearby.whileOpenNow' | 'nearby.whileOpenOn' | 'nearby.whileOpenNeeds' {
+  if (open.running) return 'nearby.whileOpenNow';
+  const allowed = open.permissions === null || open.permissions === 'granted' || open.permissions === 'none';
+  const radiosOn = !open.offline || (open.radiosOff?.length ?? 0) === 0;
+  return allowed && radiosOn ? 'nearby.whileOpenOn' : 'nearby.whileOpenNeeds';
 }
 
 export const RADIO_WORDS = { bluetooth: 'nearby.radios.bluetooth', wifi: 'nearby.radios.wifi', location: 'nearby.radios.location' } as const satisfies Record<RadioOff, string>;

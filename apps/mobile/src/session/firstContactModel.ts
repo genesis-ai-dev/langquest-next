@@ -65,6 +65,23 @@ export function afterJoin(p: LocalPerson, answer: JoinAnswer, now: number): { pe
   return { person: rest, adopt: answer.session };
 }
 
+/** Refusals the sign-in classes know by name (`diag.sign_in_class`: no fault of the server or the app). */
+const KNOWN_REFUSALS = ['expired', 'used', 'not_found', 'retired'] as const;
+
+/**
+ * What field diagnostics say of a join route's answer that ends first contact without a session
+ * (an `auth` record, op `first_contact`, 2026-11-25): a refusal by the outcome the sign-in classes
+ * know where there is one, else `refused`, with the route's word as its code; an account whose
+ * key sign-in is over as `refused` `needs_code`. Null for a session, recorded once it is adopted,
+ * and for not yet, which is tried again.
+ */
+export function joinRefusalRecord(answer: JoinAnswer): { outcome: (typeof KNOWN_REFUSALS)[number] | 'refused'; code: string } | null {
+  if (answer.kind === 'later') return null;
+  if (answer.kind === 'in') return answer.session ? null : { outcome: 'refused', code: 'needs_code' };
+  const known = (KNOWN_REFUSALS as readonly string[]).includes(answer.status) ? (answer.status as (typeof KNOWN_REFUSALS)[number]) : 'refused';
+  return { outcome: known, code: answer.status };
+}
+
 export { tokenSubject } from './tokenModel';
 
 /** Why first contact cannot go on here, which no retry mends: the install key is gone or is not this person's, or someone else is signed in. */

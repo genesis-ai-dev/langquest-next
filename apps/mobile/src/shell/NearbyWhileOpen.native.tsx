@@ -1,3 +1,4 @@
+import { usePublishNearbyCanRun } from '../nearby/useNearbyCanRun';
 import { useNearbyWhileOpen, useNoMetUnderCover, useWhileOpenWanted } from '../nearby/useNearbyWhileOpen.native';
 import type { Ctx } from './ctx';
 
@@ -11,6 +12,8 @@ import type { Ctx } from './ctx';
  */
 export function NearbyWhileOpen(props: { ctx: Ctx }) {
   useNoMetUnderCover();
+  // Whether Share nearby can run here, for every download button: offline they offer keeping a passage, which a teammate fills (2026-11-25).
+  usePublishNearbyCanRun(props.ctx);
   return useWhileOpenWanted(props.ctx) ? <QuietRoom ctx={props.ctx} /> : null;
 }
 

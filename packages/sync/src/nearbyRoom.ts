@@ -24,6 +24,11 @@ export interface NearbyRoomKeys extends DiscoveryKey {
 export interface NearbyRoomFacts {
   /** This phone's summary now, after `signUnsigned`. */
   summary(): Promise<string>;
+  /**
+   * A fingerprint of every file this phone holds now (`NearbyFileMoves.fingerprint`, 2026-11-25): one that differs from a
+   * pair's record makes that teammate worth another session. Absent or null, no pair is picked for its files.
+   */
+  filesFingerprint?(): string | null;
   peers(): Promise<readonly NearbyPeerRecord[]>;
   /** Install keys this phone knows from its vector, holdings and chains, to put a name to a tag. */
   knownKeys(): Promise<readonly string[]>;
@@ -605,6 +610,7 @@ export class NearbyRoom {
   private async choose(): Promise<{ partner: string; connect: boolean } | null> {
     await this.learnKeys();
     const greetDue = await this.opt.facts.greetDue?.() ?? null;
+    const filesNow = this.opt.facts.filesFingerprint?.() ?? null;
     const inRange: PartnerInRange[] = [];
     for (const h of this.heard.values()) {
       const { tag, scan, summary } = h.seen;
@@ -638,12 +644,14 @@ export class NearbyRoom {
       const record = position >= 0 ? this.peers[position]! : null;
       const since = this.lastExchange.get(tag) ?? h.firstAt;
       const dueAnyway = !this.dueSpent.has(tag) && this.now - since >= this.tune.dueAfterMs;
+      // Files gained or lost here since the two finished, which no summary says (2026-11-25).
+      const filesChanged = record?.files !== undefined && filesNow !== null && record.files !== filesNow;
       const last = this.lastExchange.get(tag);
       const recent = last !== undefined && this.now - last < this.tune.partnerGapMs;
       inRange.push({
         tag, key, summary, position: position >= 0 ? position : null,
         finished: this.refused.get(tag) ?? (record ? { mine: record.mine, theirs: record.theirs } : null),
-        ...this.opt.facts.swap(key), echoed, older: scan > 0, listed: this.opt.facts.listed(key), dueAnyway, ...(docsAgain ? { docsAgain } : {}), ...(recent ? { recent } : {}),
+        ...this.opt.facts.swap(key), echoed, older: scan > 0, listed: this.opt.facts.listed(key), dueAnyway, ...(docsAgain ? { docsAgain } : {}), ...(filesChanged ? { filesChanged } : {}), ...(recent ? { recent } : {}),
         // Once a run, and never again to a phone the door refused.
         greet: greetDue !== null && !this.dueSpent.has(tag) && !this.refused.has(tag) && greetDue(key),
         // An Android cannot see an iPhone's tag, so the iPhone connects; of two iPhones, the lower salt.
@@ -802,9 +810,10 @@ export class NearbyRoom {
         this.lastExchange.set(tag, this.now);
         this.dueSpent.add(tag);
         this.refused.delete(tag);
-        // Its events named documents no ask covered, or they stopped at a bound: the pair goes again this run, a set number of times.
+        // Its events named documents no ask covered, or they stopped at a bound, or its files stopped at the session's limit while
+        // LangQuest is open (2026-11-25): the pair goes again this run, a set number of times.
         const tries = this.docsAgainTries.get(tag) ?? 0;
-        if (report.docsAgain && tries < this.tune.docsAgainMax) {
+        if ((report.docsAgain || report.files.capped) && tries < this.tune.docsAgainMax) {
           this.docsAgainTries.set(tag, tries + 1);
           this.docsWanted.add(tag);
         } else {
