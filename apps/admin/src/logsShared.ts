@@ -76,15 +76,17 @@ export const need = (token: string | undefined, name: string, what: string): str
 export const ISO = (ms: number) => new Date(ms).toISOString();
 
 /**
- * The gate's status for a provider that refused a read. A path or id the
- * provider does not have (404, 400, 422) is the reader's mistake: 400, as a
- * statement the database refuses is (read.ts). The Worker counts every 5xx
- * on the ops paths as a server failure (requestTally.ts), and the watch for
- * user issues filed agents' wrong paths as one (LAN-327). 429 stays 429. Our
- * key refused (401, 403) or the provider failing (5xx) is 502.
+ * The gate's status when a provider refuses a read. A 4xx that says the
+ * reader's own request was wrong (a path or an id that is not there, a
+ * parameter the provider does not take) is the reader's mistake: 400, like
+ * the gate's own refusals. A refused key (401, 403), a rate limit, a timeout
+ * or the provider's own failure is 502. Until 2026-11-26 every refusal was
+ * 502, and the app Worker counts each 5xx on the ops paths as the dashboard
+ * failing (requestTally.ts): an agent's mistyped GitHub path became a user
+ * issue about the dashboard.
  */
-export const providerStatus = (status: number): number =>
-  status === 429 ? 429 : status >= 400 && status < 500 && status !== 401 && status !== 403 ? 400 : 502;
+export const providerStatus = (status: number): 400 | 502 =>
+  status >= 400 && status < 500 && ![401, 403, 407, 408, 429].includes(status) ? 400 : 502;
 
 export async function getJson<T>(fetcher: typeof fetch, url: string, init: RequestInit, what: string): Promise<T> {
   const res = await fetcher(url, { ...init, signal: AbortSignal.timeout(20_000) });

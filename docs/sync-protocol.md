@@ -40,6 +40,21 @@ below is the contract they satisfy; a Workers front end can wrap them later.
   delivers between push and pull. Someone who only views may upload a file
   an accepted event names (`x-named-by` on the blob PUT).
 
+- Every call ends, since 2026-11-26
+  (`docs/decisions/2026-11-26-every-request-ends-and-a-network-change-stops-it.md`).
+  On a phone, a request that has no full answer, body included, after 2
+  minutes fails as offline and is stopped
+  (`apps/mobile/src/server/sessionSafeFetch.ts`, `answerWithin`); a file the
+  web sends whole gets 2 minutes and 1 second per 4 KB. When the network
+  goes or comes back, every request still out is stopped at once and sync
+  is woken (`apps/mobile/src/sync/wake.ts`), but a sign-in renewal, which
+  keeps only its limit. As a backup, a sync stops waiting for a call after
+  150 seconds (`packages/sync/src/requestLimit.ts`) and counts it on the
+  `expected` tally (`sync request`, the call, `no_answer`); the app counts
+  its own 2-minute stops there too (`request stopped`, `TypeError`,
+  `no_answer`). A failed call is offline: the next sync sends it again, and
+  every call is safe to repeat.
+
 Migration option: this protocol can be served by PowerSync syncing a single
 immutable `events` table bucketed by stream, with the upload queue as the
 outbox. Decide by cost, not architecture.

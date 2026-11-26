@@ -166,12 +166,12 @@ An answer holds the newest 2,000 lines at most. Each read is a line in the
 Worker's log, as a statement is. The rate limit is the read gate's, counted
 apart. Log lines are production data too: "Where answers go" below holds.
 
-When a provider refuses a read, the gate says why. A path or id the provider
-does not have (its 400, 404, 410 or 422) answers 400: the reader's mistake, as
-a statement the database refuses. Its 429 answers 429. A key it refuses (401,
-403) or the provider failing answers 502, and a key the Worker lacks 503. The
-Worker counts every 5xx on these paths as a server failure, and the watch for
-user issues files them (LAN-327).
+When a provider refuses a read because the read was wrong (a path or an id
+that is not there, a parameter it does not take: HTTP 400, 404, 422), the
+gate answers 400 with the provider's message. Only a refused key (401, 403),
+a rate limit, a timeout or the provider's own failure is 502. The app Worker
+counts each 5xx on the ops paths as the dashboard failing, so a mistyped
+read must not be one.
 
 Every key the Worker reads logs and APIs with is read-only. Workers Logs take a token
 of their own with the Workers role Metadata Read-Only, so the dashboard's

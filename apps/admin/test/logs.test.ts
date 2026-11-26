@@ -26,7 +26,7 @@ async function deps(answer: (url: string, init?: RequestInit) => unknown, over: 
       const url = String(input);
       calls.push({ url, init });
       const body = answer(url, init);
-      return body instanceof Response ? body : typeof body === 'string' ? new Response(body) : Response.json(body);
+      return typeof body === 'string' ? new Response(body) : Response.json(body);
     }) as typeof fetch,
     tokenSha256: await sha256(TOKEN),
     verify: async (token: string, rule: OidcRule) => (token === AGENT_JWT && rule === READ_RULES[0]
@@ -56,6 +56,22 @@ describe('who reads logs', () => {
       const res = await handleLogs(post({ source }, TOKEN), d);
       expect(res.status).toBe(400);
       expect(await res.json()).toMatchObject({ sources: expect.objectContaining({ 'worker-build-log': expect.any(String) }) });
+    }
+  });
+
+  it('answers a provider\'s "not found" as the reader\'s mistake (4xx), and a refused key or a provider failure as 502', async () => {
+    // The app Worker counts each 5xx on the ops paths as the dashboard failing (requestTally.ts).
+    const status = async (source: string, extra: Record<string, unknown>, provider: number) => {
+      const d = await deps(() => ({}));
+      d.fetcher = (async () => new Response('{"message":"x"}', { status: provider, headers: { 'content-type': 'application/json' } })) as typeof fetch;
+      return (await handleLogs(post({ source, ...extra }, TOKEN), d)).status;
+    };
+    for (const [source, extra] of [['github-api', { path: 'actions/runs/1/nope' }], ['github-job-log', { job: '123' }]] as const) {
+      expect(await status(source, extra, 404)).toBe(400);
+      expect(await status(source, extra, 422)).toBe(400);
+      expect(await status(source, extra, 403)).toBe(502);
+      expect(await status(source, extra, 429)).toBe(502);
+      expect(await status(source, extra, 500)).toBe(502);
     }
   });
 
@@ -161,24 +177,6 @@ describe('EAS and GitHub', () => {
     const answer = await (await handleLogs(post({ source: 'github-job-log', job: '123' }, TOKEN), d)).json();
     expect(answer.lines).toEqual(['step 1', 'step 2']);
     expect(d.calls[0]!.url).toBe('https://api.github.com/repos/o/r/actions/jobs/123/logs');
-  });
-
-  it('answers a path the provider does not have as the reader\'s mistake, not a server failure', async () => {
-    // The Worker counts every 5xx on the ops paths as a server failure (LAN-327).
-    const status = async (provider: number, body: Record<string, unknown>) => {
-      const d = await deps(() => new Response('{"message":"Not Found"}', { status: provider }));
-      const res = await handleLogs(post(body, AGENT_JWT), d);
-      return { status: res.status, error: (await res.json()).error as string };
-    };
-    const runJobs = { source: 'github-api', path: 'actions/runs/1/jobs' };
-    expect(await status(404, runJobs)).toMatchObject({ status: 400, error: expect.stringContaining('HTTP 404') });
-    expect((await status(422, runJobs)).status).toBe(400);
-    expect((await status(404, { source: 'eas-updates' })).status).toBe(400);
-    expect((await status(410, { source: 'github-job-log', job: '123' })).status).toBe(400);
-    expect((await status(429, runJobs)).status).toBe(429);
-    expect((await status(403, runJobs)).status).toBe(502);
-    expect((await status(500, runJobs)).status).toBe(502);
-    expect((await status(503, { source: 'github-job-log', job: '123' })).status).toBe(502);
   });
 });
 
