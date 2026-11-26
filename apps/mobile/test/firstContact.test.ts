@@ -1,7 +1,7 @@
 import { randomBytes, randomUUID } from 'node:crypto';
 import { base64urlEncode, firstContactText, nearbyBytes, newcomerProfileId } from '@langquest-next/core/nearby';
 import { MemoryStore } from '@langquest-next/sync';
-import { afterJoin, firstContactStatus, firstContactStep, joinAnswerOf, tokenSubject } from '../src/session/firstContactModel';
+import { afterJoin, firstContactStatus, firstContactStep, joinAnswerOf, joinRefusalRecord, tokenSubject } from '../src/session/firstContactModel';
 import { nobleSha256, nobleVerify } from '../src/nearby/nearbyCryptoModel';
 import { inviteChain, person } from './localPersonFixtures';
 import type { LocalPerson } from '../src/session/localPersonModel';
@@ -20,6 +20,7 @@ const fake = vi.hoisted(() => ({
   sessions: [] as { access_token: string; refresh_token: string }[],
   sessionError: null as null | { message: string },
   noted: [] as string[],
+  recorded: [] as { op: string; outcome?: string; code?: string; action?: string; n?: Record<string, number> }[],
   joins: [] as Record<string, unknown>[],
   certs: 0,
   join: null as null | ((body: Record<string, unknown>) => Response),
@@ -57,6 +58,10 @@ vi.mock('../src/server/localPerson', () => import('../src/server/localPerson.and
 vi.mock('../src/server/nearbyKey', () => import('../src/server/nearbyKey.native'));
 vi.mock('../src/nearby/holdChoice', () => import('../src/nearby/holdChoice.native'));
 vi.mock('../src/diagnostics/report', () => ({ noteExpected: (where: string, e: unknown) => { fake.noted.push(`${where}: ${e instanceof Error ? e.message : String(e)}`); } }));
+vi.mock('../src/diagnostics/authDiag', () => ({
+  recordAuth: (op: string, outcome: string | undefined, extra: { code?: string; action?: string; n?: Record<string, number> } = {}) => { fake.recorded.push({ op, ...(outcome ? { outcome } : {}), ...extra }); },
+  since: (started: number) => Date.now() - started
+}));
 
 /** A Supabase access token for `sub`, as far as the phone reads one. */
 const jwt = (sub: string) => `h.${base64urlEncode(new TextEncoder().encode(JSON.stringify({ sub, role: 'authenticated' })))}.s`;
@@ -90,6 +95,7 @@ beforeEach(() => {
   fake.sessions.length = 0;
   fake.sessionError = null;
   fake.noted.length = 0;
+  fake.recorded.length = 0;
   fake.joins.length = 0;
   fake.certs = 0;
   fake.join = null;
@@ -119,6 +125,19 @@ describe('the join route\'s answers', () => {
     for (const [status, body] of [[200, null], [200, { orgId: 'o1' }], [200, { orgId: 'o1', signInName: 'x', session: { access_token: 'a' } }], [400, {}], [500, {}]] as const) {
       expect(joinAnswerOf(status, body)).toBeNull();
     }
+  });
+
+  // 2026-11-25: a newcomer's phone came online and nothing said when first contact went through, or why not.
+  it('says a refusal in field diagnostics by the outcomes the sign-in classes know, with the route\'s word, and nothing for a session or not yet', () => {
+    for (const status of ['expired', 'used', 'not_found', 'retired'] as const) {
+      expect(joinRefusalRecord({ kind: 'refused', status, error: '' })).toEqual({ outcome: status, code: status });
+    }
+    for (const status of ['off', 'taken', 'deleted', 'chain', 'proof', 'refused']) {
+      expect(joinRefusalRecord({ kind: 'refused', status, error: 'x' })).toEqual({ outcome: 'refused', code: status });
+    }
+    expect(joinRefusalRecord({ kind: 'in', orgId: 'o', signInName: 'n' })).toEqual({ outcome: 'refused', code: 'needs_code' });
+    expect(joinRefusalRecord({ kind: 'in', orgId: 'o', signInName: 'n', session: { access_token: 'a', refresh_token: 'r' } })).toBeNull();
+    expect(joinRefusalRecord({ kind: 'later', status: 429 })).toBeNull();
   });
 
   it('a session is adopted only for this very id', () => {
@@ -200,6 +219,12 @@ describe('first contact on an Android phone', () => {
     expect(await p.contact.firstContactTurn(p.profileId)).toEqual({ offline: false });
     expect(fake.joins).toHaveLength(3);
     expect(fake.certs).toBe(2);
+
+    // Field diagnostics say when each step went through and on which turn, and nothing of the tries that did not (2026-11-25).
+    expect(fake.recorded).toEqual([
+      { op: 'first_contact', outcome: 'ok', action: 'session', n: { ms: expect.any(Number), attempt: 3 } },
+      { op: 'first_contact', outcome: 'ok', action: 'certificate', n: { ms: expect.any(Number), attempt: 4 } }
+    ]);
   });
 
   it('opens the streams\' gate once, when the session is saved, so they sync then rather than after their offline backoff', async () => {
@@ -232,6 +257,7 @@ describe('first contact on an Android phone', () => {
     expect(kept.chain).toEqual(p.record.chain);
     expect(p.local.localPersonHolds()).toBe(true);
     expect(firstContactStatus(kept, null, false, null)).toEqual({ kind: 'refused', status: 'expired' });
+    expect(fake.recorded).toEqual([{ op: 'first_contact', outcome: 'expired', code: 'expired', n: { ms: expect.any(Number), attempt: 1 } }]);
     expect(await p.contact.firstContactTurn(null)).toEqual({ offline: false });
     expect(fake.joins).toHaveLength(1);
     expect(fake.sessions).toEqual([]);
@@ -252,6 +278,7 @@ describe('first contact on an Android phone', () => {
     expect(await p.contact.firstContactTurn(null)).toEqual({ offline: false });
     expect(await p.local.readLocalPerson()).toMatchObject({ stage: 'ready', needsCode: { signInName: 'nyibol-482' } });
     expect(fake.sessions).toEqual([]);
+    expect(fake.recorded).toEqual([{ op: 'first_contact', outcome: 'refused', code: 'needs_code', n: { ms: expect.any(Number), attempt: 1 } }]);
   });
 
   it('never adopts a session for another id, and a session that would not set is tried again', async () => {

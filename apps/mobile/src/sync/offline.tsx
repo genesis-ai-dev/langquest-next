@@ -11,24 +11,25 @@
 // in the field that none of it came along.
 import { languageName, offlineByUnit, unitTitle, type UnitOffline } from '@langquest-next/core';
 import { deriveKinds, passageSummary } from '../i18n/coreText';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '../ui/text';
 import type { Ctx } from '../shell/ctx';
-import { Card, GhostBtn, Header, HelpInfo, Ico, PrimaryBtn, ProgressBar, Screen, Sheet, SmallBtn, type IconName } from '../ui/kit';
+import { Card, GhostBtn, Header, HelpInfo, Ico, MovingBar, PrimaryBtn, ProgressBar, Screen, Sheet, SmallBtn, type IconName } from '../ui/kit';
 import { HelpBadge } from '../helpMode/helpBadge';
 import { isOffline } from './uploadsModel';
 import { useHelpSpot } from '../helpMode/useHelpMode';
 import { txt } from '../ui/textStyles';
 import { t } from '../i18n';
-import { C, onColor, radius, space, TINT } from '../ui/theme';
+import { C, onColor, radius, space, TINT, type as T } from '../ui/theme';
 import { keptOfflineMap, sentences, type KeptOffline } from './offlineText';
-import { fillBanner, groupSpoken, offlineLook, type FillSeen, type GroupLook, type OfflineLook } from './offlineModel';
+import { fillBanner, groupSpoken, offlineLook, type FillSeen, type GroupLook, type KeepAsk, type OfflineLook } from './offlineModel';
 import { useReferenceRevision } from './useOfflineSummary';
 import { WaveArrow } from './transit';
 import { a11yState } from '../ui/a11yModel';
 import { useLayout } from '../ui/useLayout';
 import { useComing, useGroupOffline, type GroupOffer } from './useGroupOffline';
+import { useNearbyCanRun } from '../nearby/useNearbyCanRun';
 
 /**
  * Where one passage stands, from what this device has counted and nothing
@@ -58,10 +59,12 @@ function reasonText(reason: NonNullable<UnitOffline['reason']>): string {
 }
 
 /** What tapping the download button does: keep a passage, stop keeping one chosen, or say why it is kept. */
-function useKeepToggle(ctx: Ctx, unitId: string, u: KeptOffline | 'checking', offline: boolean): { onPress: (() => void) | undefined; help: string } {
+function useKeepToggle(ctx: Ctx, unitId: string, u: KeptOffline | 'checking', offline: boolean, nearby: boolean): { onPress: (() => void) | undefined; help: string } {
   if (u === 'checking') return { help: t('offline.checkingHelp'), onPress: undefined };
   if (!u.reason) {
-    // Offline nothing can come down: no download is offered (decisions.md 166).
+    // Offline nothing can come down from the server (decisions.md 166). Where Share nearby can run, keeping it is a want a
+    // teammate's phone fills, so it is offered (docs/decisions/2026-11-25-text-goes-whole-and-recordings-go-by-want.md).
+    if (offline && nearby) return { help: t('offline.keepFromTeammateHelp'), onPress: () => { void ctx.language.blobs.keepOffline(unitId, true); } };
     if (offline) return { help: t('offline.needsConnectionHelp'), onPress: undefined };
     // No toast: the button itself says what happens, as it happens.
     return { help: t('offline.keepHelp'), onPress: () => { void ctx.language.blobs.keepOffline(unitId, true); } };
@@ -105,8 +108,9 @@ export function DownloadButton(props: { ctx: Ctx; unitId: string; testID?: strin
   const { ctx, unitId } = props;
   const u = useOffline(ctx, unitId);
   const offline = isOffline(ctx.language.online);
-  const look = offlineLook(u, { offline, downloading: useComing()(unitId) });
-  const keep = useKeepToggle(ctx, unitId, u, offline);
+  const nearby = useNearbyCanRun();
+  const look = offlineLook(u, { offline, downloading: useComing()(unitId), nearby });
+  const keep = useKeepToggle(ctx, unitId, u, offline, nearby);
   const spot = useHelpSpot(look.label, keep.help, keep.onPress);
   return (
     <Pressable {...(props.testID ? { testID: props.testID } : {})} onPress={spot.onPress} disabled={!keep.onPress && !spot.id} accessibilityRole="button" accessibilityLabel={look.label}
@@ -131,8 +135,9 @@ export function PassageOfflineBar(props: { ctx: Ctx; unitId: string }) {
   const { ctx, unitId } = props;
   const u = useOffline(ctx, unitId);
   const offline = isOffline(ctx.language.online);
-  const look = offlineLook(u, { offline, downloading: useComing()(unitId) });
-  const keep = useKeepToggle(ctx, unitId, u, offline);
+  const nearby = useNearbyCanRun();
+  const look = offlineLook(u, { offline, downloading: useComing()(unitId), nearby });
+  const keep = useKeepToggle(ctx, unitId, u, offline, nearby);
   const spot = useHelpSpot(look.label, keep.help, keep.onPress);
   const tone = toneOf(look.kind);
   return (
@@ -185,6 +190,59 @@ function RemoveSheet(props: { name: string; stay: number; visible: boolean; onCl
 }
 
 /**
+ * Before a book's passages download: how much data its recordings are, said
+ * large, what else comes, and the room there is, with Download and Cancel
+ * (Carl, 2026-11-25). The size is asked again at the tap, as before, so it
+ * is the size now.
+ */
+function KeepSheet(props: { ask: KeepAsk | null; visible: boolean; onClose: () => void; onKeep: () => void }) {
+  const ask = props.ask;
+  return (
+    <Sheet visible={props.visible} title={ask?.title ?? ''} onClose={props.onClose}
+      footer={ask ? (
+        <View style={{ gap: space.sm }}>
+          <PrimaryBtn label={ask.confirm} icon="download" onPress={() => { props.onClose(); props.onKeep(); }} help={ask.help} />
+          <GhostBtn label={t('common.cancel')} onPress={props.onClose} full help={t('offline.group.keepCancelHelp')} />
+        </View>
+      ) : undefined}>
+      {ask ? (
+        <>
+          <View testID="keep-size" accessible accessibilityLabel={ask.size ? t('shell.a11y.labelDetail', { label: ask.size, detail: ask.what }) : ask.what}>
+            {ask.size ? <Text style={styles.keepSize}>{ask.size}</Text> : null}
+            <Text style={[txt.body, { fontWeight: '700' }]}>{ask.what}</Text>
+          </View>
+          {ask.lines.map((line) => <Text key={line} style={txt.body}>{line}</Text>)}
+        </>
+      ) : null}
+    </Sheet>
+  );
+}
+
+/**
+ * Where the Download button was, once a book's download is asked for: how
+ * many of the files its passages need are on this device, in words and as a
+ * bar (Carl, 2026-11-25). The header still says how many passages. Amber
+ * while nothing is coming down, as the header is.
+ */
+function GroupProgress(props: { progress: { here: number; total: number } | 'checking'; tone: GroupLook['tone']; testID: string }) {
+  const { progress } = props;
+  // From the tap until the passages just kept are counted: a bar that moves, so the tap is seen to have done something.
+  const counting = progress === 'checking';
+  const words = counting ? t('offline.summary.checking') : t('offline.group.progressFiles', { here: progress.here, count: progress.total });
+  const color = props.tone === 'waiting' && !counting ? TINT.amberText : C.primary;
+  return (
+    // Help mode's label stays put as the count moves, so its numbering does not churn with every file.
+    <HelpInfo label={t('offline.downloading')} detail={t('offline.group.progressHelp')} style={styles.progress}>
+      <View testID={props.testID} accessible accessibilityRole="progressbar" accessibilityLabel={words}
+        {...(counting ? {} : { accessibilityValue: { min: 0, max: progress.total, now: progress.here } })} style={{ gap: space.xs }}>
+        <Text style={[txt.xs, { fontWeight: '700', color }]}>{words}</Text>
+        {counting ? <MovingBar color={color} /> : <ProgressBar value={(progress.here / progress.total) * 100} color={color} />}
+      </View>
+    </HelpInfo>
+  );
+}
+
+/**
  * A book's header line under how many of its passages are recorded: where
  * they stand on this device, and what they still lack there (a recording not
  * sent yet, reference audio that cannot come). The book's counts are in one
@@ -213,7 +271,10 @@ export function GroupStatusLine(props: { group: GroupOffer; lead: string; testID
  * Over a book's passages, its download buttons and no words (Carl,
  * 2026-11-23: the line over them said little the header and the buttons did
  * not): "Download", with the size of the recordings to come once it is
- * known, downloads the passages not kept yet for offline (LAN-316); "Stop
+ * known, asks first in a sheet that says how much data will come, and its
+ * Download there downloads the passages not kept yet for offline (LAN-316;
+ * Carl, 2026-11-25). Once asked for, how many of their files are here takes
+ * the Download button's place, in words and as a bar, until all are; "Stop
  * keeping", once some passage the person chose is kept, lets them go after
  * asking (it deletes nothing at the tap: their files go when the device
  * needs room). Where the passages stand, and what they lack, is in the
@@ -224,12 +285,22 @@ export function GroupStatusLine(props: { group: GroupOffer; lead: string; testID
  * (LAN-253 for the banner). Nothing for a book with no passages.
  */
 export function GroupOfflineBar(props: { group: GroupOffer; name: string; testID?: string }) {
-  const { look, onPress, remove } = props.group;
-  const [asking, setAsking] = useState(false);
+  const { look, onPress, remove, progress } = props.group;
+  const [removing, setRemoving] = useState(false);
+  // What the sheet says stays while it slides away, so it does not empty first.
+  const [keeping, setKeeping] = useState<{ ask: KeepAsk; open: boolean } | null>(null);
+  // One sheet for one tap: the size is asked again first, which takes a moment.
+  const pending = useRef(false);
   const [tallest, setTallest] = useState(0);
   if (props.group.count === 0) return null;
   const testID = props.testID ?? 'group-offline';
-  const download = (look.tap === 'keep' || look.blocked !== null) && onPress;
+  // A download that can run asks first; one that cannot says why at the tap, as before.
+  const ask = () => {
+    if (pending.current) return;
+    pending.current = true;
+    void props.group.ask(props.name).then((a) => { if (a) setKeeping({ ask: a, open: true }); }).finally(() => { pending.current = false; });
+  };
+  const download = (look.tap === 'keep' || look.blocked !== null) && onPress ? (look.tap === 'keep' ? ask : onPress) : null;
   // "Download", never "Download the rest": the header says how much is here, and beside "Stop keeping" the longer words
   // did not fit a phone's row, so it wrapped and the passages moved (Carl, 2026-11-23).
   const label = look.size ? t('offline.group.downloadButtonSize', { size: look.size }) : t('offline.group.downloadButton');
@@ -237,11 +308,12 @@ export function GroupOfflineBar(props: { group: GroupOffer; name: string; testID
     <View testID={testID} onLayout={(e) => { const h = e.nativeEvent.layout.height; if (h > tallest) setTallest(h); }}
       style={[styles.groupActions, { minHeight: tallest }]}>
       {download ? (
-        <SmallBtn testID={`${testID}-download`} icon="download" onPress={onPress} dimmed={look.blocked !== null}
+        <SmallBtn testID={`${testID}-download`} icon="download" onPress={download} dimmed={look.blocked !== null}
           help={look.blocked ?? look.help} label={label} />
-      ) : null}
-      {remove ? <SmallBtn testID={`${testID}-remove`} label={t('offline.group.removeConfirm')} icon="close" help={t('offline.group.letGoHelp')} onPress={() => setAsking(true)} /> : null}
-      {remove ? <RemoveSheet name={props.name} stay={remove.stay} visible={asking} onClose={() => setAsking(false)} onRemove={remove.run} /> : null}
+      ) : progress ? <GroupProgress progress={progress} tone={look.tone} testID={`${testID}-progress`} /> : null}
+      {remove ? <SmallBtn testID={`${testID}-remove`} label={t('offline.group.removeConfirm')} icon="close" help={t('offline.group.letGoHelp')} onPress={() => setRemoving(true)} /> : null}
+      {remove ? <RemoveSheet name={props.name} stay={remove.stay} visible={removing} onClose={() => setRemoving(false)} onRemove={remove.run} /> : null}
+      <KeepSheet ask={keeping?.ask ?? null} visible={!!keeping?.open} onClose={() => setKeeping((k) => k && { ...k, open: false })} onKeep={props.group.keep} />
     </View>
   );
 }
@@ -384,5 +456,9 @@ const styles = StyleSheet.create({
     borderRadius: radius.lg, borderWidth: StyleSheet.hairlineWidth },
   /** Under the words: Download and Remove side by side, the line's full width so both fit on a phone. */
   groupActions: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
+  /** In the Download button's place, as tall as it, beside Stop keeping. */
+  progress: { flexGrow: 1, flexBasis: 160, minHeight: 48, justifyContent: 'center' },
+  /** How much data a download brings, said large in the sheet that asks first. */
+  keepSize: { fontSize: T.display, lineHeight: 38, fontWeight: '800', color: C.dark },
   keyLine: { flexDirection: 'row', alignItems: 'center', gap: space.md }
 });

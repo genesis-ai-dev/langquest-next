@@ -71,16 +71,3 @@ each video's newest version in its playlist in the plan's order, no older
 version in one, and every older version unlisted. A channel in order costs a
 few units of the day's 10,000; each thing put right costs 50, and the job
 run counts them (`tidied`).
-
-Amended (2026-11-25, Caleb Koster): inside English, French and the other
-languages, the video that has waited longest since it last went up goes up
-first; the plan's order comes after that. The job went by the plan's order
-alone, so a channel's day of uploads went to new versions of the videos
-early in the plan, which are filmed again most days. On 2026-11-25 the
-Spanish channel (10 a day) had put up its videos at places 0 to 33 again
-one to four times in six days, and its 15 at places 35 to 46 had waited
-since 16 to 20 November without a try; each job run ended `partial`. Now a
-video never up comes first, then the one whose version up is oldest, by its
-day, then the plan's order (migration
-`20261125180000_tutorial_due_longest_waiting.sql`). A first set still goes
-up in the plan's order, since none of it is up.

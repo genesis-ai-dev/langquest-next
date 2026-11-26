@@ -915,11 +915,14 @@ export function Badge(props: { label: string; tone?: 'default' | 'green' | 'ambe
   );
 }
 
-export function ProgressBar(props: { value: number; color?: string; height?: number }) {
+/** A bar filled to `value` percent. With `label`, a screen reader hears it as a progress bar with its value. */
+export function ProgressBar(props: { value: number; color?: string; height?: number; label?: string }) {
   const h = props.height ?? 6;
+  const v = Math.max(0, Math.min(100, props.value));
+  const a11y = props.label ? { accessible: true, accessibilityRole: 'progressbar' as const, accessibilityLabel: props.label, accessibilityValue: { min: 0, max: 100, now: Math.round(v) } } : {};
   return (
-    <View style={{ height: h, borderRadius: h, backgroundColor: C.border, overflow: 'hidden' }}>
-      <View style={{ height: h, borderRadius: h, width: `${Math.max(0, Math.min(100, props.value))}%`, backgroundColor: props.color ?? C.primary }} />
+    <View {...a11y} style={{ height: h, borderRadius: h, backgroundColor: C.border, overflow: 'hidden' }}>
+      <View style={{ height: h, borderRadius: h, width: `${v}%`, backgroundColor: props.color ?? C.primary }} />
     </View>
   );
 }

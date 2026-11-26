@@ -22,12 +22,25 @@ const report = {
   role: 'i', ended: { how: 'heard', reason: 'busy' }, peer: { installKey: 'KEY', profileId: 'sam', deviceId: 'd-sam', tag: 'abcdef' }, names: [{ profileId: 'nc-1', name: 'Nyibol' }], refusedTag: null,
   newerAppNeeded: false, clockOff: true, linkKind: 'hotspot', fallbacks: 2, code: 'LINK_DROPPED', signed: null,
   got: { pages: 3, events: 40, refused: 1, droppedPages: 0, overBudget: 0, counted: 40 }, sent: { batches: 1, claims: 0, events: 12, skipped: 0 },
-  files: { got: 2, served: 1, answeredNo: 0, toldNo: 0, failed: 1, noRoom: true, cutBackups: false }, holdings: { taken: 1, dropped: 0, sent: 1 },
+  files: { got: 2, served: 1, answeredNo: 0, toldNo: 0, failed: 1, noRoom: true, cutBackups: false, capped: false }, holdings: { taken: 1, dropped: 0, sent: 1 },
   older: false, farAhead: [{ actorId: 'sam', hlc: '1' }], handedKey: null, handedKeyRefused: 0, revokedTaken: null, revokedDropped: 0, finals: null, changed: true,
   join: null, versionsDiffer: false, copy: null, copyRefused: null, copyServed: { parts: 0, no: 0, stateRefused: null }, topUp: null, libraryFiles: null, docsAgain: false
 } satisfies NearbySessionReport;
 
 describe('nearby diagnostics: the fields', () => {
+  // docs/decisions/2026-11-25-text-goes-whole-and-recordings-go-by-want.md: how often the limit while LangQuest is open leaves
+  // files for the next meeting.
+  it('says a session stopped asking for files at its limit, and a quiet room sums those sessions', () => {
+    const capped = { ...report, files: { ...report.files, capped: true } };
+    expect(clean(sessionDiagOf(capped, 1_000, 'open'))?.n).toMatchObject({ filesCapped: 1 });
+    expect(clean(sessionDiagOf(report, 1_000, 'open'))?.n).not.toHaveProperty('filesCapped');
+    const sum = emptySyncedTally();
+    addSynced(sum, capped, 10);
+    addSynced(sum, capped, 10);
+    addSynced(sum, report, 10);
+    expect(sum.filesCapped).toBe(2);
+  });
+
   it('a code is one of the module\'s codes, from a drop\'s message or an error\'s code, and nothing else', () => {
     expect(nearbyCodeOf(new OfflineError('LINK_DROPPED'))).toBe('LINK_DROPPED');
     expect(nearbyCodeOf(Object.assign(new Error('x'), { code: 'GROUP_BUSY' }))).toBe('GROUP_BUSY');

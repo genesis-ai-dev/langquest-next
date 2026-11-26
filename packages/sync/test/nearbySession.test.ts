@@ -5,7 +5,7 @@ import {
 } from '@langquest-next/core/nearby';
 import * as v from '../../core/test/nearbyVectors';
 import { nearbyDayOf } from '../src/nearbyKeep';
-import { arrangePlan, mayHandOn, type NearbySessionReport } from '../src/nearbySession';
+import { arrangePlan, mayHandOn, NEARBY_OPEN_FILE_BYTES, type NearbySessionReport } from '../src/nearbySession';
 import { attemptKeysOf, checkOpeningI, checkOpeningR, findTagOf, makeOpeningI, makeOpeningR, openingKeyOf, sessionKeysOf } from '../src/nearbyOpening';
 import { parseMessage, encodeMessage, type Message } from '../src/nearbyWire';
 import { FakeServer } from '../src/testing/fakeServer';
@@ -65,7 +65,8 @@ describe.each(STORES)('a session on the %s store', (_name, make) => {
     expect(ra.peer).toMatchObject({ profileId: 'sam', installKey: sam.key, tag: findTagOf(sam.crypto, keys.kFind, sam.key) });
     expect(ra.changed).toBe(true);
     // Each records the pair in `nearbyPeers`, under the tag from Hello's chain.
-    expect(await a.keep.peers()).toEqual([{ tag: ra.peer!.tag, gen: 0, mine: ra.finals!.mine, theirs: ra.finals!.theirs }]);
+    // With the files this phone held as the two finished (2026-11-25).
+    expect(await a.keep.peers()).toEqual([{ tag: ra.peer!.tag, gen: 0, mine: ra.finals!.mine, theirs: ra.finals!.theirs, files: a.files.fingerprint!() }]);
     // Signing came first: the rows went as batches, so their numbers count on the other side.
     expect(isCounted((await b.client.nearbyHave()).vector, ana.key, 1)).toBe(true);
     // A teammate's rows are nearby, never pending: only the author pushes.
@@ -660,6 +661,32 @@ describe.each(STORES)('a session on the %s store', (_name, make) => {
       expect(rb.files.cutBackups).toBe(true);
       expect(rb.files.got).toBeLessThan(3);
       expect(await b.keep.peers()).toEqual([]);
+    });
+  });
+
+  // docs/decisions/2026-11-25-text-goes-whole-and-recordings-go-by-want.md: while LangQuest is open a session moves about 100 MB of
+  // files with one teammate, most wanted first, and leaves the rest for the next meeting; Share nearby and a join have no limit.
+  describe('a limit on file bytes, while LangQuest is open', () => {
+    it('moves at least one file, stops asking once past the limit, says so, and does not record the pair as finished', async () => {
+      const [a, b] = await two();
+      for (let i = 0; i < 3; i++) await record(a, shelf, `r${i}`);
+      const [, rb] = await run(a, b, pairOf(), {}, { fileBytes: 1 });
+      expect(rb.files.got).toBe(1);
+      expect(rb.files.capped).toBe(true);
+      expect(rb.ended.how).toBe('done');
+      expect(await b.keep.peers()).toEqual([]);
+    });
+
+    it('moves everything wanted with no limit, as Share nearby and a join do', async () => {
+      const [a, b] = await two();
+      for (let i = 0; i < 3; i++) await record(a, shelf, `r${i}`);
+      const [, rb] = await run(a, b, pairOf());
+      expect(rb.files.got).toBe(3);
+      expect(rb.files.capped).toBe(false);
+    });
+
+    it('the limit is about 100 MB', () => {
+      expect(NEARBY_OPEN_FILE_BYTES).toBe(100 * 1024 * 1024);
     });
   });
 

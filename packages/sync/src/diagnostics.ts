@@ -149,12 +149,18 @@ export const DIAG_SCHEMA = {
    * record per attempt or change. `op` is what was tried, `outcome` how it
    * ended, `code` an Auth error code, SQLSTATE or our own code (never a
    * message). Hand-over (`courier`) counts what another person's sign-in
-   * left to send, never who they are.
+   * left to send, never who they are. From 2026-11-25, `first_contact`: a
+   * person let in offline reaching the server, `ok` with `action` `session`
+   * when the join route's session was saved and `certificate` when the
+   * certificate route answered, or a refusal (`expired`, `used`,
+   * `not_found`, `retired`, else `refused`) with the route's word as `code`,
+   * `needs_code` for an account whose key sign-in is over; `ms` the call and
+   * `attempt` the turn since the app started.
    */
   auth: {
     n: ['ms', 'status', 'attempt', 'ageH', 'pending', 'eventsLeft', 'uploadsLeft', 'accountLeft', 'sinceOkMs'],
     t: {
-      op: ['sign_in', 'sign_up', 'code', 'v2', 'redeem', 'join', 'renew', 'ended', 'courier', 'outbox', 'route', 'delete', 'org_list'],
+      op: ['sign_in', 'sign_up', 'code', 'v2', 'redeem', 'join', 'renew', 'ended', 'courier', 'outbox', 'route', 'delete', 'org_list', 'first_contact'],
       outcome: ['ok', 'offline', 'http', 'refused', 'rate_limited', 'server', 'expired', 'used', 'not_found', 'retired', 'needs_name',
         'done', 'keep', 'gone', 'unreachable', 'retry', 'failed', 'home', 'no_org', 'org_unknown'],
       code: TOKEN,

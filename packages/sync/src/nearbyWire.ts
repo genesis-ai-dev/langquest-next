@@ -19,6 +19,13 @@ import { NEARBY_MESSAGE_MAX, type HostDetails } from './nearbyLink';
 /** The organization's nearby features a join grant may carry (`join-grant` `features`), as `org_features` names them. */
 export const NEARBY_GRANT_FEATURES = ['nearby', 'nearby_join', 'nearby_open'] as const;
 
+/**
+ * The most passages a join grant names for the newcomer to work on (`join-grant` `kept`, 2026-11-25): a long book's
+ * passages with room to spare, and at 256 characters an id well inside a message. Never lowered: a grant over it is
+ * malformed on a phone that reads it.
+ */
+export const NEARBY_GRANT_KEPT_MAX = 1000;
+
 export type Message =
   | { t: 'hello'; protocol: { min: number; max: number }; can: string[]; reducerVersion: number; linesVersion: number; deviceId: string; wallMs: number; chain: ChainLink[]; proof: string }
   /** The initiator, in place of its hello, under an older generation. */
@@ -74,8 +81,12 @@ export type Message =
    * exactly as a `revoked` message carries it, so the newcomer refuses a stolen phone before it meets
    * an honest teammate (review of 2026-11-24, item 11). The newcomer checks it against the Worker's
    * keys before it keeps it; absent from an older inviter, or when the inviter holds none.
+   * `kept`, from 2026-11-25: the passages the inviter chose for the newcomer to work on, which the newcomer's phone keeps
+   * offline before the steps after the copy, so their recordings come on the join's link
+   * (docs/decisions/2026-11-25-text-goes-whole-and-recordings-go-by-want.md). Each once, at most `NEARBY_GRANT_KEPT_MAX`;
+   * absent from an older inviter or when none were chosen, and an older newcomer ignores it.
    */
-  | { t: 'join-grant'; chain: ChainLink[]; proof: string; discoveryKey: string; gen: number; floor: number; features?: string[]; revoked?: { text: string; kid: string; sig: string } }
+  | { t: 'join-grant'; chain: ChainLink[]; proof: string; discoveryKey: string; gen: number; floor: number; features?: string[]; revoked?: { text: string; kid: string; sig: string }; kept?: string[] }
   /**
    * `held`, from 2026-11-24 and only to a phone whose Hello names `copy-library`: the sorted hashes of the documents
    * the language uses that the sender holds, as a JSON list, so the asker asks only for those. An older phone ends
@@ -243,7 +254,7 @@ function read(t: string, o: Raw): Message | null | undefined {
         ? { t, installKey, idSalt, profileId, deviceId, name, proof } : null;
     }
     case 'join-grant': {
-      const { chain, proof, discoveryKey, gen, floor, features, revoked } = o;
+      const { chain, proof, discoveryKey, gen, floor, features, revoked, kept } = o;
       if (!(isChain(chain) && isSig(proof) && isKey(discoveryKey) && isCount(gen) && isCount(floor))) return null;
       // A list of names, or none: a field of another kind is malformed, as in every message. Of the names, only those
       // this build knows, each once, so a later build's feature leaves the grant standing.
@@ -253,7 +264,10 @@ function read(t: string, o: Raw): Message | null | undefined {
       if (revoked !== undefined && !(isRaw(revoked) && typeof revoked['text'] === 'string' && isId(revoked['kid']) && isSig(revoked['sig']))) return null;
       const r = revoked as Raw | undefined;
       const list = r === undefined ? undefined : { text: r['text'] as string, kid: r['kid'] as string, sig: r['sig'] as string };
-      return { t, chain, proof, discoveryKey, gen, floor, ...(known.length ? { features: known } : {}), ...optional('revoked', list) };
+      // The passages chosen for the newcomer, or none: ids, each once, at most NEARBY_GRANT_KEPT_MAX (2026-11-25).
+      if (kept !== undefined && !(Array.isArray(kept) && kept.length <= NEARBY_GRANT_KEPT_MAX && kept.every(isId))) return null;
+      const units = [...new Set((kept ?? []) as string[])];
+      return { t, chain, proof, discoveryKey, gen, floor, ...(known.length ? { features: known } : {}), ...optional('revoked', list), ...(units.length ? { kept: units } : {}) };
     }
     case 'copy-ask': {
       const { part, stream, after, hash, lang } = o;
