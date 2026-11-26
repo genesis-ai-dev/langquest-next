@@ -67,19 +67,28 @@ stays in `noFix`, which goes under Details.
 
 ## An issue's card
 
-The watch for user issues writes an issue's first lines before anyone
-looked at the cause. Those lines are a guess. The issue manager proves the
-cause, and then writes the card again in `fix.json` `card`
-(`.agents/skills/user-issues/SKILL.md`, "The card for your issue"). The
-dashboard shows the manager's card in place of the watch's lines:
+Each open issue has one card in Claude's words, kept in
+`ops.user_issue_cards` (`server/userIssues.ts` `parseIssueCard`). Three
+writers keep it, and the newest wins
+(`.agents/skills/user-issues/SKILL.md`):
+
+- The watch writes a first card when it files the issue (decisions.json
+  `card`), with no choice yet.
+- The issue manager proves the cause, and then writes the card again in
+  `fix.json` `card`, with the choice ("The card for your issue").
+- The job `cards` (dispatch `user-issues.yml` with `cards`) writes every
+  open issue's card again, for the issues filed before cards existed
+  ("Each open issue's card, written again").
+
+The dashboard shows the card in place of the watch's three short lines:
 
 | Line | What it says |
 | --- | --- |
 | Title | What goes wrong, as a person sees it, for all who can have it. |
 | About | From high up: the part of LangQuest, what a person did and saw. Each word of the app a newcomer may not know, explained. |
-| Wrong | One step closer: what goes wrong, and the proven cause, in words about the app. |
+| Events | One step closer: what happened, as 2 to 6 numbered events in time order, each with its time in the reader's own clock. The event that is the bug is marked. |
 | Known | What is safe: lost work, whether the person is still stuck, who else can have it. |
-| Decide | The one question, what the change does, then 2 to 4 options. Each option says what happens after it. The recommended one is first. Doing nothing is an option. |
+| Decide | Only when a person must decide now. The one question, what the change does, then 2 to 4 options. Each option says what happens after it. The recommended one is first. Doing nothing is an option. Without a choice, Next says what happens next. |
 
 The cause in a developer's words, the reasons, the reviewer, the issue
 manager and the run stay under Details. A step on the card says only what
@@ -97,7 +106,9 @@ text and one line about the app, `NAIVE_CONTEXT`). A new worker with no tools
 answers what the problem is, what the cause is, what each option leads to,
 what is unclear and how sure it is. The manager mends each line the reader
 got wrong, at most twice. The card for LAN-339 that Claude wrote this way
-made the reader 4 of 5 sure.
+made the reader 4 of 5 sure. The watch and the job `cards` do the same:
+with several cards in one file, `--naive` prints one prompt for each, each
+after a line `===== <where> =====`.
 
 ## How the standard is kept
 

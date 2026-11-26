@@ -44,15 +44,23 @@ describe('what the workflow sends back', () => {
     expect(() => one({ decision: 'merge' })).toThrow(/reason/);
     expect(() => one({ decision: 'none' })).toThrow(/pr/);
     expect(() => one({ why: 'Write to a@b.org' })).toThrow();
-    // The issue manager's card (docs/card-words.md, "An issue's card"): kept as sent, null when none came.
-    expect(one({}).card).toBeNull();
-    const card = { title: '', about: 'The phone sends recordings.', wrong: 'The phone waits for ever.', known: 'No work was lost.', ask: 'Merge it?',
+    // Each issue's card (docs/card-words.md, "An issue's card"): a list of its own, kept as sent.
+    const EV = [{ at: '2026-11-25T17:05:00Z', until: '', about: true, happened: 'The phone lost its network during a sync.', bug: false }, { at: '2026-11-25T17:05:00Z', until: '2026-11-25T18:30:00Z', about: false, happened: 'The sync waited for ever.', bug: true }];
+    const card = { title: '', about: 'The phone sends recordings.', events: EV, known: 'No work was lost.', ask: 'Merge it?',
       options: [{ option: 'Merge it', then: 'Phones get the fix.' }, { option: 'Do not merge', then: 'The problem stays.' }] };
-    expect(one({ card }).card).toEqual(card);
-    expect(() => one({ card: { ...card, options: card.options.slice(0, 1) } })).toThrow(/card.options: 2 to 4/);
-    expect(() => one({ card: { ...card, about: '' } })).toThrow(/card.about/);
-    expect(() => one({ card: { ...card, known: 'Mail a@b.org' } })).toThrow(/card.known/);
-    expect(() => one({ card: { ...card, options: [{ option: 'x'.repeat(81), then: 'y' }, card.options[1]] } })).toThrow(/card.options\[0\]/);
+    const cardOf = (c: unknown) => parseLooked({ sha: SHA, runUrl: RUN, cards: [{ issue: 'LAN-9', card: c }] }).cards[0]?.card;
+    expect(cardOf(card)).toEqual(card);
+    // The watch's first card has no choice yet.
+    expect(cardOf({ ...card, ask: '', options: [] })).toEqual({ ...card, ask: '', options: [] });
+    expect(() => cardOf({ ...card, options: card.options.slice(0, 1) })).toThrow(/card.options: 2 to 4/);
+    expect(() => cardOf({ ...card, ask: '' })).toThrow(/card.ask/);
+    expect(() => cardOf({ ...card, about: '' })).toThrow(/card.about/);
+    expect(() => cardOf({ ...card, events: EV.slice(0, 1) })).toThrow(/card.events: 2 to 6/);
+    expect(() => cardOf({ ...card, events: [{ ...EV[0], at: 'Nov 25' }, EV[1]] })).toThrow(/card.events\[0\]/);
+    expect(() => cardOf({ ...card, known: 'Mail a@b.org' })).toThrow(/card.known/);
+    expect(() => cardOf({ ...card, options: [{ option: 'x'.repeat(81), then: 'y' }, card.options[1]] })).toThrow(/card.options\[0\]/);
+    expect(() => cardOf(null)).toThrow(/cards\[0\].card: an object/);
+    expect(() => parseLooked({ sha: SHA, runUrl: RUN, cards: [{ issue: 'LAN-9', card }, { issue: 'LAN-9', card }] })).toThrow(/cards\[1\].issue/);
   });
 
   it('takes new issues, known ones, noise and grown kinds', () => {
@@ -64,7 +72,7 @@ describe('what the workflow sends back', () => {
     const lines = { context: 'A person saves a recording.', problem: 'The recording is gone.', known: 'The phone saw the save start.', solution: '' };
     expect(parseLooked(looked({ looked: [{ ...looked().looked[0], ...lines }] as Looked['looked'] })).looked[0]).toMatchObject({ ...lines, solution: null });
     expect(l.grew).toEqual([{ key: 'transfer:down:source:failOther', people: 6, count: 40 }]);
-    expect(parseLooked({ sha: SHA, runUrl: `${RUN}/attempts/2` })).toEqual({ sha: SHA, runUrl: `${RUN}/attempts/2`, looked: [], grew: [], states: [], notes: [], fixes: [], research: [], handed: [], tried: [], diagrams: [], plans: [], priorities: [], report: null });
+    expect(parseLooked({ sha: SHA, runUrl: `${RUN}/attempts/2` })).toEqual({ sha: SHA, runUrl: `${RUN}/attempts/2`, looked: [], grew: [], states: [], notes: [], fixes: [], research: [], handed: [], tried: [], diagrams: [], plans: [], priorities: [], cards: [], report: null });
   });
 
   it('takes what the manager does next on an issue whose cause it did not prove yet, and refuses odd hours or an address', () => {

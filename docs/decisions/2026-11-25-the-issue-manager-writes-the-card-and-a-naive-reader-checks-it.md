@@ -29,12 +29,22 @@ What went wrong on the card:
 What changes:
 
 - **The manager writes the card.** `fix.json` has `card`: a title, About
-  (from high up), Wrong (the proven cause in words about the app), Known
+  (from high up), Events (what happened, as 2 to 6 numbered events, each
+  with its time in the reader's clock and the bug marked; Caleb found his
+  own numbered list easier to read than the paragraph), Known
   (what is safe, who else can have it) and the choice: a question and 2 to
   4 options, each with what happens after it, the recommended one first.
   The Worker checks it (`server/userIssues.ts` `parseIssueCard`), the
-  database keeps it in `ops.user_issue_fixes.card`, and the dashboard shows
-  it in place of the watch's lines.
+  database keeps it in `ops.user_issue_cards`, one row for each issue, and
+  the dashboard shows it in place of the watch's lines.
+- **Every open issue has a card, not only the ones with a fix.** Caleb,
+  2026-11-26: "change other cards' wordings similarly. Almost all of the
+  other cards on the dashboard are similarly confusing and unhelpful." The
+  watch writes a first card (no choice yet) when it files an issue, and
+  the job `cards` (dispatch with `cards`) writes every open issue's card
+  again. The choice shows only when a person must decide now; else Next
+  says what happens next. The card has its own table, not a column of the
+  fix record, so that three writers can keep it.
 - **A naive reader checks it.** `node scripts/card-words.mjs --naive
   fix.json` prints a prompt with only the card's text and one line about
   the app. The manager gives it to a new worker and mends each line the

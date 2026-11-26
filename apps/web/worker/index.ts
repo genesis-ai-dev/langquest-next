@@ -605,7 +605,7 @@ async function serve(request: Request, env: Env, ctx: ExecutionContext): Promise
         return data;
       },
       looked: async (looked) => {
-        const { notes, fixes, research, report, handed, tried, diagrams, plans, priorities, ...rest } = looked;
+        const { notes, fixes, research, report, handed, tried, diagrams, plans, priorities, cards, ...rest } = looked;
         const { data, error } = await serviceClient(env).rpc('ops_user_issues_looked', { p: rest });
         if (error) throw new Error(`ops_user_issues_looked: ${error.message}`);
         // The agent team's record of each fix (docs/agent-team.md). Before its migration is there, the run goes on without it.
@@ -614,6 +614,9 @@ async function serve(request: Request, env: Env, ctx: ExecutionContext): Promise
         // Each new issue's diagram for its card. Before its migration is there, the run goes on without it.
         const drawn = diagrams.length ? await serviceClient(env).rpc('ops_user_issue_diagrams_done', { p: { runUrl: looked.runUrl, diagrams } }) : null;
         if (drawn?.error) console.error(`ops_user_issue_diagrams_done: ${drawn.error.code ?? 'unknown'}`);
+        // Each issue's card in plain words (docs/card-words.md). Before its migration is there, the run goes on without it.
+        const carded = cards.length ? await serviceClient(env).rpc('ops_user_issue_cards_done', { p: { runUrl: looked.runUrl, cards } }) : null;
+        if (carded?.error) console.error(`ops_user_issue_cards_done: ${carded.error.code ?? 'unknown'}`);
         // What the manager does next on each issue whose cause it did not prove yet. Before its migration is there, none.
         const planned = plans.length ? await serviceClient(env).rpc('ops_user_issue_plans_done', { p: { runUrl: looked.runUrl, plans } }) : null;
         if (planned?.error) console.error(`ops_user_issue_plans_done: ${planned.error.code ?? 'unknown'}`);
@@ -626,7 +629,7 @@ async function serve(request: Request, env: Env, ctx: ExecutionContext): Promise
         // Each open issue's priority in Linear, for the order the fix team takes them. Before its migration is there, the run goes on without it.
         const ranked = priorities.length ? await serviceClient(env).rpc('ops_user_issue_priorities_done', { p: { runUrl: looked.runUrl, priorities } }) : null;
         if (ranked?.error) console.error(`ops_user_issue_priorities_done: ${ranked.error.code ?? 'unknown'}`);
-        const recorded = { tried: started && !started.error ? Number(started.data) || 0 : 0, fixes: kept && !kept.error ? Number(kept.data) || 0 : 0, ...(found?.data ?? {}) };
+        const recorded = { tried: started && !started.error ? Number(started.data) || 0 : 0, fixes: kept && !kept.error ? Number(kept.data) || 0 : 0, cards: carded && !carded.error ? Number(carded.data) || 0 : 0, ...(found?.data ?? {}) };
         if (!notes.length) return { ...data, ...recorded };
         const done = await serviceClient(env).rpc('ops_user_issue_notes_done', { p: { runUrl: looked.runUrl, notes } });
         if (done.error) throw new Error(`ops_user_issue_notes_done: ${done.error.message}`);

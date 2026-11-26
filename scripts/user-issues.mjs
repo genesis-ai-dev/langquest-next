@@ -47,6 +47,7 @@ import { createHash } from 'node:crypto';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { TEAM_KEY } from './linear-sync.mjs';
+import { issueCardOf } from './card-words.mjs';
 import { ask as askGate, post as postGate, parseArgs as readArgs, LOGS_URL } from './prod-read.mjs';
 import { oldPathsOf, pathsOf, runUrl } from './tutorial-review.mjs';
 import { decisionLines, ENDED, gate, gateInput, github as githubAs, graphql, LABELS, MERGE_MARK, modeHere, PICTURES, pictureOf, planNext, planOf, PROBE_TEST, readsOf, REPAIR_MAX, saysAskFirst, saysMerge, toDraft, toWaiting, TRIES, triesOf, verdictOf, withTry } from './agent-team.mjs';
@@ -232,7 +233,7 @@ export function checkDecisions(decisions, watch, linear) {
     }
     const priority = [1, 2, 3, 4].includes(f.priority) ? f.priority : 3;
     // The coordinator chooses the model and effort of the issue's manager (docs/agent-team.md).
-    out.file.push({ keys, title: cut(text(f.title).replace(/\s+/g, ' ').replace(/^User issue:\s*/i, ''), LIMITS.title), priority, summary: text(f.summary), cause: text(f.cause), ...linesOf(f), steps: stepsOf(f.steps), manager: planOf(f.manager) });
+    out.file.push({ keys, title: cut(text(f.title).replace(/\s+/g, ' ').replace(/^User issue:\s*/i, ''), LIMITS.title), priority, summary: text(f.summary), cause: text(f.cause), ...linesOf(f), steps: stepsOf(f.steps), card: cardOf(f.card), manager: planOf(f.manager) });
   });
   (Array.isArray(d.known) ? d.known : []).forEach((k, n) => {
     const where = `known[${n}]`;
@@ -273,6 +274,12 @@ export const DIAGRAM = { min: 2, max: 6, text: 90, where: 20 };
  * { where, text, wrong }, each cut to its limit, addresses out. Null when Claude wrote none, or one
  * with no step that goes wrong.
  */
+/** An issue's card in plain words (docs/card-words.md, "An issue's card"), checked and cut, addresses out; null when none. */
+export function cardOf(raw) {
+  const c = issueCardOf(raw);
+  return c ? JSON.parse(redact(JSON.stringify(c))) : null;
+}
+
 export function stepsOf(raw) {
   const line = (v, max) => cut(redact(text(v)).replace(/\s+/g, ' ').trim(), max);
   const steps = (Array.isArray(raw) ? raw : []).filter(isObj).map((s) => ({ where: line(s.where, DIAGRAM.where) || null, text: line(s.text, DIAGRAM.text), wrong: s.wrong === true }))
@@ -460,7 +467,7 @@ export function checkFix(raw) {
   // The manager's verdict and reasoning (scripts/agent-team.mjs verdictOf), addresses out.
   const v = verdictOf(o);
   const next = v.next ? { ...v.next, do: redact(v.next.do), steps: redact(v.next.steps) } : null;
-  const card = v.card ? JSON.parse(redact(JSON.stringify(v.card))) : null;
+  const card = cardOf(v.card);
   const team = { verdict: v.verdict, cause: redact(v.cause), proof: redact(v.proof), why: redact(v.why), twins: redact(v.twins), display: v.display, askFirst: v.askFirst, next, card };
   // `ended`: the manager wrote no fix.json, or one that does not read (fixPatch), so it gave no verdict (ENDED).
   // `linear`: the changes to the issue in Linear that Claude chose from an admin's instruction (linearChanges).
@@ -551,9 +558,7 @@ export function fixRecord(issue, { decision, reason = null, why = null, pr = nul
     // The screen without the change and, when there is a change, with it (base64 JPEG), as the picture job made them.
     ...(pictures?.before ? { before: pictures.before.toString('base64'), ...(pictures.after ? { after: pictures.after.toString('base64') } : {}) } : {}),
     issue, decision, reason, why: word(why, 600), pr, verdict: fix.ended ? null : fix.verdict ?? null, model: plan.model ?? null, effort: plan.effort ?? null,
-    summary: word(fix.summary, 1000), cause: word(fix.cause, 600), proof: word(fix.proof, 400), review: word(vet?.why, 1000), twins: word(fix.twins, 1000),
-    // The card in plain words (docs/card-words.md, "An issue's card"), already checked and cut (issueCardOf).
-    ...(fix.card ? { card: fix.card } : {})
+    summary: word(fix.summary, 1000), cause: word(fix.cause, 600), proof: word(fix.proof, 400), review: word(vet?.why, 1000), twins: word(fix.twins, 1000)
   };
 }
 
@@ -1297,6 +1302,7 @@ async function file(dir) {
   const priorities = [];
   const plans = {};
   const diagrams = [];
+  const cards = [];
 
   for (const f of plan.file) {
     const kinds = f.keys.map((k) => kindOf.get(k));
@@ -1316,6 +1322,7 @@ async function file(dir) {
       priorities.push({ issue: issue.identifier, priority: f.priority });
       plans[issue.identifier] = f.manager;
       if (f.steps) diagrams.push({ issue: issue.identifier, steps: f.steps });
+      if (f.card) cards.push({ issue: issue.identifier, card: f.card });
       console.log(`filed ${issue.identifier}, priority ${f.priority}: ${f.keys.join(', ')}`);
     } catch (e) {
       failed += 1;
@@ -1402,8 +1409,8 @@ async function file(dir) {
   // An admin's instruction goes first (docs/agent-team.md "Which issue Claude takes first").
   const noted = off ? { fixes: [], taken: [] } : notesToTake(watch.notes, []);
   // What was done goes back first, also when some of it failed, so it is not done twice: then the new issues are in the order.
-  if (looked.length || grew.length || noted.taken.length || diagrams.length || priorities.length) {
-    const done = await call('POST', { sha: headSha(), runUrl: run, looked, grew, states: [], notes: noted.taken.map((n) => ({ id: n, taken: true })), diagrams, priorities });
+  if (looked.length || grew.length || noted.taken.length || diagrams.length || priorities.length || cards.length) {
+    const done = await call('POST', { sha: headSha(), runUrl: run, looked, grew, states: [], notes: noted.taken.map((n) => ({ id: n, taken: true })), diagrams, priorities, cards });
     console.log(`told the Worker: ${done.looked} kinds looked at, ${done.grew} grown${noted.taken.length ? `, ${done.taken ?? 0} instructions taken` : ''}`);
   }
   // Then every issue that waits for the fix team, the most important first: the new ones, the plans whose
@@ -1765,7 +1772,9 @@ async function fixOpen(dir, id) {
     if (!record && !answers.length) return;
     // Each record also says what Claude does next when the cause is not proven yet, or removes the old plan.
     const plans = record ? [planRecord(id, planFix ?? fix, probe, record.reason)] : [];
-    const done = await call('POST', { sha: headSha(), runUrl: run, looked: [], grew: [], states: [], notes: answers, fixes: record ? [record] : [], plans });
+    // The manager's card in plain words goes with its record (docs/card-words.md, "An issue's card").
+    const cards = record && fix.card ? [{ issue: id, card: fix.card }] : [];
+    const done = await call('POST', { sha: headSha(), runUrl: run, looked: [], grew: [], states: [], notes: answers, fixes: record ? [record] : [], plans, cards });
     told = true;
     console.log(`${id}: told the Worker${record ? ` the fix ${record.decision === 'merge' ? 'merges without a person' : record.decision === 'waits' ? `waits (${record.reason})` : `has no change (${record.reason})`}` : ''}${answers.length ? `${record ? ' and' : ''} Claude's answer to ${plural(done.answered ?? 0, 'instruction')} (${result})` : ''}`);
   };
@@ -1998,7 +2007,43 @@ Claude changed the fix to get it into main, try ${tries.count} (the watch for us
   console.log(`${id}: PR ${p.number} changed (try ${tries.count}); it merges without a person when its checks pass`);
 }
 
-const COMMANDS = { fetch: fetchWatch, logs: captureLogs, file, 'fix-context': fixContext, 'fix-patch': fixPatch, 'fix-paths': fixPaths, 'fix-open': fixOpen };
+// ---- the cards of open issues (the job `cards`) ----------------------------------------------------
+
+/** The most cards one run of the job `cards` sends (server/userIssues.ts LOOKED_MAX.cards). */
+export const CARDS_MAX = 40;
+
+/**
+ * The cards Claude wrote for open issues (<dir>/cards.json: [{ issue, card }]), checked and cut, addresses out:
+ * each issue once, at most CARDS_MAX. A card that does not read (cardOf) is left out and said.
+ */
+export function cardsToSend(raw) {
+  const seen = new Set();
+  const out = [];
+  for (const c of Array.isArray(raw) ? raw : []) {
+    const issue = isObj(c) && typeof c.issue === 'string' && ISSUE_ID.test(c.issue) ? c.issue : null;
+    const card = issue ? cardOf(c.card) : null;
+    if (!issue || !card || seen.has(issue)) {
+      console.log(`::warning::left out a card that does not read: ${issue ?? 'no issue'}`);
+      continue;
+    }
+    seen.add(issue);
+    out.push({ issue, card });
+  }
+  return out.slice(0, CARDS_MAX);
+}
+
+/** The job `cards`: tells the Worker the cards Claude wrote in <dir>/cards.json (docs/card-words.md, "An issue's card"). */
+async function sendCards(dir) {
+  const cards = cardsToSend(existsSync(join(dir, 'cards.json')) ? readJson(join(dir, 'cards.json')) : []);
+  if (!cards.length) {
+    console.log('::warning::Claude wrote no card that reads');
+    return;
+  }
+  const done = await call('POST', { sha: headSha(), runUrl: runUrl(process.env), looked: [], grew: [], states: [], notes: [], cards });
+  console.log(`told the Worker ${plural(done.cards ?? cards.length, 'card')}: ${cards.map((c) => c.issue).join(', ')}`);
+}
+
+const COMMANDS = { fetch: fetchWatch, logs: captureLogs, file, cards: sendCards, 'fix-context': fixContext, 'fix-patch': fixPatch, 'fix-paths': fixPaths, 'fix-open': fixOpen };
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const [command, dir, id] = process.argv.slice(2);

@@ -57,13 +57,18 @@ describe('the manager', () => {
 
   it("keeps the issue's card the manager wrote, checked and cut as the Worker takes it (docs/card-words.md)", () => {
     expect(ISSUE_CARD).toEqual(model.ISSUE_CARD);
-    const card = { title: 'Uploads stop', about: 'The phone sends recordings.', wrong: 'The phone waits for ever.', known: '', ask: 'Merge it?',
+    const card = { title: 'Uploads stop', about: 'The phone sends recordings.', events: [{ at: '2026-11-25T17:05:00Z', until: '', about: true, happened: 'The phone lost its network during a sync.', bug: false }, { at: '2026-11-25T17:05:00Z', until: '2026-11-25T18:30:00Z', about: false, happened: 'The sync waited for ever.', bug: true }], known: '', ask: 'Merge it?',
       options: [{ option: 'Merge it', then: 'Phones get the fix.' }, { option: 'Do not merge', then: 'The problem stays.' }] };
     expect(verdictOf({ card }).card).toEqual(card);
-    expect(verdictOf({ card: { ...card, about: ' a\n b ', wrong: 'x'.repeat(400) } }).card).toMatchObject({ about: 'a b', wrong: expect.stringMatching(/^x{299}…$/) });
-    // A card with no choice, or one option, is no card: the dashboard keeps the watch's lines.
-    expect(verdictOf({ card: { ...card, options: card.options.slice(0, 1) } }).card).toBeNull();
-    expect(verdictOf({ card: { ...card, ask: '' } }).card).toBeNull();
+    expect(verdictOf({ card: { ...card, about: ' a\n b ', ask: 'x'.repeat(400) } }).card).toMatchObject({ about: 'a b', ask: expect.stringMatching(/^x{299}…$/) });
+    // An event with no time has no span; a time that is not UTC is no time.
+    expect(verdictOf({ card: { ...card, events: [{ happened: 'A', until: '2026-11-25T18:30:00Z', about: true }, { at: '25 Nov', happened: 'B' }] } }).card?.events)
+      .toEqual([{ at: '', until: '', about: false, happened: 'A', bug: false }, { at: '', until: '', about: false, happened: 'B', bug: false }]);
+    expect(verdictOf({ card: { ...card, events: card.events.slice(0, 1) } }).card).toBeNull();
+    // A card with no question, or one option, has no choice: the dashboard shows Next in place of Decide.
+    expect(verdictOf({ card: { ...card, options: card.options.slice(0, 1) } }).card).toMatchObject({ ask: '', options: [] });
+    expect(verdictOf({ card: { ...card, ask: '' } }).card).toMatchObject({ ask: '', options: [] });
+    expect(model.parseIssueCard(verdictOf({ card: { ...card, ask: '' } }).card, 'card')).toMatchObject({ ask: '', options: [] });
     expect(verdictOf({ card: 'Merge it' }).card).toBeNull();
     // What the Worker takes is what the script sends.
     const kept = verdictOf({ card: { ...card, options: [...card.options, ...card.options, ...card.options] } }).card;

@@ -14,3 +14,12 @@ export declare function fixNoteParts(note: string | null | undefined, app?: bool
 export declare function whyOfNote(note: string | null | undefined, app?: boolean): WhyStopped;
 export declare function cardTexts(value: unknown, fields?: string[], at?: string): { where: string; text: string; max: number }[];
 export declare function fileProblems(value: unknown, fields?: string[]): string[];
+export declare const ISSUE_CARD: { title: number; about: number; happened: number; known: number; ask: number; option: number; then: number; events: { min: number; max: number }; options: { min: number; max: number } };
+export interface CardEvent { at: string; until: string; about: boolean; happened: string; bug: boolean }
+export interface IssueCardWords { title: string; about: string; events: CardEvent[]; known: string; ask: string; options: { option: string; then: string }[] }
+export declare function issueCardOf(raw: unknown): IssueCardWords | null;
+export declare const NAIVE_CONTEXT: string;
+export declare function eventTime(e: { at: string; until?: string; about?: boolean }, timeZone?: string, day?: { last: string }): string;
+export declare function cardText(card: unknown, timeZone?: string): string;
+export declare function naivePrompt(card: unknown): string;
+export declare function cardsIn(value: unknown, at?: string): { where: string; card: IssueCardWords }[];

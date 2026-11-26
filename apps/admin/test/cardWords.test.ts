@@ -72,21 +72,50 @@ describe("an issue's card, as the issue manager writes it", () => {
   // LAN-339 as Claude rewrote it on 2026-11-25. A naive reader that got only this text and NAIVE_CONTEXT was 4 of 5
   // sure what to do; with the card as the watch first wrote it, 2 of 5.
   const lan339 = {
-    title: 'A phone stops uploading after its network drops during a sync',
-    about: 'The phone app sends each new recording to the server. On Nov 25, a person on Android recorded a key word (how to say an important term). The recording did not go to the server, although the phone was online.',
-    wrong: 'About 90 minutes before, the phone lost its network during a sync. The phone then waited for an answer that never came. The app starts no new sync while one runs, so uploads stopped.',
-    known: 'No work was lost. The recording went to the server when the person opened the app again, about 90 seconds later. The person could not see that uploads stopped. Any phone can have this problem.',
-    ask: 'Merge pull request 716? The fix stops a request to the server after 2 minutes with no answer. Then the phone tries again.',
-    options: [
-      { option: 'Merge it with the 2-minute limit', then: 'Phones get the fix in an app update soon after the merge, with no store review. After a network drop, uploads start again within about 2 minutes.' },
-      { option: 'Ask Claude for a longer limit', then: 'On a very slow network, one large download can need more than 2 minutes. A longer limit stops it less often. But after a network drop, uploads wait longer.' },
-      { option: 'Do not merge', then: 'The problem stays. A person whose uploads stop must close the app and open it again.' }
+    "title": "A phone stops uploading after its network drops during a sync",
+    "about": "The phone app sends each new recording to the server. On Nov 25, a person on Android recorded a key word (how to say an important term). The recording did not go to the server, although the phone was online.",
+    "events": [
+      {
+        "at": "2026-11-25T17:05:00Z",
+        "about": true,
+        "happened": "The phone lost its network during a sync. The phone's request to the server got no answer and no error."
+      },
+      {
+        "at": "2026-11-25T17:05:00Z",
+        "until": "2026-11-25T18:30:00Z",
+        "happened": "The sync waited for that answer and never ended. The network came back, but the app starts no new sync while one runs. Nothing went up.",
+        "bug": true
+      },
+      {
+        "at": "2026-11-25T18:28:00Z",
+        "happened": "The person recorded a key word. The recording waited behind the stuck sync."
+      },
+      {
+        "at": "2026-11-25T18:30:00Z",
+        "happened": "The person opened the app again. A new sync started, and the recording went up in 1 second."
+      }
+    ],
+    "known": "No work was lost. The person could not see that uploads stopped. Any phone that loses its network during a sync can have this problem.",
+    "ask": "Merge pull request 716? The fix stops a request to the server after 2 minutes with no answer. Then the phone starts a new sync.",
+    "options": [
+      {
+        "option": "Merge it with the 2-minute limit",
+        "then": "Phones get the fix in an app update soon after the merge, with no store review. After a network drop, uploads start again within about 2 minutes."
+      },
+      {
+        "option": "Ask Claude for a longer limit",
+        "then": "On a very slow network, one large download can need more than 2 minutes. A longer limit stops it less often. But after a network drop, uploads wait longer."
+      },
+      {
+        "option": "Do not merge",
+        "then": "The problem stays. A person whose uploads stop must close the app and open it again."
+      }
     ]
   };
 
   it('keeps the word standard', () => {
     expect(fileProblems({ card: lan339 })).toEqual([]);
-    expect(issueCardOf(lan339)).toEqual(lan339);
+    expect(issueCardOf(lan339)).toMatchObject({ ...lan339, events: lan339.events.map((e) => expect.objectContaining(e)) });
   });
 
   it('finds what made the first LAN-339 card unclear', () => {
@@ -101,6 +130,10 @@ describe("an issue's card, as the issue manager writes it", () => {
     expect(p).toContain(NAIVE_CONTEXT);
     expect(p).toContain(cardText(lan339));
     expect(cardText(lan339)).toContain('1. Merge it with the 2-minute limit (recommended): Phones get the fix');
+    // The events in a person's clock, the day once, the bug marked.
+    expect(cardText(lan339, 'America/Vancouver')).toContain('1. Nov 25, about 10:05 AM. The phone lost its network');
+    expect(cardText(lan339, 'America/Vancouver')).toContain('2. 10:05 to 11:30 AM. The sync waited');
+    expect(cardText(lan339, 'America/Vancouver')).toContain('(This is the bug.)');
     for (const q of ['What is the problem', 'What must the admin decide', 'From 1 to 5']) expect(p).toContain(q);
     expect(p).not.toMatch(/LAN-339|\.ts\b|PR 716/);
   });

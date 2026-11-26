@@ -7,7 +7,7 @@ import {
   fixBody, fixBranch, fixComment, fixRefusal, grewComment, isClosed, issueDescription, KEY, keysIn, LABEL, leaks, linearKept, LIMITS, linearClient, lookedOf, mergesOf,
   linearAsked, linearChanges, statusFor, withoutLinearClaims, noFixComment, noteAnswer, noteIdsOf, notesToTake, oldPathsOf, pathsOf, phoneFacts, PREFIX, privateOf, redact, statesToSend, updateComment, when, withEvidence,
   repairOf, repairsOf, planRecord, planReads, READ_ROWS, dueToTake, PROBE_MAX, fixRecord, orderToTake, whyInOrder, prioritiesToSend, OPEN_AGAIN, refusedWhy,
-  backComment, kindLogs, LOGS_KINDS, logsPlan, logsSearchOf, maskLine, MOMENT_READS, savedRead, saveLogs
+  backComment, kindLogs, LOGS_KINDS, logsPlan, logsSearchOf, maskLine, MOMENT_READS, savedRead, saveLogs, cardsToSend, CARDS_MAX
 } from './user-issues.mjs';
 import { USER_ISSUES_PATH, USER_ISSUES_RULE } from '../apps/web/worker/userIssues';
 import * as model from '../server/userIssues';
@@ -52,7 +52,7 @@ describe('user-issues.mjs', () => {
     const claude = steps.find((s) => s.includes('anthropics/claude-code-action'))!;
     expect(claude).toContain('claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}');
     // The read relay, and the checker of a card's words (docs/card-words.md), which reads one file and sends nothing.
-    expect(claude).toContain('--allowedTools "Read,Glob,Grep,Write,Bash(git log:*),Bash(git show:*),Bash(git merge-base:*),Bash(node /home/runner/work/_temp/watch/prod-read.mjs:*),Bash(node /home/runner/work/_temp/watch/card-words.mjs:*)"');
+    expect(claude).toContain('--allowedTools "Read,Glob,Grep,Write,Agent,Task,Bash(git log:*),Bash(git show:*),Bash(git merge-base:*),Bash(node /home/runner/work/_temp/watch/prod-read.mjs:*),Bash(node /home/runner/work/_temp/watch/card-words.mjs:*)"');
     expect(claude).toContain('card-words.mjs .user-issues/decisions.json');
     expect(claude).not.toContain('LINEAR_API_KEY');
     expect(claude).not.toMatch(/show_full_output|display_report/);
@@ -69,9 +69,20 @@ describe('user-issues.mjs', () => {
   it('writes a draft fix in jobs that trust each other less: Claude with no key, the checks with none, the push running nothing of it', () => {
     const yml = read('.github/workflows/user-issues.yml');
     const jobs = Object.fromEntries(yml.slice(yml.search(/^jobs:$/m)).split(/^ {2}(?=[\w-]+:$)/m).slice(1).map((b) => [b.match(/^([\w-]+):/)![1], b]));
-    expect(Object.keys(jobs)).toEqual(['watch', 'fix', 'check', 'picture', 'vet', 'open', 'follow', 'research']);
+    expect(Object.keys(jobs)).toEqual(['watch', 'fix', 'check', 'picture', 'vet', 'open', 'follow', 'cards', 'research']);
     const perms = (job: string) => /^ {4}permissions:\n((?: {6}.+\n)+)/m.exec(jobs[job]!)?.[1]?.trim().split(/\n\s*/);
     expect(yml).toMatch(/^permissions:\n {2}contents: read\n\n/m);
+    // Each open issue's card written again, only when a person asks: Claude with no key and no shell but the reads and
+    // the checker of a card's words, and the cards sent by the script as checked out (docs/card-words.md).
+    expect(perms('cards')).toEqual(['contents: read', 'id-token: write']);
+    expect(jobs['cards']).toContain('if: ${{ inputs.cards }}');
+    for (const job of ['watch', 'follow']) expect(jobs[job]).toContain('!inputs.cards');
+    const cards = jobs['cards']!.split(/\n {6}- /);
+    const writer = cards.find((s) => s.includes('anthropics/claude-code-action'))!;
+    expect(writer).toContain('--allowedTools "Read,Glob,Grep,Write,Edit,Agent,Task,Bash(git log:*),Bash(git show:*),Bash(node /home/runner/work/_temp/watch/prod-read.mjs:*),Bash(node /home/runner/work/_temp/watch/card-words.mjs:*)"');
+    expect(writer).not.toMatch(/LINEAR_API_KEY|show_full_output|display_report/);
+    expect(cards.at(-1)).toContain('run: node "$RUNNER_TEMP/watch/user-issues.mjs" cards .user-issues');
+    expect(jobs['cards']!.match(/actions\/checkout@/g)?.length).toBe(jobs['cards']!.match(/persist-credentials: false/g)?.length);
     expect(perms('watch')).toEqual(['contents: read', 'id-token: write']);
     // The OpenID Connect token fetches what came with the issue, in the step before Claude, as in the watch job.
     expect(perms('fix')).toEqual(['contents: read', 'id-token: write']);
@@ -105,14 +116,14 @@ describe('user-issues.mjs', () => {
     const lead = research.find((s) => s.includes('anthropics/claude-code-action'))!;
     expect(perms('research')).toEqual(['contents: read', 'id-token: write']);
     expect(yml).toContain("- cron: '23 13 * * *'");
-    expect(jobs['follow']).toContain("if: ${{ github.event.schedule != '23 13 * * *' && !inputs.research }}");
+    expect(jobs['follow']).toContain("if: ${{ github.event.schedule != '23 13 * * *' && !inputs.research && !inputs.cards }}");
     // The watch runs after `follow`, also when it failed, so a pull request it hands back reaches the fix jobs.
     expect(jobs['watch']).toContain('needs: follow');
-    expect(jobs['watch']).toContain("if: ${{ !cancelled() && github.event.schedule != '23 13 * * *' && !inputs.research }}");
+    expect(jobs['watch']).toContain("if: ${{ !cancelled() && github.event.schedule != '23 13 * * *' && !inputs.research && !inputs.cards }}");
     expect(jobs['research']).toContain("if: ${{ github.event.schedule == '23 13 * * *' || inputs.research }}");
-    expect(yml).toContain("group: user-issues${{ (github.event.schedule == '23 13 * * *' || inputs.research) && '-research' || '' }}");
+    expect(yml).toContain("group: user-issues${{ (github.event.schedule == '23 13 * * *' || inputs.research) && '-research' || inputs.cards && '-cards' || '' }}");
     // The agent team signs in with its own token, billed to the organization; without it, it does nothing.
-    for (const job of ['fix', 'vet', 'research']) {
+    for (const job of ['fix', 'vet', 'research', 'cards']) {
       expect(jobs[job], job).toContain('claude_code_oauth_token: ${{ secrets.AGENT_TEAM_CLAUDE_TOKEN }}');
       expect(jobs[job], job).not.toContain('secrets.CLAUDE_CODE_OAUTH_TOKEN');
     }
@@ -314,7 +325,7 @@ describe("Claude's decisions", () => {
     }, watch, linear);
     // The three lines of its card: one line each, cut to their limit, an address out; null where Claude wrote none.
     expect(plan.file).toEqual([{ keys: [ERR.key, FB.key], title: 'Recordings vanish', priority: 1, summary: 's', cause: 'c',
-      context: 'A person saves a recording. On Android.', problem: expect.stringMatching(/^Ask \[address\]\. It is gone\. .*…$/), known: null, solution: null, steps: null, manager: { model: 'opus', effort: 'high' } }]);
+      context: 'A person saves a recording. On Android.', problem: expect.stringMatching(/^Ask \[address\]\. It is gone\. .*…$/), known: null, solution: null, steps: null, card: null, manager: { model: 'opus', effort: 'high' } }]);
     expect(plan.file[0]?.problem).toHaveLength(LIMITS.line);
     expect(plan.noise).toEqual([{ key: NOISE.key, note: 'A wrong password, once.' }]);
     expect(plan.dropped).toEqual([]);
@@ -613,10 +624,17 @@ describe('a draft fix for each new issue', () => {
     expect(checkFix({ summary: 'Saves the part before closing. Ask a@b.org', tests: 'recorder.test.ts' })).toEqual({ summary: 'Saves the part before closing. Ask [address]', tests: 'recorder.test.ts', noFix: '', answer: '', linear: [], verdict: 'review', cause: '', proof: '', why: '', twins: '', display: false, askFirst: false, next: null, card: null, ended: false });
     expect(checkFix({ summary: 'S', askFirst: true }).askFirst).toBe(true);
     // The issue's card (docs/card-words.md, "An issue's card"): checked, cut, addresses out, and sent to the Worker.
-    const card = { title: 'T', about: 'The phone sends recordings.', wrong: 'Ask a@b.org', known: '', ask: 'Merge it?', options: [{ option: 'Merge it', then: 'Fixed.' }, { option: 'Do not merge', then: 'It stays.' }] };
-    expect(checkFix({ summary: 'S', card }).card).toEqual({ ...card, wrong: 'Ask [address]' });
-    expect(fixRecord('LAN-9', { decision: 'waits', reason: 'review', pr: 7 }, checkFix({ summary: 'S', card })).card).toEqual({ ...card, wrong: 'Ask [address]' });
-    expect(fixRecord('LAN-9', { decision: 'waits', reason: 'review', pr: 7 }, checkFix({ summary: 'S' }))).not.toHaveProperty('card');
+    const card = { title: 'T', about: 'The phone sends recordings.', known: 'Ask a@b.org', ask: 'Merge it?', events: [{ at: '2026-11-25T17:05:00Z', until: '', about: true, happened: 'The phone lost its network during a sync.', bug: false }, { at: '2026-11-25T17:05:00Z', until: '2026-11-25T18:30:00Z', about: false, happened: 'The sync waited for ever.', bug: true }], options: [{ option: 'Merge it', then: 'Fixed.' }, { option: 'Do not merge', then: 'It stays.' }] };
+    expect(checkFix({ summary: 'S', card }).card).toEqual({ ...card, known: 'Ask [address]' });
+    // The card goes to its own table (ops.user_issue_cards), not in the fix record.
+    expect(fixRecord('LAN-9', { decision: 'waits', reason: 'review', pr: 7 }, checkFix({ summary: 'S', card }))).not.toHaveProperty('card');
+    // The job `cards` sends each open issue's card once: checked, addresses out, a card that does not read left out.
+    const plain = { ...card, ask: '', options: [] };
+    expect(cardsToSend([{ issue: 'LAN-9', card: plain }, { issue: 'LAN-9', card }, { issue: 'LAN-8', card: { about: 'A' } }, { issue: 'x', card }, null]))
+      .toEqual([{ issue: 'LAN-9', card: { ...plain, known: 'Ask [address]' } }]);
+    expect(cardsToSend({ issue: 'LAN-9', card })).toEqual([]);
+    expect(cardsToSend(Array.from({ length: CARDS_MAX + 5 }, (_, i) => ({ issue: 'LAN-' + (i + 1), card })))).toHaveLength(CARDS_MAX);
+    expect(CARDS_MAX).toBe(model.LOOKED_MAX.cards);
     expect(checkFix({ summary: 'S', answer: ' I moved the wait.  \r\n\n\n\n1. Ask a@b.org ' }).answer).toBe('I moved the wait.\n\n1. Ask [address]');
     expect(checkFix({ summary: 'S', answer: 'x'.repeat(2000) }).answer).toHaveLength(FIX_LIMITS.answer);
     expect(checkFix({ noFix: 'Needs a store build.' }).noFix).toBe('Needs a store build.');
