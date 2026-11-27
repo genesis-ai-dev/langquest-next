@@ -42,6 +42,12 @@ export interface AlertKind {
   recheck: Recheck;
   /** A person acts on it on a page (grant, publish, renew), not a code change. */
   person?: true;
+  /**
+   * "Could not read": the page could not ask a provider (an answer of 502, no
+   * answer in time, a refused token), not that LangQuest has a problem. Such a
+   * line gets no Linear issue (docs/decisions/2026-11-17-each-ops-line-has-a-linear-issue.md).
+   */
+  unread?: true;
 }
 
 const LIVE: Recheck = {};
@@ -129,7 +135,7 @@ export const KINDS = {
   'long-transaction': { part: 'dbdetail', title: 'A database transaction stayed open', recheck: LIVE },
   'long-query': { part: 'dbdetail', title: 'A query ran for a long time', recheck: LIVE },
   'dead-rows': { part: 'dbdetail', title: 'A table has many dead rows', recheck: LIVE },
-  'supabase-unreadable': { part: 'supabase', title: 'Could not read the Supabase project', recheck: LIVE },
+  'supabase-unreadable': { part: 'supabase', title: 'Could not read the Supabase project', recheck: LIVE, unread: true },
   'supabase-unhealthy': { part: 'supabase', title: 'The Supabase project is not healthy', recheck: LIVE },
   'supabase-services-down': { part: 'supabase', title: 'Supabase services are down', recheck: LIVE },
   'edge-throttled': { part: 'supabase', title: 'An Edge Function is throttled', recheck: LIVE },
@@ -190,7 +196,7 @@ export const KINDS = {
   'research-stopped': { part: 'research', title: 'The research team stopped writing reports', recheck: { daily: ['13:23'], takesMin: 60 } },
 
   // ---- The page itself ----
-  'unreadable': { part: '', title: 'A part could not be read', recheck: LIVE }
+  'unreadable': { part: '', title: 'A part could not be read', recheck: LIVE, unread: true }
 } as const satisfies Record<string, AlertKind>;
 
 export type AlertKey = keyof typeof KINDS;
@@ -274,14 +280,15 @@ export const WATCH_LINES_MAX = 50;
  * The lines the watch must hand to Claude itself: not one a person acts on
  * in the page (a queue), not one that already names its Linear issues (a
  * nightly failure's), not one the watch finds in the records under its own
- * key, and not "Could not read", which says the page could not ask a
- * provider, not that LangQuest has a problem.
+ * key, and not "Could not read" (`unread`: a whole part, or the Supabase
+ * project), which says the page could not ask a provider, not that LangQuest
+ * has a problem.
  */
 export function watchLines(items: readonly { key: string; level: string; text: string; section: string; link?: string; watchKey: string; issues?: readonly string[]; recheck?: Recheck }[]): WatchLine[] {
   const out = new Map<string, WatchLine>();
   for (const i of items) {
     const kind = (KINDS as Record<string, AlertKind>)[i.key];
-    if (!kind || kind.person || i.key === 'unreadable' || i.issues?.length || !i.watchKey.startsWith('ops:') || out.has(i.watchKey)) continue;
+    if (!kind || kind.person || kind.unread || i.issues?.length || !i.watchKey.startsWith('ops:') || out.has(i.watchKey)) continue;
     out.set(i.watchKey, {
       key: i.watchKey, level: i.level, text: i.text.slice(0, 600), title: kind.title, part: i.section,
       ...(i.link?.startsWith('https://') ? { link: i.link.slice(0, 500) } : {}), settleMin: settleMinutes({ ...kind.recheck, ...i.recheck })
