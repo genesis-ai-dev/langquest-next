@@ -18,6 +18,7 @@
 // build kept those lists is never cleared, since a language not opened since
 // may need it and nothing on the phone says.
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { classifyTransferFailure, type FailureClass } from '@langquest-next/sync';
 import { Directory, File, Paths } from 'expo-file-system';
 import { Platform } from 'react-native';
 import { noteExpected } from '../diagnostics/report';
@@ -213,6 +214,17 @@ export function refusedBy(e: unknown): boolean {
   return status >= 400 && status < 500 && status !== 408 && status !== 429;
 }
 
+/**
+ * Why a study download failed, as field diagnostics tally it. Study
+ * addresses are public and the phone sends no sign-in with them, so an
+ * address its source refused (`refusedBy`) is a file that is not there, not
+ * a refused sign-in: FIA's store answers 403 for those, which the ops
+ * dashboard read as sign-in trouble (LAN-318).
+ */
+export function studyFailure(e: unknown): FailureClass {
+  return refusedBy(e) ? 'notFound' : classifyTransferFailure(e);
+}
+
 export function studyWanted(): ReadonlyMap<string, string[]> {
   return wanted;
 }
@@ -386,7 +398,7 @@ async function fetchOne(url: string): Promise<void> {
   };
   const where = tallyAs;
   try {
-    const { uri } = await (where ? timedTransfer('down', { ...where, src: 'study' }, download) : download());
+    const { uri } = await (where ? timedTransfer('down', { ...where, src: 'study' }, download, studyFailure) : download());
     present.set(name, uri);
     failedAt.delete(url);
     refusedAt.delete(url);
