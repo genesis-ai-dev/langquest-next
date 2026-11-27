@@ -242,7 +242,8 @@ weeks ago, so a wait counted from the recording was over before it began.
   2026-10-15 to 2026-11-22, at most two minutes at a time), and one failed
   page stopped the project's transfer (LAN-298). A failed page is now asked for again, and only that
   page, for about three minutes before the transfer fails
-  (`packages/sync/src/workerBlobs.ts`).
+  (`packages/sync/src/workerBlobs.ts`). A file's upload, download and
+  removal are asked again the same way (LAN-345).
 - **Audio phones may not play.** v2 took any file a team uploaded, and
   some Every Language teams uploaded whole chapters as MP3 (573 files in
   33 projects on 2026-10-23, 16 of them WebM). A recording here is
