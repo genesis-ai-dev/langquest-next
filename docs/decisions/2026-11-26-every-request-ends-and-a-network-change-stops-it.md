@@ -63,3 +63,18 @@ Reverse if: field diagnostics show the 2-minute stop on requests that would
 have answered (many `no_answer` counts on good links, or a snapshot piece
 that never finishes on a slow one), or a network change stopping requests
 costs more syncs than it saves.
+
+Amended (2026-11-27, Caleb Koster): a web download gets a limit too
+(LAN-343). With none, a download in a browser on a connection that died
+without an error never ended: the transfers kept their turn and their share
+of the bytes, so the language's later downloads waited, and the Sources pass
+kept every other chapter from downloading, until the tab was reloaded. Its
+size is still not known before it starts, so the limit is on the wait, not
+the whole file: the answer must come within 2 minutes, and then each piece
+of the body within 2 minutes of the last (`limitedDownload`, `answerWithin`
+with `idle`). A slow link that keeps sending finishes however long the file
+takes; a dead one fails as offline and is tried again. A network change
+stops it, as it stops every other request. Both web downloads use it: a
+recording or study file (`blobTransport.ts`) and a source's audio through
+the Worker (`sources/throughWorker.ts`). Written by the agent team; it waits
+for a developer.

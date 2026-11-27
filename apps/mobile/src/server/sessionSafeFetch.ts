@@ -192,9 +192,11 @@ const BODY_READS = ['arrayBuffer', 'blob', 'bytes', 'formData', 'json', 'text'] 
  * for its answer and its body, and stopping the request. The limit holds
  * until the body is read: Expo's fetch answers as soon as the headers come,
  * and a body can stop coming too. A caller's own signal still stops it.
- * `listed: false` leaves it out of `stopRequestsInFlight`.
+ * `listed: false` leaves it out of `stopRequestsInFlight`. `idle: true`
+ * holds the body to `ms` between one piece and the next instead
+ * (`whileBytesCome`), for a download whose size is not known before it starts.
  */
-export function answerWithin(base: typeof fetch, ms: number, opts: { listed?: boolean } = {}): typeof fetch {
+export function answerWithin(base: typeof fetch, ms: number, opts: { listed?: boolean; idle?: boolean } = {}): typeof fetch {
   return (input, init) => {
     const halt = new AbortController();
     const theirs = init?.signal ?? undefined;
@@ -202,8 +204,10 @@ export function answerWithin(base: typeof fetch, ms: number, opts: { listed?: bo
     if (theirs?.aborted) passOn();
     else theirs?.addEventListener('abort', passOn);
     let timer: ReturnType<typeof setTimeout> | undefined;
+    let over = false;
     const request: InFlight = { startedAt: Date.now(), stop: () => {} };
     const done = () => {
+      over = true;
       clearTimeout(timer);
       inFlight.delete(request);
       theirs?.removeEventListener('abort', passOn);
@@ -217,12 +221,18 @@ export function answerWithin(base: typeof fetch, ms: number, opts: { listed?: bo
         told(why);
       };
     });
-    timer = setTimeout(() => request.stop(new TypeError(NO_ANSWER), 'no_answer'), ms);
+    // Starts the limit again; never once the request is over.
+    const arm = () => {
+      if (over) return;
+      clearTimeout(timer);
+      timer = setTimeout(() => request.stop(new TypeError(NO_ANSWER), 'no_answer'), ms);
+    };
+    arm();
     if (opts.listed !== false) inFlight.add(request);
     // A `base` that throws at once fails this request too, and its timer goes with it.
     const sent = new Promise<Response>((resolve) => resolve(base(input, { ...init, signal: halt.signal })));
     return Promise.race([sent, failed]).then(
-      (res) => readWithin(res, failed, done),
+      (res) => (opts.idle && res.body ? whileBytesCome(res, failed, arm, done) : readWithin(res, failed, done)),
       (e: unknown) => { done(); throw e; }
     );
   };
@@ -242,12 +252,53 @@ function readWithin(res: Response, failed: Promise<never>, done: () => void): Re
 }
 
 /**
+ * `res` with a body held to the limit between one piece and the next: each
+ * read of a piece starts the limit again (`arm`), so a slow link that keeps
+ * sending finishes and a dead one fails. The end of the body, its failure or
+ * a cancel ends the limit. Cancel the body of an answer you do not read.
+ */
+function whileBytesCome(res: Response, failed: Promise<never>, arm: () => void, done: () => void): Response {
+  const reader = res.body!.getReader();
+  const body = new ReadableStream<Uint8Array>({
+    async pull(controller) {
+      arm();
+      try {
+        const piece = await Promise.race([reader.read(), failed]);
+        if (piece.done) {
+          done();
+          controller.close();
+        } else controller.enqueue(piece.value);
+      } catch (e) {
+        done();
+        controller.error(e);
+      }
+    },
+    cancel(reason) {
+      done();
+      return reader.cancel(reason);
+    }
+  });
+  // Its reads also race the stop, so a stopped download fails with the app's own error.
+  return readWithin(new Response(body, { status: res.status, statusText: res.statusText, headers: res.headers }), failed, done);
+}
+
+/**
  * The global fetch, held to the same limit: the app's calls to its Worker
  * (nearby.ts, blobTransport.ts), which go through no Supabase client. A file
  * the web sends whole takes `transferLimitMs` instead.
  */
 export function limitedFetch(input: RequestInfo | URL, init?: RequestInit, ms = ANSWER_WITHIN_MS): Promise<Response> {
   return answerWithin((i, n) => fetch(i, n), ms)(input, init);
+}
+
+/**
+ * The global fetch for a file the web downloads whole, whose size is not known before it starts:
+ * its answer must come within `ms`, and then each piece of its body within `ms` of the last. A
+ * network change stops it too (`stopRequestsInFlight`). Without a limit, a download on a dead
+ * connection never ended, and held the downloads after it until the tab was reloaded (LAN-343).
+ */
+export function limitedDownload(input: RequestInfo | URL, init?: RequestInit, ms = ANSWER_WITHIN_MS): Promise<Response> {
+  return answerWithin((i, n) => fetch(i, n), ms, { idle: true })(input, init);
 }
 
 /** The slowest link a whole file is given time for: 4 KB a second (32 kbit/s), more than a weak 2G link. */
