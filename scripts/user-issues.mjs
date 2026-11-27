@@ -185,6 +185,26 @@ export function grewComment(grown, state, run) {
   return [`**More people are hitting this${done ? ` although it is ${state.name}` : ''}.**`, '', ...lines, '', `The watch for user issues: ${run}`].join('\n');
 }
 
+/** A closed issue the watch opened again, as the Worker keeps an issue's state (statesToSend). */
+export const openState = (issue, state) => ({ issue, state: STATE_NAME.test(String(state ?? '')) ? state : 'Todo', closed: false, closedAt: null, fixedBy: null, fixedAt: null, title: null });
+const STATE_NAME = /^[A-Za-z][A-Za-z0-9 ._()-]{0,59}$/;
+
+/** The closed issues an admin's instruction waits on (the watch's notes), which this run did not open again yet. */
+export function closedWithNotes(watch, opened = []) {
+  const closed = new Set((Array.isArray(watch?.issues) ? watch.issues : []).filter((i) => isObj(i) && i.closed === true).map((i) => i.issue));
+  const out = [];
+  for (const n of Array.isArray(watch?.notes) ? watch.notes : []) {
+    const id = text(n?.issue);
+    if (ISSUE_ID.test(id) && closed.has(id) && !out.includes(id) && !opened.some((o) => o.issue === id)) out.push(id);
+  }
+  return out;
+}
+
+/** A comment on a closed issue an admin's instruction opened again. Never the instruction's words. */
+export function noteReopenComment(run) {
+  return ['**Open again.** An admin sent Claude an instruction on this issue from the ops dashboard, so the watch opened it again. Claude starts on the instruction now.', '', `The watch for user issues: ${run}`].join('\n');
+}
+
 /** A comment on an open issue whose failure came back: the watch kept its logs, and Claude starts on it. Never a log line: Linear is read by the whole team, the logs stay in the database. */
 export function backComment(keys, at, run) {
   return [`**The failure came back** (${when(at)}).`, '', ...keys.map((k) => `- \`${k}\``), '',
@@ -227,7 +247,7 @@ export function checkDecisions(decisions, watch, linear) {
     if (!keys) return;
     const already = [...new Set(keys.map((k) => filedBy.get(k)))];
     if (already.length === 1 && already[0]) {
-      out.known.push({ keys, issue: already[0], comment: text(f.summary) });
+      out.known.push({ keys, issue: already[0], comment: text(f.summary), ...linesOf(f) });
       return;
     }
     const priority = [1, 2, 3, 4].includes(f.priority) ? f.priority : 3;
@@ -238,7 +258,8 @@ export function checkDecisions(decisions, watch, linear) {
     const where = `known[${n}]`;
     if (!isObj(k) || !ISSUE_ID.test(text(k.issue))) return out.dropped.push(`${where}: needs keys and an issue (${TEAM_KEY}-12)`);
     const keys = take(k.keys, where);
-    if (keys) out.known.push({ keys, issue: k.issue, comment: text(k.comment) });
+    // A known issue's card words, when Claude writes them again (a problem that shows again after its close, with a new cause).
+    if (keys) out.known.push({ keys, issue: k.issue, comment: text(k.comment), ...linesOf(k) });
   });
   (Array.isArray(d.fixed) ? d.fixed : []).forEach((x, n) => {
     const where = `fixed[${n}]`;
@@ -825,8 +846,27 @@ export function privateOf(description) {
     if (inPhones && m) installs.add(m[1]);
     else if (inPhones && line.trim()) inPhones = false;
   }
-  const words = text.split('\n').filter((l) => l.startsWith('> ')).map((l) => l.slice(2).trim()).filter((l) => l.length >= 20);
+  const words = quotedBySomeone(text).filter((l) => l.length >= 20);
   return { feedback, installs: [...installs], ids: [...new Set([...feedback, ...installs])], words };
+}
+
+/**
+ * The quoted lines of a description ("> ..."), but not an ops dashboard line's own words, which the
+ * dashboard's code wrote (factsOf: under "**The ops dashboard shows: ...**"): Claude's answer on such an
+ * issue names the same build or job, and was dropped as if it carried what a person sent (LAN-312, 2026-11-22).
+ */
+export function quotedBySomeone(description) {
+  const out = [];
+  let ops = false;
+  for (const line of String(description ?? '').split('\n')) {
+    if (line.startsWith('>')) {
+      // A bare ">" keeps a quote going: it is no header, so it does not end an ops line's quote.
+      if (!ops && line.startsWith('> ')) out.push(line.slice(2).trim());
+      continue;
+    }
+    if (line.trim()) ops = line.startsWith('**The ops dashboard shows: ');
+  }
+  return out;
 }
 
 /** Whether some text carries an id or six words in a row of what was sent (case and spacing aside). */
@@ -944,12 +984,13 @@ export function linearClient(key, fetchImpl = fetch) {
       await gql(`mutation($input: IssueRelationCreateInput!) { issueRelationCreate(input: $input) { success } }`, { input: { issueId, relatedIssueId: other.issue.id, type: 'duplicate' } });
       await this.setState(issueId, 'Duplicate').catch(() => {});
     },
-    /** Opens a closed issue again: the team's first not-started state (Todo). */
+    /** Opens a closed issue again: the team's first not-started state (Todo). Returns the state's name. */
     async reopen(issueId) {
-      const data = await gql(`query($key: String!) { workflowStates(filter: { team: { key: { eq: $key } }, type: { eq: "unstarted" } }) { nodes { id position } } }`, { key: TEAM_KEY });
+      const data = await gql(`query($key: String!) { workflowStates(filter: { team: { key: { eq: $key } }, type: { eq: "unstarted" } }) { nodes { id name position } } }`, { key: TEAM_KEY });
       const state = [...data.workflowStates.nodes].sort((a, b) => a.position - b.position)[0];
       if (!state) throw new LinearError(`Linear: no not-started state in ${TEAM_KEY}`);
       await gql(`mutation($id: String!, $input: IssueUpdateInput!) { issueUpdate(id: $id, input: $input) { success } }`, { id: issueId, input: { stateId: state.id } });
+      return state.name ?? 'Todo';
     },
     /** One issue by its id (LAN-12), or null when Linear has none. */
     async issue(identifier) {
@@ -1104,9 +1145,29 @@ export function logsPlan(watch) {
   }
   for (const k of Array.isArray(watch?.look) ? watch.look : []) {
     if (!isObj(k) || !KEY.test(text(k.key)) || out.some((o) => o.key === k.key)) continue;
-    out.push({ key: k.key, why: 'new', issue: null, server: isObj(k.server) ? k.server : null });
+    // Handed again because it is there after its issue closed: the failure came back, and once Claude opens the
+    // issue again the fix team takes it first, while its logs are fresh (ops_user_issue_order, 2026-11-26).
+    const back = isObj(k.before) && k.before.verdict === 'fixed' && Boolean(k.before.closedAt) && ISSUE_ID.test(text(k.before.issue));
+    out.push({ key: k.key, why: back ? 'back' : 'new', issue: back ? k.before.issue : null, server: isObj(k.server) ? k.server : null });
   }
   return out.slice(0, LOGS_KINDS);
+}
+
+/** A Workers Build line's key: its Worker's name (apps/admin/src/sources/cloudflare.ts worker-build-failed). */
+export const BUILD_LINE = /^ops:worker-build-failed:([A-Za-z0-9_-]{1,63})$/;
+
+/**
+ * A failed Workers Build's own reads: the Worker's latest builds, then the log of the newest one when it failed.
+ * The log says why (2026-11-26: "a build token that belongs to a user who has left your organization"), where no
+ * Worker log does. `ask(read)` answers a saved read (savedRead). None for any other kind.
+ */
+export async function buildReads(key, ask) {
+  const m = BUILD_LINE.exec(String(key ?? ''));
+  if (!m) return [];
+  const builds = await ask({ source: 'worker-builds', worker: m[1], limit: 5 });
+  const newest = builds.lines.map((l) => String(l).split('\t')).find((c) => c[0] === m[1]);
+  const id = newest && newest[2] === 'fail' && /^[0-9a-f-]{36}$/i.test(newest[5] ?? '') ? newest[5] : null;
+  return id ? [builds, await ask({ source: 'worker-build-log', build: id })] : [builds];
 }
 
 const IPV4 = /\b(?:\d{1,3}\.){3}\d{1,3}\b/g;
@@ -1139,7 +1200,7 @@ export function savedRead(read, answer) {
  */
 export function kindLogs(entry, shared, own) {
   const facts = entry.server ? [{ source: 'watch', ask: 'what the watch saw', note: null, lines: JSON.stringify(entry.server, null, 1).split('\n').map(maskLine) }] : [];
-  return { key: entry.key, why: entry.why, logs: [...facts, ...shared, ...(own ? [own] : [])] };
+  return { key: entry.key, why: entry.why, logs: [...facts, ...shared, ...(Array.isArray(own) ? own : own ? [own] : [])] };
 }
 
 /**
@@ -1166,7 +1227,7 @@ export async function saveLogs(dir, watch, { gate = postGate, send = (logs) => c
   const kept = [];
   for (const [n, entry] of plan.entries()) {
     const word = logsSearchOf(entry.key);
-    const own = word ? await ask({ source: 'worker-logs', search: word, minutes: LOGS_DAY, limit: 100 }) : null;
+    const own = [...(word ? [await ask({ source: 'worker-logs', search: word, minutes: LOGS_DAY, limit: 100 })] : []), ...await buildReads(entry.key, ask)];
     const logs = kindLogs(entry, shared, own);
     const path = join(out, `logs-${n}.json`);
     writeFileSync(path, JSON.stringify({ ...logs, at }, null, 2));
@@ -1285,6 +1346,8 @@ async function file(dir) {
   const kindOf = new Map(watch.look.map((k) => [k.key, k]));
   const looked = [];
   const grew = [];
+  // The closed issues this run opens again in Linear, for the Worker to keep open on the dashboard at once.
+  const opened = [];
   let failed = 0;
   const assigneeId = process.env.USER_ISSUES_ASSIGNEE || undefined;
   const team = plan.file.length ? await api.team() : null;
@@ -1329,10 +1392,15 @@ async function file(dir) {
         continue;
       }
       await api.comment(issue.id, knownComment(k, kinds, run));
-      // Pointed to again after it closed: the fix did not hold, so it is open again.
+      // Pointed to again after it closed: the problem shows again, so it is open again, with every kind of it
+      // (docs/decisions/2026-11-26-the-live-check-decides-and-linear-follows.md).
       const reopen = isClosed(issue.state);
-      if (reopen) await api.reopen(issue.id);
-      for (const kind of kinds) looked.push(lookedOf(kind, 'known', issue));
+      if (reopen) {
+        const state = openState(issue.identifier, await api.reopen(issue.id));
+        // The Worker takes each issue's state once.
+        if (!opened.some((o) => o.issue === state.issue)) opened.push(state);
+      }
+      for (const kind of kinds) looked.push(lookedOf(kind, 'known', issue, null, { context: k.context, problem: k.problem, known: k.known, solution: k.solution }));
       console.log(`known ${issue.identifier}${reopen ? ', reopened' : ''}: ${k.keys.join(', ')}`);
     } catch (e) {
       failed += 1;
@@ -1396,11 +1464,24 @@ async function file(dir) {
   const noToken = process.env.HAS_TEAM_TOKEN !== 'true';
   const off = modeHere() === 'off' || noToken;
   if (off) console.log(noToken ? 'the agent team has no AGENT_TEAM_CLAUDE_TOKEN: no fix is written, and instructions wait' : 'the agent team is off: no fix is written');
+  // An admin's instruction on a closed issue opens it again in Linear first: the person wants work on it
+  // (docs/decisions/2026-11-26-the-live-check-decides-and-linear-follows.md).
+  for (const id of closedWithNotes(watch, opened)) {
+    try {
+      const issue = await api.issue(id);
+      if (!issue || !isClosed(issue.state)) continue;
+      opened.push(openState(issue.identifier, await api.reopen(issue.id)));
+      await api.comment(issue.id, noteReopenComment(run));
+      console.log(`reopened ${id}: an admin's instruction from the ops dashboard waits on it`);
+    } catch (e) {
+      console.log(`::warning::could not open ${id} again: ${e instanceof Error ? e.message : e}`);
+    }
+  }
   // An admin's instruction goes first (docs/agent-team.md "Which issue Claude takes first").
   const noted = off ? { fixes: [], taken: [] } : notesToTake(watch.notes, []);
   // What was done goes back first, also when some of it failed, so it is not done twice: then the new issues are in the order.
-  if (looked.length || grew.length || noted.taken.length || diagrams.length || priorities.length) {
-    const done = await call('POST', { sha: headSha(), runUrl: run, looked, grew, states: [], notes: noted.taken.map((n) => ({ id: n, taken: true })), diagrams, priorities });
+  if (looked.length || grew.length || opened.length || noted.taken.length || diagrams.length || priorities.length) {
+    const done = await call('POST', { sha: headSha(), runUrl: run, looked, grew, states: opened, notes: noted.taken.map((n) => ({ id: n, taken: true })), diagrams, priorities });
     console.log(`told the Worker: ${done.looked} kinds looked at, ${done.grew} grown${noted.taken.length ? `, ${done.taken ?? 0} instructions taken` : ''}`);
   }
   // Then every issue that waits for the fix team, the most important first: the new ones, the plans whose

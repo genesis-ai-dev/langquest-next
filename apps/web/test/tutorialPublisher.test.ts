@@ -4,7 +4,7 @@ import { brandOf, channelAbout, CHANNELS } from '../../../server/youtube';
 
 /** The publish job (server/tutorialPublisher.ts, decisions.md 180) against a YouTube that answers by address. */
 
-const fresh = (): PublishReport => ({ branded: 0, brandFailed: 0, held: 0, due: 0, published: 0, replaced: 0, failed: 0, incomplete: 0, tidied: 0, outOfQuota: false, channelsFull: 0, firstError: null });
+const fresh = (): PublishReport => ({ branded: 0, brandFailed: 0, held: 0, due: 0, published: 0, replaced: 0, failed: 0, incomplete: 0, tidied: 0, outOfQuota: false, channelsFull: 0, units: 0, tendUnits: 0, firstError: null });
 const video = (tutorial: string, over: Partial<Due> = {}): Due => ({
   tutorial, language: 'es', sha256: 'a'.repeat(64), title: tutorial, description: 'd', playlist: 'Traductores', bytes: 5,
   channelId: CHANNELS.es, replaces: null, ...over
@@ -186,6 +186,18 @@ describe('the publish job', () => {
     expect(yt.calls.slice(-5)).toEqual([
       'GET /youtube/v3/playlistItems', 'POST /youtube/v3/playlistItems', 'DELETE /youtube/v3/playlistItems', 'GET /youtube/v3/videos', 'PUT /youtube/v3/videos'
     ]);
+  });
+
+  it('counts the day\'s units it spends, uploads aside, and those spent on the channels before any upload', async () => {
+    // A new version: its playlist found (1), the old entry found (1), the new one put in (50) and the old taken out (50),
+    // the old video read (1) and unlisted (50); the upload itself and Google's sign-in cost none of these units.
+    const replacing = youtube();
+    expect(await publishTutorials(deps([video('record-a-passage', { replaces: 'oldvideo001' })], replacing).deps, fresh())).toMatchObject({ units: 153, tendUnits: 0 });
+    // A run with nothing due still looks at each channel: its home page's rows (1), its playlists (1) and two pages of held comments (2).
+    const es: Channel = { channelId: CHANNELS.es, language: 'es', branded: await brandOf('es', BANNER) };
+    const rows: Section[] = [];
+    await publishTutorials(deps([], youtube({ sections: rows }), undefined, [es]).deps, fresh());
+    expect(await publishTutorials(deps([], youtube({ sections: rows }), undefined, [es]).deps, fresh())).toMatchObject({ units: 4, tendUnits: 4 });
   });
 
   it('stops at YouTube\'s day for the project, keeping why, and leaves the rest for tomorrow', async () => {

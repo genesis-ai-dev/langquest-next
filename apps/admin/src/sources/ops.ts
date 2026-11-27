@@ -643,6 +643,17 @@ export interface UserIssueOrdered { issue: string; from: 'plan' | 'research' | '
 
 export interface UserIssuePlan { next: string; steps: string | null; nextAt: string; tries: number; at: string }
 
+/**
+ * Each issue's fix record only when it is about the issue as it is now: a record written before the issue last
+ * opened again in Linear (its newest step `reopened`) is about the problem before it came back, so the card does
+ * not show it as what Claude says now; the card's Steps keep it
+ * (docs/decisions/2026-11-26-the-live-check-decides-and-linear-follows.md).
+ */
+export function currentFixes(fixes: Record<string, UserIssueFix>, steps: Record<string, IssueStep[]>): Record<string, UserIssueFix> {
+  const reopenedAt = (issue: string) => Math.max(-Infinity, ...(steps[issue] ?? []).filter((s) => s.kind === 'reopened').map((s) => Date.parse(s.at)).filter(Number.isFinite));
+  return Object.fromEntries(Object.entries(fixes).filter(([issue, f]) => !(Date.parse(f.at) < reopenedAt(issue))));
+}
+
 /** Each fix record with its issue's plan, when the record waits because the cause is not proven yet, or for the plan's timing. */
 export function withPlans(fixes: Record<string, UserIssueFix>, plans: Record<string, UserIssuePlan>): Record<string, UserIssueFix> {
   return Object.fromEntries(Object.entries(fixes).map(([issue, f]) => [issue, plans[issue] ? { ...f, plan: plans[issue] } : f]));
@@ -919,7 +930,7 @@ export async function opsSections(query: Query): Promise<OpsSections> {
     }),
     userissues: build([userissues], USER_ISSUES_MIGRATION, () => {
       // Before its migration the cards show without the box, and without the agent team's record.
-      const u = { ...userIssuesOf(val(userissues)), ...(usernotes.ok ? { notes: usernotes.value } : {}), ...(userfixes.ok ? { fixes: withPlans(userfixes.value, plans.ok ? plans.value : {}) } : {}), ...(diagrams.ok ? { diagrams: diagrams.value } : {}), ...(records.ok ? { records: records.value } : {}), ...(tries.ok ? { tries: tries.value } : {}), ...(steps.ok ? { steps: steps.value } : {}), ...(order.ok && Array.isArray(order.value) ? { order: order.value } : {}) };
+      const u = { ...userIssuesOf(val(userissues)), ...(usernotes.ok ? { notes: usernotes.value } : {}), ...(userfixes.ok ? { fixes: currentFixes(withPlans(userfixes.value, plans.ok ? plans.value : {}), steps.ok && steps.value ? steps.value : {}) } : {}), ...(diagrams.ok ? { diagrams: diagrams.value } : {}), ...(records.ok ? { records: records.value } : {}), ...(tries.ok ? { tries: tries.value } : {}), ...(steps.ok ? { steps: steps.value } : {}), ...(order.ok && Array.isArray(order.value) ? { order: order.value } : {}) };
       return ok(u, userIssueAlerts(u));
     }),
     // No line of its own: each open report is a user issue already, and the User issues part has the lines (alertKinds.ts).

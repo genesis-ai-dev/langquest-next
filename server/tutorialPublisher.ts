@@ -1,5 +1,5 @@
 import {
-  accessToken, addToPlaylist, brandChannel, brandOf, channelFull, entriesOf, heldComments, outOfQuota, placeInPlaylist, playlistFor, playlistsOf, publicOf,
+  accessToken, addToPlaylist, brandChannel, brandOf, channelFull, countingUnits, entriesOf, heldComments, outOfQuota, placeInPlaylist, playlistFor, playlistsOf, publicOf,
   removeEntry, retire, setHome, TRAILER, uploadVideo, YouTubeError, type ChannelLanguage, type Client, type Fetch
 } from './youtube';
 
@@ -107,6 +107,13 @@ export interface PublishReport {
   outOfQuota: boolean;
   /** Channels that reached their own day's limit: their videos wait, the others went on. */
   channelsFull: number;
+  /**
+   * The day's units the run spent (youtube.ts `unitsOf`, uploads aside), and of them those spent on the
+   * channels before any upload (`tendChannels`): whether the runs after each intake use up the units
+   * that the videos need (decisions.md 192, Reverse if).
+   */
+  units: number;
+  tendUnits: number;
   /** The first failure's code, for the job run. */
   firstError: string | null;
 }
@@ -124,9 +131,12 @@ export const failureCode = (e: unknown) => (e instanceof YouTubeError ? e.code :
  * in the same run; each version is tried once a run, and no more than a
  * day's uploads are tried.
  */
-export async function publishTutorials(deps: PublisherDeps, report: PublishReport): Promise<PublishReport> {
+export async function publishTutorials(given: PublisherDeps, report: PublishReport): Promise<PublishReport> {
+  const deps: PublisherDeps = { ...given, fetcher: countingUnits(given.fetcher, report) };
   const run: Run = { tokens: new Map(), playlists: new Map(), tried: new Set(), full: new Set(), newPlaylists: new Map() };
+  const before = report.units;
   await tendChannels(deps, run, report);
+  report.tendUnits += report.units - before;
   while (!report.outOfQuota && !deps.stopping() && run.tried.size < DAY_UPLOADS) {
     const due = (await deps.due(ASKED)).filter((v) => !run.tried.has(key(v)) && !run.full.has(v.channelId));
     if (!due.length) break;

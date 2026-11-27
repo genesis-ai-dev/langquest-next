@@ -324,6 +324,8 @@ function route() {
   if (v.name === 'group') { for (const p of partsWithNumbers(v.id)) sumHistory(p); renderHist(v.id); window.scrollTo(0, 0); wantCard = v.card || null; if (!wantCard) markedCard = null; focusCard(); }
   else markedCard = null;
   if (v.name !== 'group') closeDetail();
+  // The line of merges on top of the Releases page (pageReleaseLineDraw.ts).
+  rlineRoute(v);
 }
 window.addEventListener('hashchange', route);
 

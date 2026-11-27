@@ -17,11 +17,11 @@ svg.ic { width: 14px; height: 14px; flex: none; }
 .fx .lin:hover, .fx .lin:focus-visible { border-color: var(--primary); color: var(--primary); }
 .fx .lin small { font-weight: 400; color: var(--muted); }
 .fx a.pr { color: var(--primary); font-weight: 600; }
-.fx .when { font-weight: 600; } .fx.s-stuck .say { color: var(--red); font-weight: 600; }
+.fx .when { font-weight: 600; } .fx.s-stuck .say, .fx.s-back .say { color: var(--red); font-weight: 600; }
 .fx svg.waitbar { width: 120px; height: 10px; flex: none; }
 svg.waitbar .tr { fill: var(--line); } svg.waitbar .dn { fill: var(--primary); } svg.waitbar .end { fill: var(--card); stroke: var(--primary); stroke-width: 1.5; }
 svg.ic .o { fill: none; stroke: var(--muted); stroke-width: 1.6; } svg.ic .f { fill: var(--primary); } svg.ic .h { stroke: var(--card); stroke-width: 1.6; fill: none; stroke-linecap: round; }
-svg.ic.s-open .f, svg.ic.s-part .f { fill: var(--amber); } svg.ic.s-stuck .f { fill: var(--red); } svg.ic.s-done .f { fill: var(--green); } svg.ic.s-issue .o { stroke: var(--primary); }
+svg.ic.s-open .f, svg.ic.s-part .f { fill: var(--amber); } svg.ic.s-stuck .f, svg.ic.s-back .f { fill: var(--red); } svg.ic.s-done .f { fill: var(--green); } svg.ic.s-issue .o { stroke: var(--primary); }
 svg.ic.s-person .o { stroke: var(--amber); }
 ul.also li .fx { display: inline-flex; margin: 0 0 0 6px; font-size: 12px; }
 .fx .each { flex-basis: 100%; display: grid; gap: 2px; margin: 2px 0 0 22px; }
@@ -93,7 +93,11 @@ function rowFor(key, ud) {
  * 'merged' (a fix merged, the line waits for its check), 'stuck' (still there
  * after that check), 'open' (a fix waits on its merge), 'issue' (a Linear issue,
  * no fix yet), 'noise' (the watch found nothing to fix), 'person' (a person acts
- * on the page) or 'none' (no Linear issue yet). A line that names several
+ * on the page) or 'none' (no Linear issue yet). The line is on the page, so the
+ * problem is there now: an issue Linear closed is 'closing' until the line's
+ * check ran after the close (or after the fix that closed it), then 'back', the
+ * problem shows again (docs/decisions/2026-11-26-the-live-check-decides-and-linear-follows.md).
+ * A close in Linear with no pull request is not a fix. A line that names several
  * issues (a nightly suite's failed tests) has one fix for each issue: it is
  * 'merged' only when every issue has a merged fix, 'stuck' when one is still
  * there after its fix, 'part' when only some issues have a fix, and 'issue'
@@ -120,10 +124,17 @@ function lineFix(a, kinds, ud, prs, now) {
   }
   const naming = (prs || []).filter((p) => (p.issues || []).some((i) => issues.includes(i)));
   const merged = naming.filter((p) => p.state === 'merged' && p.mergedAt).map((p) => ({ number: p.number, url: p.url, title: p.title, at: Date.parse(p.mergedAt) }));
-  // Linear closed it with the pull request that fixed it (the watch reads that every 15 minutes).
-  if (row && row.fixedAt && !merged.some((m) => m.number === row.fixedBy)) merged.push({ number: row.fixedBy || null, url: '', title: '', at: Date.parse(row.fixedAt) });
+  // Linear closed it with the pull request that fixed it (the watch reads that every 15 minutes). A close with no pull request is no fix.
+  if (row && row.fixedBy && row.fixedAt && !merged.some((m) => m.number === row.fixedBy)) merged.push({ number: row.fixedBy, url: '', title: '', at: Date.parse(row.fixedAt) });
   merged.sort((x, y) => y.at - x.at);
   const open = naming.filter((p) => p.state === 'open');
+  // Closed in Linear while the line is on the page: the line's check after the close (or after the fix) says whether the problem is still there.
+  const closedAt = row && row.closedAt ? Date.parse(row.closedAt) : NaN;
+  if (!open.length && Number.isFinite(closedAt)) {
+    const m = merged[0] || null, at = clearsAt(r, m ? m.at : closedAt);
+    if (now < at) return Object.assign(base, m ? { state: 'merged', pr: m, from: m.at, at } : { state: 'closing', pr: null, from: closedAt, at });
+    return Object.assign(base, { state: 'back', pr: m, at, closedAt: row.closedAt, closedAs: row.state || null });
+  }
   if (merged.length) {
     const m = merged[0], at = clearsAt(r, m.at);
     if (now < at) return Object.assign(base, { state: 'merged', pr: m, from: m.at, at });
@@ -134,6 +145,26 @@ function lineFix(a, kinds, ud, prs, now) {
   if (issues.length) return Object.assign(base, { state: 'issue' });
   if (row && row.verdict === 'noise') return Object.assign(base, { state: 'noise' });
   return Object.assign(base, { state: kind.person ? 'person' : 'none' });
+}
+
+/**
+ * The User issues part's answer as the live check says it now: each closed issue whose line shows on this page
+ * past its check (lineFix state 'back') is marked back, without Claude's record from before the close, and with
+ * what happens next as its words (docs/decisions/2026-11-26-the-live-check-decides-and-linear-follows.md 1, 5).
+ * lines: every line on the page now. The answer itself is not changed.
+ */
+function withLiveLines(ud, lines, kinds, prs, now) {
+  if (!ud || !ud.issues) return ud;
+  const back = new Set();
+  for (const a of lines || []) { const f = lineFix(a, kinds, ud, prs, now); if (f.state === 'back' && f.row && f.row.issue) back.add(f.row.issue); }
+  if (!back.size) return ud;
+  const fixes = Object.assign({}, ud.fixes || {});
+  const issues = ud.issues.map((r) => {
+    if (!r.closedAt || !back.has(r.issue)) return r;
+    if (fixes[r.issue] && Date.parse(fixes[r.issue].at) < Date.parse(r.closedAt)) delete fixes[r.issue];
+    return Object.assign({}, r, { back: true, solution: r.issue + ' is closed in Linear, but the problem shows on this page now. Claude looks at it again at the next run of the watch (each 15 minutes) and opens ' + r.issue + ' again in Linear. To tell Claude what to do now, write below.' });
+  });
+  return Object.assign({}, ud, { issues, fixes });
 }
 
 /** The part and words for a watch key the dashboard names, or null for one it does not (a phone's own kind). */
@@ -175,6 +206,18 @@ let fixData = null;
 function userIssuesData() { return results.userissues && results.userissues.state === 'ok' ? results.userissues.data : null; }
 const fixPrList = () => (fixData && fixData.state === 'ok' && fixData.data ? fixData.data.prs : []);
 function fixOf(a) { return lineFix(a, KINDS, userIssuesData(), fixPrList(), Date.now()); }
+/** Every line on the page now, each with its part. */
+function pageLines() { return PARTS.flatMap((p) => ((results[p] && results[p].alerts) || []).map((a) => Object.assign({ part: p }, a))); }
+/** The User issues part as the live check says it now (withLiveLines), and which issues were back when it was last drawn. */
+let backDrawn = '';
+function liveIssues(ud) {
+  const live = withLiveLines(ud, pageLines(), KINDS, fixPrList(), Date.now());
+  backDrawn = backIds(live);
+  return live;
+}
+const backIds = (ud) => ((ud && ud.issues) || []).filter((r) => r.back).map((r) => r.issue).join(' ');
+/** Whether a line that came in changed which closed issues show again (show() then draws User issues again). */
+const backChanged = () => !!userIssuesData() && backIds(withLiveLines(userIssuesData(), pageLines(), KINDS, fixPrList(), Date.now())) !== backDrawn;
 
 /** A time in the viewer's clock: "9:35 PM today", "4:35 AM tomorrow", or the date. */
 function clock(ms) {
@@ -195,6 +238,8 @@ const ICONS = {
   part: '<circle class="o" cx="7" cy="7" r="5.5"/><path class="f" d="M7 1.5A5.5 5.5 0 0 1 12.5 7H7Z"/>',
   merged: '<circle class="f" cx="7" cy="7" r="6"/><path class="h" d="M7 3.8V7L9.2 8.4"/>',
   stuck: '<circle class="f" cx="7" cy="7" r="6"/><path class="h" d="M4.8 4.8L9.2 9.2M9.2 4.8L4.8 9.2"/>',
+  closing: '<circle class="f" cx="7" cy="7" r="6"/><path class="h" d="M7 3.8V7L9.2 8.4"/>',
+  back: '<circle class="f" cx="7" cy="7" r="6"/><path class="h" d="M7 3.6V7.8M7 10.2V10.4"/>',
   done: '<circle class="f" cx="7" cy="7" r="6"/><path class="h" d="M4.2 7.2L6.2 9.2L9.8 5"/>',
   claude: '<path class="f" d="M7 1L8.4 5.6L13 7L8.4 8.4L7 13L5.6 8.4L1 7L5.6 5.6Z"/>'
 };
@@ -211,7 +256,8 @@ function linearChip(f) {
   if (!f.issues.length) return '';
   return f.issues.slice(0, 3).map((id) => {
     const url = f.row && f.row.issue === id && safeLink(f.row.issueUrl) ? f.row.issueUrl : 'https://linear.app/frontierrandd/issue/' + encodeURIComponent(id);
-    const state = f.row && f.row.issue === id && f.row.state ? ' <small>' + esc(f.row.state) + '</small>' : '';
+    // Past its check, the line says the issue's close did not hold: Linear's state ("Live", "Done") is not what is true now.
+    const state = f.state !== 'back' && f.row && f.row.issue === id && f.row.state ? ' <small>' + esc(f.row.state) + '</small>' : '';
     return '<a class="lin" href="' + esc(url) + '" target="_blank" rel="noopener">' + esc(id) + state + '</a>';
   }).join('') + (f.issues.length > 3 ? '<small class="muted">+' + (f.issues.length - 3) + '</small>' : '');
 }
@@ -228,7 +274,7 @@ function fixHtml(a, compact) {
     ? '<span class="each">' + f.each.map((e) => '<span>' + icon(e.state) + linearChip(e) + '<span>' + fixSays(e, true) + '</span></span>').join('') + '</span>'
     : '';
   return '<span class="fx s-' + f.state + '">' + icon(f.state) + (each ? '' : linearChip(f)) + '<span>' + fixSays(f, compact) + '</span>' +
-    (f.state === 'merged' && !compact ? waitBar(f.from, f.at) : '') + each + '</span>';
+    ((f.state === 'merged' || f.state === 'closing') && !compact ? waitBar(f.from, f.at) : '') + each + '</span>';
 }
 
 /** The few words for a state. */
@@ -241,13 +287,15 @@ function fixSays(f, compact) {
     part: () => f.fixed + ' of ' + f.each.length + ' issues ' + (f.fixed === 1 ? 'has' : 'have') + ' a fix',
     open: () => prLink(f.pr) + ' waits on merge' + (compact ? '' : '. After the merge, it clears by <span class="when">' + esc(clock(f.at)) + '</span>' + onPhones(f)),
     merged: () => 'Fixed in ' + prLink(f.pr) + '. Clears by <span class="when">' + esc(clock(f.at)) + '</span>' + onPhones(f),
-    stuck: () => '<span class="say">Still here after ' + prLink(f.pr) + '</span>' + (compact ? '' : '. It should have cleared by ' + esc(clock(f.at)) + '.')
+    stuck: () => '<span class="say">Still here after ' + prLink(f.pr) + '</span>' + (compact ? '' : '. It should have cleared by ' + esc(clock(f.at)) + '.'),
+    closing: () => 'Closed in Linear. Clears by <span class="when">' + esc(clock(f.at)) + '</span>' + onPhones(f),
+    back: () => '<span class="say">Closed in Linear, but the problem shows now</span>' + (compact ? '' : '. Claude looks at it again at the next run of the watch.')
   };
   return says[f.state]();
 }
 
-/** How many lines wait for their check after a merged fix: they need nobody now. */
-function waitingFixes(alerts) { return alerts.filter((a) => fixOf(a).state === 'merged').length; }
+/** How many lines wait for their check after a merged fix, or after Linear closed their issue: they need nobody now. */
+function waitingFixes(alerts) { return alerts.filter((a) => { const s = fixOf(a).state; return s === 'merged' || s === 'closing'; }).length; }
 
 /** hand: the lines an admin resolved that stay hidden now (pageResolve.ts handResolved), first. */
 function resolvedHtml(list, hand) {

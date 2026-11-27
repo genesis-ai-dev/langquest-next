@@ -187,7 +187,29 @@ async function answer<T>(response: Response): Promise<T> {
 }
 
 const API = 'https://www.googleapis.com/youtube/v3';
+const UPLOAD = 'https://www.googleapis.com/upload/youtube/v3';
 const json = (token: string) => ({ authorization: `Bearer ${token}`, 'content-type': 'application/json; charset=UTF-8' });
+
+/**
+ * What a call costs of the project's day of units, by YouTube's table of costs: a read 1 (a search
+ * 100), a write (insert, update, delete, a banner) 50. A refused call costs too, so a call counts as it
+ * is sent. A video's upload counts 0 here: the job run counts uploads by themselves (`due`), since
+ * YouTube also limits the uploads of a day on their own (decisions.md 180). Not YouTube (Google's
+ * sign-in, the app's files): 0.
+ */
+export function unitsOf(url: string, method = 'GET'): number {
+  if (url.startsWith(`${UPLOAD}/videos`)) return 0;
+  if (url.startsWith(`${UPLOAD}/`)) return 50;
+  if (!url.startsWith(`${API}/`)) return 0;
+  if (method.toUpperCase() === 'GET') return url.startsWith(`${API}/search`) ? 100 : 1;
+  return 50;
+}
+
+/** A fetch that adds what each call costs (`unitsOf`) to `spent.units` as it sends it. */
+export const countingUnits = (fetcher: Fetch, spent: { units: number }): Fetch => (input, init) => {
+  spent.units += unitsOf(input, init?.method);
+  return fetcher(input, init);
+};
 
 // ---- Connect -------------------------------------------------------------------------------------
 
