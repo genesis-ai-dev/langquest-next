@@ -14,14 +14,15 @@ type Section = { id: string; snippet: { type: string; position: number; title?: 
 
 /**
  * `uploads`: how many the project may put up before YouTube's day is out; `perChannel`: how many each
- * channel may (its access token is its refresh token's); `brandRefused`: a language YouTube will not
+ * channel may (its access token is its refresh token's); `rateLimited`: how many uploads YouTube first
+ * refuses with a short rate limit; `brandRefused`: a language YouTube will not
  * take for a channel; `fieldRefused`: a setting of the channel's it will not take back, by its name;
  * `sections`: the rows on the channel's home page, kept from one run to the next; `entries`: the videos in
  * each playlist, in order, by its id; `shown`: the videos anyone can find (public), the rest unlisted;
  * `playlistLanguageRefused`: YouTube makes a playlist only without a language.
  */
 function youtube(options: {
-  uploads?: number; perChannel?: number; tokenRefused?: string; channel?: string; brandRefused?: string; fieldRefused?: string; sections?: Section[];
+  uploads?: number; perChannel?: number; rateLimited?: number; tokenRefused?: string; channel?: string; brandRefused?: string; fieldRefused?: string; sections?: Section[];
   entries?: Record<string, string[]>; shown?: string[]; playlistLanguageRefused?: boolean;
 } = {}) {
   const sections = options.sections ?? [];
@@ -31,6 +32,7 @@ function youtube(options: {
   /** Every JSON body sent, by call. */
   const bodies: { call: string; body: unknown }[] = [];
   let uploaded = 0;
+  let rateLimited = options.rateLimited ?? 0;
   const byChannel = new Map<string, number>();
   const fetcher = async (input: string, init?: RequestInit) => {
     const method = init?.method ?? 'GET';
@@ -43,6 +45,7 @@ function youtube(options: {
     }
     if (path === '/upload/youtube/v3/videos') {
       const channel = new Headers(init?.headers).get('authorization') ?? '';
+      if (rateLimited > 0 && rateLimited--) return Response.json({ error: { errors: [{ reason: 'rateLimitExceeded' }] } }, { status: 403 });
       if (uploaded >= (options.uploads ?? 100)) return Response.json({ error: { errors: [{ reason: 'quotaExceeded' }] } }, { status: 403 });
       if ((byChannel.get(channel) ?? 0) >= (options.perChannel ?? 100)) return Response.json({ error: { errors: [{ reason: 'uploadLimitExceeded' }] } }, { status: 400 });
       byChannel.set(channel, (byChannel.get(channel) ?? 0) + 1);
@@ -193,6 +196,14 @@ describe('the publish job', () => {
     const d = deps([video('a'), video('b'), video('c')], yt);
     expect(await publishTutorials(d.deps, fresh())).toMatchObject({ published: 1, failed: 1, outOfQuota: true, firstError: 'youtube_quotaExceeded' });
     expect(d.marks).toEqual(['a video000001', 'b failed youtube_quotaExceeded']);
+  });
+
+  it('fails only the one video on a rate limit that passes in moments, and goes on with the rest', async () => {
+    // A short rate limit is not the project's day: the videos after it, on every channel, still go up.
+    const yt = youtube({ rateLimited: 1 });
+    const d = deps([video('a'), video('b'), video('c', { language: 'en', channelId: CHANNELS.en })], yt, { [CHANNELS.es]: '1//es', [CHANNELS.en]: '1//en' });
+    expect(await publishTutorials(d.deps, fresh())).toMatchObject({ due: 3, published: 2, failed: 1, outOfQuota: false, firstError: 'youtube_rateLimitExceeded' });
+    expect(d.marks).toEqual(['a failed youtube_rateLimitExceeded', 'b video000001', 'c video000002']);
   });
 
   it('leaves a channel at its own day\'s limit to wait, with its videos not failed, and goes on with the others', async () => {

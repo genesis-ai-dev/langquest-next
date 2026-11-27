@@ -151,6 +151,12 @@ describe('Publish', () => {
     expect(outOfQuota(new YouTubeError(403, 'forbidden'))).toBe(false);
   });
 
+  it('ends the day only on the project\'s units, not on a rate limit that passes in moments', () => {
+    expect(outOfQuota(new YouTubeError(403, 'quotaExceeded'))).toBe(true);
+    expect(outOfQuota(new YouTubeError(403, 'dailyLimitExceeded'))).toBe(true);
+    expect(outOfQuota(new YouTubeError(403, 'rateLimitExceeded'))).toBe(false);
+    expect(outOfQuota(new YouTubeError(429, 'userRateLimitExceeded'))).toBe(false);  });
+
   it('finds a playlist by its title across pages, and makes it when there is none', async () => {
     const f = google((c) => {
       if (c.url.includes('/playlists?part=snippet&mine=true') && !c.url.includes('pageToken')) return Response.json({ items: [{ id: 'P1', snippet: { title: 'Admins' } }], nextPageToken: 'n2' });

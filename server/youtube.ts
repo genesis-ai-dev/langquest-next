@@ -167,8 +167,13 @@ export class YouTubeError extends Error {
   }
 }
 
-/** Out of the project's units for today: nothing more is done until midnight Pacific. */
-export const outOfQuota = (e: unknown) => e instanceof YouTubeError && /quota|rateLimit/i.test(e.reason);
+/**
+ * Out of the project's units for today: nothing more is done until midnight
+ * Pacific. Only `quotaExceeded` and `dailyLimitExceeded` say that: a
+ * `rateLimitExceeded` or `userRateLimitExceeded` passes in moments, so it
+ * fails only the one call, and the run goes on (LAN-344).
+ */
+export const outOfQuota = (e: unknown) => e instanceof YouTubeError && /^(quotaExceeded|dailyLimitExceeded)/.test(e.reason);
 
 /**
  * The channel has put up as many videos as YouTube lets it in a day (its own
