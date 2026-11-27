@@ -230,7 +230,13 @@ begin
   select pg_get_constraintdef(c.oid) into v_def
   from pg_constraint c where c.conrelid = 'ops.actions'::regclass and c.conname = 'actions_action_check';
   if v_def is null then raise exception 'ops.actions has no actions_action_check to add to'; end if;
-  select array_agg(m[1]) into v_names from regexp_matches(coalesce(v_def, ''), '''([a-z_]+)''', 'g') m;
+  -- The check is written either as ARRAY['a'::text, ...] or, after 20261124013000, as '{a,b}'::text[].
+  if v_def ~ '''\{' then
+    v_names := string_to_array(substring(v_def from '''\{([^}]*)\}'''), ',');
+  else
+    select array_agg(m[1]) into v_names from regexp_matches(v_def, '''([a-z_]+)''', 'g') m;
+  end if;
+  if coalesce(array_length(v_names, 1), 0) < 10 then raise exception 'read only % names from %', coalesce(array_length(v_names, 1), 0), v_def; end if;
   v_names := array(select distinct x from unnest(coalesce(v_names, '{}'::text[]) || array['roadmap_item', 'roadmap_suggestion']) x order by x);
   alter table ops.actions drop constraint if exists actions_action_check;
   execute format('alter table ops.actions add constraint actions_action_check check (action = any (%L::text[]))', v_names);
