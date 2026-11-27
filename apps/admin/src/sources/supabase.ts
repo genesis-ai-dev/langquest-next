@@ -90,7 +90,8 @@ export interface Project {
   ref: string;
   name: string;
   status: string | null;
-  health: { name: string; healthy: boolean; status: string | null }[];
+  /** `why`: Supabase's reason for a service that is not healthy (healthWhy); absent when healthy or none given. */
+  health: { name: string; healthy: boolean; status: string | null; why?: string }[];
   functions: { slug: string; status: string; version: number; updatedAt: string | null }[] | null;
   logs: LogCounts | null;
   logsError?: string;
@@ -115,6 +116,24 @@ from logs`;
 export const projectsOf = (value: string) => value.split(',').map((s) => s.trim()).filter(Boolean)
   .map((s) => { const [ref, ...name] = s.split(':'); return { ref: ref!.trim(), name: name.join(':').trim() || ref!.trim() }; });
 
+/**
+ * Why Supabase's health call says a service is not healthy, from its `error`
+ * and `info` (for realtime: `db_connected`, `connected_cluster`), so a line
+ * keeps the reason after the moment has passed. The error is folded and cut;
+ * of `info` only numbers and true/false flags, never its strings.
+ */
+export const healthWhy = (error: unknown, info: unknown): string | undefined => {
+  const parts: string[] = [];
+  if (typeof error === 'string' && error.trim()) parts.push(error.replace(/\s+/g, ' ').trim().slice(0, 120));
+  if (info && typeof info === 'object' && !Array.isArray(info)) {
+    for (const [k, v] of Object.entries(info as Record<string, unknown>)) {
+      if (k === 'healthy' || !/^[a-z][a-z0-9_]{0,39}$/i.test(k)) continue;
+      if (typeof v === 'boolean' || (typeof v === 'number' && Number.isFinite(v))) parts.push(`${k} ${v}`);
+    }
+  }
+  return parts.length ? parts.join(', ') : undefined;
+};
+
 /** Epoch seconds or milliseconds, or an ISO string, as ISO. */
 const iso = (t: unknown): string | null => {
   if (typeof t === 'string') return t;
@@ -131,7 +150,7 @@ export function supabaseAlerts(sb: Supabase): Alert[] {
     if (p.error) { out.push({ level: 'watch', key: 'supabase-unreadable', subject: p.name, text: `${p.name}: could not read the project (${p.error}).` }); continue; }
     if (p.status && p.status !== 'ACTIVE_HEALTHY') out.push({ level: 'urgent', key: 'supabase-unhealthy', subject: p.name, text: `Supabase project ${p.name} is ${p.status}.` });
     const down = p.health.filter((h) => !h.healthy);
-    if (down.length) out.push({ level: 'urgent', key: 'supabase-services-down', subject: p.name, text: `${p.name}: ${down.map((h) => `${h.name} ${h.status ?? 'unhealthy'}`).join(', ')}.` });
+    if (down.length) out.push({ level: 'urgent', key: 'supabase-services-down', subject: p.name, text: `${p.name}: ${down.map((h) => `${h.name} ${h.status ?? 'unhealthy'}${h.why ? ` (${h.why})` : ''}`).join(', ')}.` });
     for (const f of p.functions ?? []) if (f.status === 'THROTTLED') out.push({ level: 'watch', key: 'edge-throttled', subject: f.slug, text: `${p.name}: Edge Function ${f.slug} is throttled.` });
     if (p.logs) {
       if (p.logs.function5xx >= SERVER_ERROR_LINE.function5xx) out.push({ level: 'watch', key: 'edge-5xx', subject: p.name, text: `${p.name}: Edge Functions answered ${p.logs.function5xx} server errors in the last day.` });
@@ -172,13 +191,17 @@ async function project(fetcher: typeof fetch, ref: string, name: string, headers
   try {
     const [info, health, functions] = await Promise.all([
       getJson<{ status?: string }>(fetcher, `${API}/${ref}`, { headers }, 'project'),
-      getJson<{ name: string; healthy?: boolean; status?: string }[]>(fetcher, `${API}/${ref}/health?services=${SERVICES}`, { headers }, 'health'),
+      getJson<{ name: string; healthy?: boolean; status?: string; error?: unknown; info?: unknown }[]>(fetcher, `${API}/${ref}/health?services=${SERVICES}`, { headers }, 'health'),
       getJson<{ slug: string; status: string; version: number; updated_at?: unknown }[]>(fetcher, `${API}/${ref}/functions`, { headers }, 'functions')
         .catch(() => null)
     ]);
     const p: Project = {
       ref, name, status: info.status ?? null,
-      health: health.map((h) => ({ name: h.name, healthy: h.status ? h.status === 'ACTIVE_HEALTHY' : h.healthy === true, status: h.status ?? null })),
+      health: health.map((h) => {
+        const healthy = h.status ? h.status === 'ACTIVE_HEALTHY' : h.healthy === true;
+        const why = healthy ? undefined : healthWhy(h.error, h.info);
+        return { name: h.name, healthy, status: h.status ?? null, ...(why ? { why } : {}) };
+      }),
       functions: functions && functions.filter((f) => f.status !== 'REMOVED').map((f) => ({ slug: f.slug, status: f.status, version: f.version, updatedAt: iso(f.updated_at) })),
       logs: null
     };
