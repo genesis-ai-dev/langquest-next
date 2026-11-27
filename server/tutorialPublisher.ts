@@ -1,5 +1,5 @@
 import {
-  accessToken, addToPlaylist, brandChannel, brandOf, channelFull, countingUnits, entriesOf, heldComments, outOfQuota, placeInPlaylist, playlistFor, playlistsOf, publicOf,
+  accessToken, addToPlaylist, brandChannel, brandOf, channelFull, entriesOf, heldComments, outOfQuota, placeInPlaylist, playlistFor, playlistsOf, publicOf,
   removeEntry, retire, setHome, TRAILER, uploadVideo, YouTubeError, type ChannelLanguage, type Client, type Fetch
 } from './youtube';
 
@@ -107,16 +107,32 @@ export interface PublishReport {
   outOfQuota: boolean;
   /** Channels that reached their own day's limit: their videos wait, the others went on. */
   channelsFull: number;
+  /** The first failure's code, for the job run. */
+  firstError: string | null;
   /**
-   * The day's units the run spent (youtube.ts `unitsOf`, uploads aside), and of them those spent on the
-   * channels before any upload (`tendChannels`): whether the runs after each intake use up the units
-   * that the videos need (decisions.md 192, Reverse if).
+   * YouTube's units the run's calls cost, by YouTube's table (`unitsOf`), the
+   * uploads' own cost left out; `tendUnits` is the part spent looking at the
+   * channels before any video, and `uploads` how many uploads were started.
+   * With them the job runs show what spends the project's day (LAN-295).
    */
   units: number;
   tendUnits: number;
-  /** The first failure's code, for the job run. */
-  firstError: string | null;
+  uploads: number;
 }
+
+/**
+ * What one call costs of the project's day, by YouTube's table: a read 1, a
+ * write (insert, update, delete, a banner) 50. A video's upload is counted
+ * in `uploads` and costs 0 here, since its cost is what the counts must show;
+ * the file's own bytes and Google's token cost nothing.
+ */
+export function unitsOf(method: string, url: string): number {
+  if (!url.startsWith('https://www.googleapis.com/')) return 0;
+  if (url.startsWith('https://www.googleapis.com/upload/youtube/v3/videos')) return 0;
+  return method === 'GET' ? 1 : 50;
+}
+
+const isUpload = (method: string, url: string) => method === 'POST' && url.startsWith('https://www.googleapis.com/upload/youtube/v3/videos');
 
 /** Most a run takes on: YouTube's day of uploads. */
 export const DAY_UPLOADS = 100;
@@ -132,11 +148,22 @@ export const failureCode = (e: unknown) => (e instanceof YouTubeError ? e.code :
  * day's uploads are tried.
  */
 export async function publishTutorials(given: PublisherDeps, report: PublishReport): Promise<PublishReport> {
-  const deps: PublisherDeps = { ...given, fetcher: countingUnits(given.fetcher, report) };
+  const deps: PublisherDeps = {
+    ...given,
+    fetcher: (input, init) => {
+      const method = init?.method ?? 'GET';
+      report.units += unitsOf(method, input);
+      if (isUpload(method, input)) report.uploads += 1;
+      return given.fetcher(input, init);
+    }
+  };
   const run: Run = { tokens: new Map(), playlists: new Map(), tried: new Set(), full: new Set(), newPlaylists: new Map() };
   const before = report.units;
-  await tendChannels(deps, run, report);
-  report.tendUnits += report.units - before;
+  try {
+    await tendChannels(deps, run, report);
+  } finally {
+    report.tendUnits += report.units - before;
+  }
   while (!report.outOfQuota && !deps.stopping() && run.tried.size < DAY_UPLOADS) {
     const due = (await deps.due(ASKED)).filter((v) => !run.tried.has(key(v)) && !run.full.has(v.channelId));
     if (!due.length) break;

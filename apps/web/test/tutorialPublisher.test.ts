@@ -4,7 +4,7 @@ import { brandOf, channelAbout, CHANNELS } from '../../../server/youtube';
 
 /** The publish job (server/tutorialPublisher.ts, decisions.md 180) against a YouTube that answers by address. */
 
-const fresh = (): PublishReport => ({ branded: 0, brandFailed: 0, held: 0, due: 0, published: 0, replaced: 0, failed: 0, incomplete: 0, tidied: 0, outOfQuota: false, channelsFull: 0, units: 0, tendUnits: 0, firstError: null });
+const fresh = (): PublishReport => ({ branded: 0, brandFailed: 0, held: 0, due: 0, published: 0, replaced: 0, failed: 0, incomplete: 0, tidied: 0, outOfQuota: false, channelsFull: 0, firstError: null, units: 0, tendUnits: 0, uploads: 0 });
 const video = (tutorial: string, over: Partial<Due> = {}): Due => ({
   tutorial, language: 'es', sha256: 'a'.repeat(64), title: tutorial, description: 'd', playlist: 'Traductores', bytes: 5,
   channelId: CHANNELS.es, replaces: null, ...over
@@ -188,18 +188,6 @@ describe('the publish job', () => {
     ]);
   });
 
-  it('counts the day\'s units it spends, uploads aside, and those spent on the channels before any upload', async () => {
-    // A new version: its playlist found (1), the old entry found (1), the new one put in (50) and the old taken out (50),
-    // the old video read (1) and unlisted (50); the upload itself and Google's sign-in cost none of these units.
-    const replacing = youtube();
-    expect(await publishTutorials(deps([video('record-a-passage', { replaces: 'oldvideo001' })], replacing).deps, fresh())).toMatchObject({ units: 153, tendUnits: 0 });
-    // A run with nothing due still looks at each channel: its home page's rows (1), its playlists (1) and two pages of held comments (2).
-    const es: Channel = { channelId: CHANNELS.es, language: 'es', branded: await brandOf('es', BANNER) };
-    const rows: Section[] = [];
-    await publishTutorials(deps([], youtube({ sections: rows }), undefined, [es]).deps, fresh());
-    expect(await publishTutorials(deps([], youtube({ sections: rows }), undefined, [es]).deps, fresh())).toMatchObject({ units: 4, tendUnits: 4 });
-  });
-
   it('stops at YouTube\'s day for the project, keeping why, and leaves the rest for tomorrow', async () => {
     const yt = youtube({ uploads: 1 });
     const d = deps([video('a'), video('b'), video('c')], yt);
@@ -267,6 +255,27 @@ describe('the publish job', () => {
     expect(again.calls).toEqual([
       'POST https://oauth2.googleapis.com/token', 'GET /youtube/v3/channelSections', 'GET /youtube/v3/playlists', 'GET /youtube/v3/commentThreads', 'GET /youtube/v3/commentThreads'
     ]);
+  });
+
+  it('counts the units its calls cost of YouTube\'s day, the part spent on the channels first, and the uploads (LAN-295)', async () => {
+    const rows: Section[] = [];
+    const es: Channel = { channelId: CHANNELS.es, language: 'es', branded: null };
+    await publishTutorials(deps([], youtube({ sections: rows }), undefined, [es]).deps, fresh());
+    // A channel already in order: its home page's rows and playlists read (2), its held comments in two pages (2).
+    const yt = youtube({ sections: rows });
+    const report = await publishTutorials(deps([video('record-a-passage', { replaces: 'oldvideo001' })], yt, undefined, [es]).deps, fresh());
+    // Then the new version: its playlist found (1), the old one's place read (1), the new put in and the old taken out (100),
+    // and the old one read and unlisted (51). The upload is counted on its own; its file and Google's token cost nothing.
+    expect(report).toMatchObject({ published: 1, replaced: 1, uploads: 1, tendUnits: 4, units: 157 });
+  });
+
+  it('counts the units of a run that YouTube\'s day stops at the start', async () => {
+    const es: Channel = { channelId: CHANNELS.es, language: 'es', branded: await brandOf('es', BANNER) };
+    const d = deps([video('a')], youtube(), undefined, [es]);
+    d.deps.fetcher = async (input: string) => input.includes('oauth2')
+      ? Response.json({ access_token: 'ya29' })
+      : Response.json({ error: { errors: [{ reason: 'quotaExceeded' }] } }, { status: 403 });
+    expect(await publishTutorials(d.deps, fresh())).toMatchObject({ outOfQuota: true, due: 0, uploads: 0, tendUnits: 1, units: 1 });
   });
 
   it('gives a playlist the run made its row on the home page before the run ends (decision 192)', async () => {

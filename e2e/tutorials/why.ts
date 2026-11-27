@@ -63,17 +63,6 @@ export function scriptOf(source: string, said: readonly (string | undefined)[], 
   return sha256(JSON.stringify({ source, said, speech }));
 }
 
-/**
- * What a line counts as in a video's script: its translation as committed to `lines/<language>.json`, or the
- * English while none is. A line Gemini translates on the runner (translate-lines.ts) comes out in other words
- * each night until a person commits it, so counting it filmed the video again, and put it up again on YouTube,
- * every night: "Edit a finished version" went up in French each day from 20 to 26 November 2026. What the
- * film says is still tonight's translation; committing one films the video again once.
- */
-export function scriptLine(english: string, committed: Readonly<Record<string, string>>): string {
-  return committed[english] ?? english;
-}
-
 /** The pull request a merge into main came from, from its subject. */
 export function prOf(subject: string): number | null {
   const pr = /^Merge pull request #(\d+)\b/.exec(subject) ?? /\(#(\d+)\)\s*$/.exec(subject);

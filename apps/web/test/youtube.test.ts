@@ -2,8 +2,8 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
-  accessToken, bannerPath, channelAbout, channelFull, CHANNELS, consentUrl, countingUnits, exchangeCode, languageOfChannel, myChannel, outOfQuota, placeInPlaylist, playlistFor,
-  readState, retire, setHome, signState, unitsOf, uploadVideo, WORDS, YouTubeError, type Fetch
+  accessToken, bannerPath, channelAbout, channelFull, CHANNELS, consentUrl, exchangeCode, languageOfChannel, myChannel, outOfQuota, placeInPlaylist, playlistFor,
+  readState, retire, setHome, signState, uploadVideo, WORDS, YouTubeError, type Fetch
 } from '../../../server/youtube';
 
 /** Tutorial videos on YouTube (server/youtube.ts, decisions.md 180), against a YouTube that answers by URL. */
@@ -228,25 +228,5 @@ describe('how a channel looks', () => {
       expect([png.readUInt32BE(16), png.readUInt32BE(20)]).toEqual([2560, 1440]);
       expect(png.length).toBeLessThan(6 * 1024 * 1024);
     }
-  });
-});
-
-describe('the day\'s units', () => {
-  it('costs a read 1, a search 100 and a write 50, and an upload or Google\'s sign-in none of them', () => {
-    expect(unitsOf('https://www.googleapis.com/youtube/v3/playlists?part=snippet&mine=true')).toBe(1);
-    expect(unitsOf('https://www.googleapis.com/youtube/v3/search?part=id&q=x')).toBe(100);
-    expect(unitsOf('https://www.googleapis.com/youtube/v3/playlistItems?part=snippet', 'POST')).toBe(50);
-    expect(unitsOf('https://www.googleapis.com/youtube/v3/channelSections?id=s1', 'delete')).toBe(50);
-    expect(unitsOf('https://www.googleapis.com/upload/youtube/v3/channelBanners/insert?uploadType=media', 'POST')).toBe(50);
-    expect(unitsOf('https://www.googleapis.com/upload/youtube/v3/videos?uploadType=resumable', 'POST')).toBe(0);
-    expect(unitsOf('https://oauth2.googleapis.com/token', 'POST')).toBe(0);
-  });
-
-  it('adds each call\'s cost as it is sent, refused or not', async () => {
-    const spent = { units: 0 };
-    const f = countingUnits(async () => Response.json({ error: { errors: [{ reason: 'quotaExceeded' }] } }, { status: 403 }), spent);
-    await f('https://www.googleapis.com/youtube/v3/commentThreads?part=id');
-    await f('https://www.googleapis.com/youtube/v3/videos?part=snippet', { method: 'PUT' });
-    expect(spent.units).toBe(51);
   });
 });

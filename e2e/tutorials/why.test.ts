@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { TUTORIALS } from './all';
 import { importsOf, screenCode, screenModules, stepScreens, type Files, type ScreenCode } from './screens';
-import { causeLine, changedSteps, prOf, readLog, scriptLine, scriptOf, slotsOf, touching, whyFilm, type Change, type Tonight } from './why';
+import { causeLine, changedSteps, prOf, readLog, scriptOf, slotsOf, touching, whyFilm, type Change, type Tonight } from './why';
 
 /** Why a video is filmed again, and what slots it (docs/tutorial-videos.md "Why a video is filmed again"). */
 
@@ -98,19 +98,6 @@ describe('a video\'s script', () => {
     expect(scriptOf('steps!', ['Tap Save.', undefined])).not.toBe(s);
     expect(scriptOf('steps', ['Tap Done.', undefined])).not.toBe(s);
     expect(scriptOf('steps', ['Tap Save.', undefined], ['grace-1'])).not.toBe(s);
-  });
-
-  it('stays the same when only the runner translated a line, in other words each night', () => {
-    const english = ['Tap Save.', 'Version 2 is finished.'];
-    const committed = { 'Tap Save.': 'Toca Guardar.' };
-    // Each night the runner's file has the line in other words; the script is hashed with the committed lines only.
-    const tonight = scriptOf('steps', english.map((l) => scriptLine(l, committed)));
-    expect(scriptOf('steps', english.map((l) => scriptLine(l, committed)))).toBe(tonight);
-    // Committing a translation changes the script once, so the video is filmed with it.
-    const withIt = scriptOf('steps', english.map((l) => scriptLine(l, { ...committed, 'Version 2 is finished.': 'La versión 2 está terminada.' })));
-    expect(withIt).not.toBe(tonight);
-    expect(scriptLine('Tap Save.', committed)).toBe('Toca Guardar.');
-    expect(scriptLine('Version 2 is finished.', committed)).toBe('Version 2 is finished.');
   });
 
   it('is in a file named by each video\'s id', () => {
