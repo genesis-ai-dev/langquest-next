@@ -173,7 +173,7 @@ begin
   perform body, has_voice from masked.feedback limit 1;
   perform message from masked.join_requests limit 1;
   perform details from masked.content_reports limit 1;
-  perform words, has_email from masked.roadmap_notes limit 1;
+  perform words, has_contact from masked.roadmap_notes limit 1;
   perform count(*) from pg_stat_activity;
   perform count(*) from masked.slow_statements;
   perform count(*) from masked.connections where blocked_by <> '{}';

@@ -69,7 +69,7 @@ revoke select on ops.roadmap_notes from claude_reader, agent_reader;
 grant select (id, item, importance, words, language, at, suggestion, state, decided_by, decided_at) on ops.roadmap_notes to claude_reader;
 grant select (id, item, importance, language, at, suggestion, state, decided_by, decided_at) on ops.roadmap_notes to agent_reader;
 create or replace view masked.roadmap_notes as
-  select id, item, importance, masked.personal(words) as words, email is not null as has_email, language, at, suggestion, state, decided_at
+  select id, item, importance, masked.personal(words) as words, email is not null as has_contact, language, at, suggestion, state, decided_at
     from ops.roadmap_notes;
 grant select on masked.roadmap_notes to agent_reader, claude_reader;
 
