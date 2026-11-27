@@ -75,12 +75,25 @@ export const need = (token: string | undefined, name: string, what: string): str
 };
 export const ISO = (ms: number) => new Date(ms).toISOString();
 
+/**
+ * The gate's status when a provider refuses a read. A 4xx that says the
+ * reader's own request was wrong (a path or an id that is not there, a
+ * parameter the provider does not take) is the reader's mistake: 400, like
+ * the gate's own refusals. A refused key (401, 403), a rate limit, a timeout
+ * or the provider's own failure is 502. Until 2026-11-26 every refusal was
+ * 502, and the app Worker counts each 5xx on the ops paths as the dashboard
+ * failing (requestTally.ts): an agent's mistyped GitHub path became a user
+ * issue about the dashboard.
+ */
+export const providerStatus = (status: number): 400 | 502 =>
+  status >= 400 && status < 500 && ![401, 403, 407, 408, 429].includes(status) ? 400 : 502;
+
 export async function getJson<T>(fetcher: typeof fetch, url: string, init: RequestInit, what: string): Promise<T> {
   const res = await fetcher(url, { ...init, signal: AbortSignal.timeout(20_000) });
   if (!res.ok) {
     const hint = res.status === 401 || res.status === 403 ? ' (the token is refused or lacks a permission)' : '';
     const detail = (await res.text().catch(() => '')).slice(0, 300).replace(/\s+/g, ' ');
-    throw new Refused(`${what}: HTTP ${res.status}${hint}${detail ? `: ${maskPersonal(detail)}` : ''}`, 502);
+    throw new Refused(`${what}: HTTP ${res.status}${hint}${detail ? `: ${maskPersonal(detail)}` : ''}`, providerStatus(res.status));
   }
   return (await res.json()) as T;
 }

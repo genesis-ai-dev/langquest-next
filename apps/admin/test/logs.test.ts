@@ -59,6 +59,22 @@ describe('who reads logs', () => {
     }
   });
 
+  it('answers a provider\'s "not found" as the reader\'s mistake (4xx), and a refused key or a provider failure as 502', async () => {
+    // The app Worker counts each 5xx on the ops paths as the dashboard failing (requestTally.ts).
+    const status = async (source: string, extra: Record<string, unknown>, provider: number) => {
+      const d = await deps(() => ({}));
+      d.fetcher = (async () => new Response('{"message":"x"}', { status: provider, headers: { 'content-type': 'application/json' } })) as typeof fetch;
+      return (await handleLogs(post({ source, ...extra }, TOKEN), d)).status;
+    };
+    for (const [source, extra] of [['github-api', { path: 'actions/runs/1/nope' }], ['github-job-log', { job: '123' }]] as const) {
+      expect(await status(source, extra, 404)).toBe(400);
+      expect(await status(source, extra, 422)).toBe(400);
+      expect(await status(source, extra, 403)).toBe(502);
+      expect(await status(source, extra, 429)).toBe(502);
+      expect(await status(source, extra, 500)).toBe(502);
+    }
+  });
+
   it('says which key the Worker lacks', async () => {
     const d = await deps(() => ({}), { ADMIN_CLOUDFLARE_LOGS_TOKEN: undefined });
     const res = await handleLogs(post({ source: 'worker-logs' }, TOKEN), d);

@@ -2,7 +2,7 @@ import type { JobStatusRpc } from './sources/container';
 import { jsonSecret } from './jwt';
 import { appStoreKey as parseAppStoreKey, appStoreToken, type AppStoreKey } from './sources/appstore';
 import { googleToken, hourParams } from './sources/googleplay';
-import { getJson, head, maskPersonal, need, num, Refused, str, type LogAnswer } from './logsShared';
+import { getJson, head, maskPersonal, need, num, providerStatus, Refused, str, type LogAnswer } from './logsShared';
 
 /**
  * The provider APIs behind the log gate (logs.ts, docs/production-reads.md,
@@ -84,7 +84,7 @@ async function getAny(d: ApisDeps, url: string, headers: Record<string, string>,
   const type = res.headers.get('content-type') ?? '';
   if (!res.ok) {
     const hint = res.status === 401 || res.status === 403 ? ' (the key is refused or lacks a permission)' : '';
-    throw new Refused(`${what}: HTTP ${res.status}${hint}: ${maskPersonal((await res.text().catch(() => '')).slice(0, 500))}`, 502);
+    throw new Refused(`${what}: HTTP ${res.status}${hint}: ${maskPersonal((await res.text().catch(() => '')).slice(0, 500))}`, providerStatus(res.status));
   }
   if (/json/.test(type)) return jsonLines(await res.json());
   if (/^text\/|javascript|xml|^$/.test(type)) return head((await res.text()).split('\n').map(maskPersonal));
