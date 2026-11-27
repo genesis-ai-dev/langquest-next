@@ -6,7 +6,7 @@ import { containerAlerts, containerSection } from '../src/sources/container';
 import { lookup } from '../src/sources/diag';
 import { expiryAlerts, expirySection, keptByHand } from '../src/sources/expiry';
 import {
-  FLEET_SQL, dbDetailAlerts, feedbackAlerts, feedbackOf, fleetAlerts, NEARBY_FIND_FAILING_INSTALLS, nearbyAlerts, opsSections, routeRows, safetyAlerts, supportAlerts, tutorialAlerts,
+  FLEET_SQL, currentFixes, dbDetailAlerts, feedbackAlerts, feedbackOf, fleetAlerts, NEARBY_FIND_FAILING_INSTALLS, nearbyAlerts, opsSections, routeRows, safetyAlerts, supportAlerts, tutorialAlerts,
   tutorialsOf, userIssueAlerts, userIssuesOf, workerAlerts, type DbDetail, type Feedback, type Fleet, type LagRow, type Nearby, type Pipeline, type QuietAccounts, type Safety,
   type Tutorials, type UserIssues
 } from '../src/sources/ops';
@@ -135,11 +135,6 @@ describe('the app Worker and support', () => {
     // A partner paging through every language waits seconds a page by design (2026-11-17); a page that fails still warns.
     expect(workerAlerts(routeRows({ agent_list_2xx: 100, agent_list_lt1s: 40, agent_list_lt10s: 50, agent_list_over10s: 10 }))).toEqual([]);
     expect(workerAlerts(routeRows({ agent_list_2xx: 90, agent_list_5xx: 10 })).map((a) => a.level)).toEqual(['problem']);
-    // The team's workflows wait on the dashboard's lines, and no person waits for them (LAN-328); their failures still warn.
-    expect(workerAlerts(routeRows({ automation_2xx: 300, automation_lt100ms: 140, automation_lt1s: 140, automation_over10s: 20 }))).toEqual([]);
-    expect(workerAlerts(routeRows({ automation_2xx: 90, automation_5xx: 10 })).map((a) => a.level)).toEqual(['problem']);
-    // A slow Bible list warns on its own, apart from the workflows' time.
-    expect(workerAlerts(routeRows({ bible_2xx: 60, bible_lt1s: 45, bible_lt10s: 15 })).map((a) => a.subject)).toEqual(['bible']);
     // The API's quick calls still warn when slow.
     expect(workerAlerts(routeRows({ agent_api_2xx: 100, agent_api_lt1s: 90, agent_api_lt10s: 10 })).map((a) => a.level)).toEqual(['watch']);
   });
@@ -579,6 +574,18 @@ describe('the watch for user issues (decisions.md 202)', () => {
     expect(s.userissues).toMatchObject({ state: 'ok', data: { fixes } });
     const before = await opsSections(fakeQuery([['ops_user_issues', issues({ issues: [closed], closed: 1 })]]));
     expect((before.userissues.data as { fixes?: unknown }).fixes).toBeUndefined();
+  });
+
+  // docs/decisions/2026-11-26-the-live-check-decides-and-linear-follows.md 5: what Claude said before the problem came back is history.
+  it('keeps only the fix records newer than their issue\'s last opening in Linear', async () => {
+    const rec = (at: string) => ({ decision: 'merge' as const, reason: null, why: null, pr: 640, verdict: 'fix', model: null, effort: null, summary: 'The build passes.', cause: null, proof: null, review: null, twins: null, runUrl: null, at, pictures: [] });
+    const step = (at: string, kind: string) => ({ at, kind, detail: {}, pr: null, run: null });
+    const fixes = { 'LAN-312': rec(hoursAgo(50)), 'LAN-220': rec(hoursAgo(2)), 'LAN-221': rec(hoursAgo(50)) };
+    const steps = { 'LAN-312': [step(hoursAgo(1), 'reopened'), step(hoursAgo(60), 'reopened')], 'LAN-220': [step(hoursAgo(3), 'reopened')], 'LAN-221': [step(hoursAgo(1), 'filed')] };
+    expect(Object.keys(currentFixes(fixes, steps)).sort()).toEqual(['LAN-220', 'LAN-221']);
+    expect(currentFixes(fixes, {})).toEqual(fixes);
+    const s = await opsSections(fakeQuery([['ops_user_issues', issues({ issues: [closed], closed: 1 })], ['ops_user_issue_fixes', fixes], ['ops_user_issue_steps', steps]]));
+    expect(Object.keys((s.userissues.data as UserIssues).fixes ?? {}).sort()).toEqual(['LAN-220', 'LAN-221']);
   });
 });
 

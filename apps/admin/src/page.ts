@@ -33,6 +33,8 @@ import { MINE_CSS, MINE_HTML, MINE_LOGIC, MINE_SCRIPT } from './pageMine';
 import { SUMMARY_CSS, SUMMARY_LOGIC, SUMMARY_SCRIPT } from './pageSummary';
 import { BLOCKS_CSS, BLOCKS_LOGIC, BLOCKS_SCRIPT, WIDTH_CSS } from './pageBlocks';
 import { LOADING_CSS, LOADING_SCRIPT } from './pageLoading';
+import { RLINE_CSS, RLINE_HTML, RLINE_LOGIC } from './pageReleaseLine';
+import { RLINE_SCRIPT } from './pageReleaseLineDraw';
 import { KINDS } from './alertKinds';
 import { GLANCE, METRICS } from './sources/history';
 import { SQLSTATE } from './sources/supabase';
@@ -246,6 +248,7 @@ ${STEPS_CSS}
 ${ASK_CSS}
 ${MINE_CSS}
 ${LOADING_CSS}
+${RLINE_CSS}
 </style>
 </head>
 <body>
@@ -284,6 +287,7 @@ ${START_HTML}
       <ul id="attention-list"></ul>
     </section>
     <section class="card wide" id="org" hidden></section>
+${RLINE_HTML}
     <div id="sum"></div>
     <div class="grid" id="grid"></div>
   </div>
@@ -622,6 +626,8 @@ function show(id, s) {
   const el = $('pill-' + g.id); el.className = 'pill ' + cls; el.textContent = text;
   drawBody(g);
   if (id === 'userissues') redrawLineCards();
+  // A line that came in shows a closed issue's problem again, or no more: User issues says so too (pageFixes.ts liveIssues).
+  else if (backChanged()) drawBody(groupOf('userissues'));
   // The open issues' states in Linear, at most each 2 minutes (pageMine.ts syncIssueStates).
   if (id === 'userissues' && s && s.state === 'ok') syncIssueStates();
   // A report's card shows its issue's step from the User issues part's answer (pageReports.ts).
@@ -1147,6 +1153,9 @@ ${HOVER_LOGIC}
 ${HOVER_SCRIPT}
 // ---- what a box shows while it loads, and when its answer fails (pageLoading.ts) ----
 ${LOADING_SCRIPT}
+// ---- the line of merges at the top of the Releases page (pageReleaseLine.ts, pageReleaseLineDraw.ts) ----
+${RLINE_LOGIC}
+${RLINE_SCRIPT}
 
 let loading = false, loadAgain = false;
 /**
@@ -1177,12 +1186,15 @@ async function load(fresh) {
     api('/ops/api/glance').then((d) => { glanceData = d; renderStart(); }).catch(() => {}),
     loadQuestions(),
     loadResolves(),
+    // The line of merges, only while the Releases page shows (pageReleaseLineDraw.ts).
+    rlineLoad(fresh),
     // The pull requests that name a line's Linear issue: without them each line still shows its issue.
     // The User issues page says each issue's pull request, so it is drawn again with them.
     api('/ops/api/fixes' + q).then((d) => { fixData = d; if (results.userissues) show('userissues', results.userissues); else { renderStart(); attention(); } })
       .catch((err) => { fixData = { state: 'error', error: err.message }; if (results.userissues) show('userissues', results.userissues); else renderStart(); })
   ];
   await Promise.all(jobs);
+  rlineRedraw();
   $('checked').textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   $('refresh').disabled = false;
   loading = false;

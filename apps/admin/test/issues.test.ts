@@ -98,6 +98,9 @@ describe('where a user issue is', () => {
     expect(logic.issueWay(closed, [])).toMatchObject({ tab: 'closed', pill: 'Closed', level: 'done', at: logic.ISSUE_STEPS.length + 1, pr: { number: 5 } });
     expect(logic.issueWay({ ...closed, state: 'Duplicate', fixedBy: null }, [])).toMatchObject({ tab: 'closed', pill: 'Duplicate', at: 0, pr: null });
     expect(logic.issueWay({ ...closed, state: 'Canceled' }, [])).toMatchObject({ pill: 'Canceled', at: 0 });
+    // Closed in Linear, but its line shows on the page past its check (pageFixes.ts withLiveLines): no fix yet, and Claude looks again
+    // (docs/decisions/2026-11-26-the-live-check-decides-and-linear-follows.md).
+    expect(logic.issueWay({ ...closed, fixedBy: null, back: true }, [])).toEqual({ tab: 'nofix', pill: 'Claude looks again', level: 'claude', at: 3, pr: null, back: true });
     expect(logic.issueWay(issue({ issue: null, issueUrl: null, verdict: 'fixed', fixedBy: 4, fixedAt: '2026-11-09T00:00:00Z' }), [])).toMatchObject({ tab: 'closed', pill: 'Already fixed', at: 0, pr: { number: 4 } });
   });
 
@@ -268,7 +271,7 @@ describe('the cards', () => {
     expect(html).toContain('<a class="button" href="#tutorials">Open</a>');
   });
 
-  it('draws the talk and the box on an open user issue, and no box on a closed one', () => {
+  it('draws the talk and the box on an open user issue, and on a closed one, which sending opens again', () => {
     const note = (over: Row = {}): Row => ({ at: '2026-11-18T01:00:00Z', text: 'Wait for the passage <first>.', state: 'waiting', answeredAt: null, result: null, answer: null, pr: null, runUrl: null, ...over });
     const closed = issue({ issue: 'LAN-5', issueUrl: 'https://linear.app/t/issue/LAN-5', state: 'Live', closedAt: '2026-11-12T00:00:00Z', verdict: 'fixed' });
     draw.fixes({ state: 'ok', data: { prs: [pr(7, 'open', ['LAN-9'])] } });
@@ -288,9 +291,11 @@ describe('the cards', () => {
     // An instruction that waits: Claude acts next, in the tab the issue is in.
     expect(open).toContain('data-tab="you"');
     expect(open).toContain('<span class="ipill claude">Claude acts next</span>');
-    // A closed issue keeps what was said and takes no more.
+    // A closed issue keeps what was said, and takes more: sending opens it again in Linear
+    // (docs/decisions/2026-11-26-the-live-check-decides-and-linear-follows.md).
     expect(done).toContain('The cause is the cache.');
-    expect(done).not.toContain('data-uinote');
+    expect(done).toContain('data-uinote="LAN-5"');
+    expect(done).toContain('Sending it opens LAN-5 again in Linear.');
     // Before the database keeps instructions, a card has no box.
     expect(draw.userIssuesHtml({ issues: [issue()], open: 1, closed: 0, fixed: 0, noiseWeek: 0, last: null })).not.toContain('class="tell"');
     draw.fixes(null);
@@ -417,7 +422,7 @@ describe('the cards', () => {
   it('are in the page, which still has no style attribute', async () => {
     const html = await page({ supabaseUrl: 'https://abc.supabase.co', anonKey: 'k' }, 'n').text();
     expect(html).toContain('function issueCard(c)');
-    expect(html).toContain('userissues(d) { return userIssuesHtml(d); }');
+    expect(html).toContain('userissues(d) { return userIssuesHtml(liveIssues(d)); }');
     expect(html).not.toMatch(/<[a-z][^>]*\sstyle=/);
   });
 });

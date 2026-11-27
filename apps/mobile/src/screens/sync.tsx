@@ -27,7 +27,7 @@ import { useInstallFile } from '../nearby/useInstallFile';
 import { ReadyForOffline } from '../sync/readyForOffline';
 import { downloadsLine, foldsOpenAtFirst, readyLine, refusedLine, stripLink, uploadsLine } from '../sync/syncScreenModel';
 import { standingTitle, syncStanding, type SyncStanding } from '../sync/syncStanding';
-import { TransitStrip } from '../sync/transitStrip';
+import { TransitScene } from '../sync/transitScene';
 import { SentList, WaitingList } from '../sync/uploads';
 import { changeUnits, uploadsSummary } from '../sync/uploadsModel';
 import { useFolds } from '../sync/useFolds';
@@ -85,7 +85,7 @@ export function SyncStatus(ctx: Ctx) {
       )}>
       {/* The last try failing to reach the server outranks the live channel, which can take a minute to notice a lost network. */}
       <Card>
-        <TransitStrip up={counts.recordings > 0 ? counts.recordings : counts.changes} down={sync.pendingDown} link={stripLink(standing)}
+        <TransitScene up={counts.recordings > 0 ? counts.recordings : counts.changes} down={sync.pendingDown} link={stripLink(standing)}
           movingUp={movingUp} movingDown={!offline && sync.downloading.size > 0} />
         <View style={styles.profile} accessible accessibilityLabel={standingTitle(standing)}>
           <View style={[styles.liveDot, { backgroundColor: STANDING_COLOR[standing] }]} />

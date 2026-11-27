@@ -204,9 +204,7 @@ reports) and `20261016010000_diag_jobs.sql`, the server's own jobs:
   isolate (`worker_requests`: `<route>_<2xx…5xx>`, `<route>_429` for a rate
   limit's refusal, and the time taken as `<route>_lt100ms`, `_lt1s`,
   `_lt10s` or `_over10s`; routes include `device` and `links`, the two
-  rate-limited ones, `ops`, the ops dashboard, `bible`, a Bible's lists and
-  pages, and `automation`, the doors only the team's GitHub workflows open,
-  whose time the dashboard does not warn about), invitation email (`invite_email`, from
+  rate-limited ones, and `ops`, the ops dashboard), invitation email (`invite_email`, from
   `send-invite`, with the email service's code), and Forgot password email
   (`password_reset_email`, from `password-reset`, likewise).
 - `diag.job_schedule` says how often each runs; `diag.jobs()` gives each
@@ -234,6 +232,13 @@ reports) and `20261016010000_diag_jobs.sql`, the server's own jobs:
   and organization and language names; never a person's name or email, a
   report's reporter or details, or a command's text
   (`server/opsDashboardSmoke.sql` holds them to it).
+- The line of merges on the ops dashboard's Releases page:
+  `diag.ops_release_line(p_days)` (migration
+  `20261126233000_ops_release_line.sql`), for the last 1 to 90 days: when
+  production iPhones and Android phones first ran each over-the-air update
+  and store build, with how many, and the failure counts by hour and by day.
+  Times and counts only, never an install or profile id
+  (`server/releaseLineSmoke.sql`).
 
 `server/diag-smoke.sql` covers ingest, the allowlist, refusals, the report
 functions, the role boundaries, retention and job runs (`npm run db:test`).
@@ -409,9 +414,18 @@ filed one as a comment on its issue with the new numbers, noise to be
 judged again. Server kinds come back after a week; noise is forgotten after
 90 days.
 
+**The live check decides, and Linear follows it.** A server kind or ops
+line whose issue closed in Linear, but which is still on the ops dashboard
+past the check that would clear it, comes back to Claude at the next run,
+not after a week. Claude opens the issue again (or files a new one) and
+writes its card again for what is true now, and the fix team takes it
+first. An admin's instruction on a closed issue opens it again too. The
+dashboard counts a close in Linear with no pull request as a close, never
+as a fix (docs/decisions/2026-11-26-the-live-check-decides-and-linear-follows.md).
+
 **The logs of the moment.** Before Claude looks, the watch reads the logs
 (Worker errors and warnings, Supabase's errors, a day of the lines that name
-a job or a route, and what it saw of the failure) and the database keeps
+a job or a route, a failed Workers Build's log, and what it saw of the failure) and the database keeps
 them with each kind for 30 days, with personal data out. It does the same
 when the server job or ops line of an open issue fails again, and that
 issue goes to the fix team first. The Worker logs keep only a day; the fix

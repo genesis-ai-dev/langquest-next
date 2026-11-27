@@ -71,19 +71,7 @@ describe('the Worker request tally', () => {
     expect(routeClass('GET', '/ops-dashboard')).toBe('ops');
     expect(routeClass('GET', '/ops-dashboard/x')).toBe('ops');
     expect(routeClass('GET', '/ops/api/runs')).toBe('ops');
-    // A Bible's list waits on its publisher on a cache miss; it counts apart, so its time shows on its own.
-    expect(routeClass('GET', '/api/bible/bibles')).toBe('bible');
-    expect(routeClass('GET', '/api/bible/bibles/X')).toBe('bible');
-    // The team's workflows build the dashboard's lines, 10 s and more: they count apart from what people open (LAN-328).
-    expect(routeClass('POST', '/api/user-issues')).toBe('automation');
-    expect(routeClass('GET', '/api/card-questions')).toBe('automation');
-    expect(routeClass('GET', '/api/tutorial-review/fixes')).toBe('automation');
-    expect(routeClass('PUT', '/api/tutorial-review/pictures/p.jpg')).toBe('automation');
-    expect(routeClass('POST', '/api/tutorial-filmed')).toBe('automation');
-    // Anyone reads a tutorial picture: not a workflow's door.
-    expect(routeClass('GET', '/api/tutorial-pictures/p.jpg')).toBe('other');
-    expect(routeClass('GET', '/api/user-issues-x')).toBe('other');
-    expect(routeClass('GET', '/api/source-audio')).toBe('other');
+    expect(routeClass('GET', '/api/bible/x')).toBe('other');
     expect(routeClass('GET', '/index.html')).toBeNull();
   });
 

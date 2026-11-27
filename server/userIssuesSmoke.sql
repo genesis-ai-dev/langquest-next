@@ -305,8 +305,13 @@ declare
   run text := 'https://github.com/genesis-ai-dev/langquest-next/actions/runs/140';
   admin uuid := '0d000000-0000-0000-0000-0000000000aa';
 begin
-  assert public.ops_user_issue_instruct('LAN-300', 'Fix it.', admin) = 'not_found', 'not on a closed issue';
-  assert public.ops_user_issue_instruct('LAN-999', 'Fix it.', admin) = 'not_found', 'nor on one the watch does not have';
+  -- A closed issue of the watch takes an instruction too: the watch opens it again in Linear before Claude takes it
+  -- (docs/decisions/2026-11-26-the-live-check-decides-and-linear-follows.md).
+  c := public.ops_user_issue_instruct('LAN-300', 'Fix it.', admin);
+  assert c ~ '^[0-9a-f-]{36}$', 'kept on a closed issue: %', c;
+  assert exists (select 1 from jsonb_array_elements(public.ops_user_issue_notes_waiting()) e where e->>'issue' = 'LAN-300'), 'the watch takes it';
+  delete from ops.user_issue_notes where id = c::uuid;
+  assert public.ops_user_issue_instruct('LAN-999', 'Fix it.', admin) = 'not_found', 'not on one the watch does not have';
   -- An issue a line of the dashboard names itself (a nightly test's): the app Worker says so.
   c := public.ops_user_issue_instruct('LAN-998', 'Find the cause.', admin, true);
   assert (select named from ops.user_issue_notes where id = c::uuid), 'kept as named';

@@ -147,6 +147,7 @@ npm run prod:read -- --logs                      lists the sources
 npm run prod:read -- --logs worker-builds worker=langquest-next
 npm run prod:read -- --logs worker-build-log build=<build id>
 npm run prod:read -- --logs worker-logs worker=langquest-next minutes=120 level=error search=E-7K2Q
+npm run prod:read -- --logs worker-logs worker=langquest-next minutes=1440 slow=1000
 npm run prod:read -- --logs supabase-logs query=postgres-errors
 npm run prod:read -- --logs supabase-logs sql="select timestamp, event_message from logs where source = 'function_logs' order by timestamp desc limit 50"
 npm run prod:read -- --logs eas-builds
@@ -157,7 +158,7 @@ npm run prod:read -- --logs github-job-log job=<job id>
 | Source | What | Worker key | claude_reader | agent_reader |
 |---|---|---|---|---|
 | `worker-builds`, `worker-build-log` | Workers Builds: the build that deploys each Worker on a merge to main, and its log | `ADMIN_CLOUDFLARE_TOKEN` (Workers CI Read) | whole | whole: a build prints code and its own output |
-| `worker-logs` | a Worker's own log lines (Workers Logs), the last 24 hours at most | `ADMIN_CLOUDFLARE_LOGS_TOKEN` (Workers role Metadata Read-Only) | every level, whole lines | every level; emails, IP addresses, tokens, long values, phone numbers and query strings taken out (`redact`) |
+| `worker-logs` | a Worker's own log lines (Workers Logs), the last 24 hours at most; each request with its wall time (`ms`), and with `slow=<ms>` only the requests that took at least that long, so a slow route of the request tally can be named by path | `ADMIN_CLOUDFLARE_LOGS_TOKEN` (Workers role Metadata Read-Only) | every level, whole lines | every level; emails, IP addresses, tokens, long values, phone numbers and query strings taken out (`redact`) |
 | `supabase-logs` | Supabase's logs (Logs Explorer SQL): Postgres, sign-in, edge functions, API, storage | `ADMIN_SUPABASE_TOKEN` (Logs Read) | any query, or `postgres-errors` and `http-errors` (the ops dashboard's groups) | the same, each line through `redact` |
 | `eas-builds`, `eas-build-log` | the phone app's EAS builds and a build's log | `ADMIN_EXPO_TOKEN` (robot, Viewer) | whole | whole |
 | `github-job-log` | a GitHub Actions job's log in this repository | `ADMIN_GITHUB_TOKEN` (Actions Read) | whole | whole: the repository is public |

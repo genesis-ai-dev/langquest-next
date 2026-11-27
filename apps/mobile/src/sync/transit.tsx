@@ -1,5 +1,5 @@
 // Recordings in transit, drawn as little packages (decisions.md 166): the
-// package itself, which Sync's strip (transitStrip.tsx) moves between phone and
+// package itself, which Sync's scene (transitScene.tsx) moves between phone and
 // cloud; the arrow
 // wave that says something is moving; and a passage's recordings as boxes
 // that turn green as they go up. Motion is transforms and opacity on the

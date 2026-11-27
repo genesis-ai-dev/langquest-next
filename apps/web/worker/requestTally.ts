@@ -15,15 +15,7 @@ import { statusClass, type JobRun } from '../../../server/jobRuns';
  */
 export type RouteClass =
   | 'blobs_put' | 'blobs_get' | 'blob_access' | 'r2_put' | 'record_blob'
-  | 'reports' | 'agent_api' | 'agent_list' | 'mcp' | 'webhook' | 'device' | 'links' | 'nearby' | 'tutorials' | 'bible' | 'automation' | 'ops' | 'other';
-
-/**
- * The doors only the team's GitHub workflows open, each with its OIDC token: the watch for user
- * issues, card questions, the tutorial review and the tutorial intake. The watch's and the card
- * questions' calls build the ops dashboard's lines (apps/admin/src/lines.ts), so they wait on the
- * same providers as the dashboard, 10 s and more: no person waits for them (LAN-328).
- */
-const AUTOMATION = ['/api/user-issues', '/api/card-questions', '/api/tutorial-review', '/api/tutorial-filmed'];
+  | 'reports' | 'agent_api' | 'agent_list' | 'mcp' | 'webhook' | 'device' | 'links' | 'nearby' | 'tutorials' | 'ops' | 'other';
 
 /** Which kind of request this is; null for what is not counted (the web app and its files). */
 export function routeClass(method: string, path: string): RouteClass | null {
@@ -46,9 +38,6 @@ export function routeClass(method: string, path: string): RouteClass | null {
   if (path.startsWith('/api/nearby/') || path === '/api/relay') return 'nearby';
   // The tutorial videos: people play them, and the intake job asks for each film whether it is stored.
   if (path.startsWith('/api/tutorials/')) return 'tutorials';
-  // A Bible's list and pages, which a cache miss asks of the Bible's publisher (bible.ts).
-  if (path.startsWith('/api/bible/')) return 'bible';
-  if (AUTOMATION.some((p) => path === p || path.startsWith(`${p}/`))) return 'automation';
   if (path.startsWith('/api/') || path === '/connect' || path.startsWith('/r/') || path.startsWith('/v/') || path.startsWith('/apk/') || path === '/videos') return 'other';
   return null;
 }

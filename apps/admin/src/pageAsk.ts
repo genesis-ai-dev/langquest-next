@@ -81,11 +81,12 @@ async function loadQuestions() {
 function pruneAsks() {
   for (const [key, s] of SENDS) if (key.startsWith('ask:') && s.state === 'sent' && QUESTIONS && sendHeld(s, QUESTIONS[key.slice(4)] || [])) SENDS.delete(key);
 }
-/** Every place a box is: the lines' cards, the page's summary and the Overview. */
+/** Every place a box is: the lines' cards, the page's summary, the Overview and the chosen merge on the Releases page. */
 function redrawAsks() {
   redrawLineCards();
   drawSummary();
   renderStart();
+  rlineAsk();
 }
 // While Claude owes an answer and the page is in view, the answers are read again each minute.
 setInterval(() => {
