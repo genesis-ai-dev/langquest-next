@@ -522,6 +522,13 @@ For sign-in from a single-sign-on account and a second factor on top of the
 password, Cloudflare Access can sit in front of `/ops-dashboard*` and
 `/ops/api/*`; the page works unchanged behind it.
 
+## The public roadmap
+
+The **Roadmap** page (menu The product) makes and changes the items of the
+public page `/roadmap`, answers new suggestions (New item, Add to item,
+Hide) and shows what people sent with their emails. `docs/roadmap.md` has
+the page, the limits on sends and the data.
+
 ## Tutorial videos on YouTube
 
 The how-to videos (`docs/tutorial-videos.md`) go on YouTube, one channel

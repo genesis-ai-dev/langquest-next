@@ -14,6 +14,7 @@ const SUGGESTION = '33333333-3333-4333-8333-333333333333';
 const CODE = '44444444-4444-4444-8444-444444444444';
 const ANSWERED = '55555555-5555-4555-8555-555555555555';
 const QUIET = '66666666-6666-4666-8666-666666666666';
+const ITEM = '77777777-7777-4777-8777-777777777777';
 const NOW = Date.parse('2026-10-28T09:00:00Z');
 const CLIENT = { clientId: 'client.apps.googleusercontent.com', clientSecret: 'client-secret' };
 const REDIRECT = 'https://next.langquest.org/ops/api/youtube/callback';
@@ -60,6 +61,11 @@ function deps(over: Partial<Deps> = {}): Deps & { rows: unknown[]; done: string[
       done.push(`fix ${id} by ${by}${askFirst ? ' ask first' : ''}`);
       return id === CODE ? { result: 'asked', kind: 'code', issue: null } : id === SUGGESTION ? { result: 'asked', kind: 'instruction', issue: 'LAN-171' }
         : id === ANSWERED ? { result: 'already', kind: 'code', issue: 'LAN-170' } : { result: 'not_found' };
+    },
+    saveRoadmapItem: async (item, by) => { done.push(`roadmap ${item.id ?? 'new'} ${item.state} ${'picture' in item ? (item.picture === null ? 'no picture' : 'picture') : 'same picture'} by ${by}`); return item.id === ANSWERED ? null : item.id ?? ITEM; },
+    decideRoadmapSuggestion: async (id, decision, item, by) => {
+      done.push(`suggestion ${id} ${decision} ${item ?? '-'} by ${by}`);
+      return id === ANSWERED ? 'not_found' : decision === 'hide' ? 'hidden' : item ?? ITEM;
     },
     now: () => NOW,
     ...over
@@ -656,5 +662,48 @@ describe('the issues the Releases page\'s line of merges names (docs/decisions/2
     const refused = deps();
     expect(await act(refused, 'aal1', { kind: 'issue-info', issues: ['LAN-298'] })).toMatchObject({ ok: false, status: 403 });
     expect(refused.rows).toEqual([{ profileId: VIEWER, action: 'issue_info', target: '1 issues', result: 'refused' }]);
+  });
+
+  it('makes and changes roadmap items, with every field checked (docs/roadmap.md)', async () => {
+    const item = { kind: 'roadmap-item', id: null, state: 'considering', title: ' Clean background noise ', body: 'Remove wind.', issue: 'lan-12' };
+    expect(parseAction(item)).toEqual({ kind: 'roadmap-item', id: null, state: 'considering', title: 'Clean background noise', body: 'Remove wind.', issue: 'LAN-12' });
+    const pic = 'data:image/webp;base64,UklGRg==';
+    expect(parseAction({ ...item, id: ITEM.toUpperCase(), picture: pic })).toMatchObject({ id: ITEM, picture: pic });
+    expect(parseAction({ ...item, picture: null })).toMatchObject({ picture: null });
+    expect(parseAction(item)).not.toHaveProperty('picture');
+    for (const bad of [{ ...item, state: 'later' }, { ...item, title: ' ' }, { ...item, title: 'x'.repeat(121) }, { ...item, body: 'x'.repeat(2001) },
+      { ...item, issue: 'LAN 12' }, { ...item, id: 'x' }, { ...item, picture: 'data:image/svg+xml;base64,PHN2Zz4=' }, { ...item, picture: 'data:image/webp;base64,' + 'A'.repeat(200_000) }]) {
+      expect(parseAction(bad)).toBeNull();
+    }
+    const d = deps();
+    expect(await act(d, 'aal2', item)).toEqual({ ok: true, result: ITEM });
+    expect(await act(d, 'aal2', { ...item, id: ITEM, state: 'done', picture: null })).toEqual({ ok: true, result: ITEM });
+    expect(await act(d, 'aal2', { ...item, id: ANSWERED })).toMatchObject({ ok: false, status: 404 });
+    expect(d.done).toEqual([`roadmap new considering same picture by ${VIEWER}`, `roadmap ${ITEM} done no picture by ${VIEWER}`, `roadmap ${ANSWERED} considering same picture by ${VIEWER}`]);
+    expect(d.rows).toEqual([
+      { profileId: VIEWER, action: 'roadmap_item', target: 'new item', result: 'ok', detail: 'made:considering' },
+      { profileId: VIEWER, action: 'roadmap_item', target: ITEM, result: 'ok', detail: 'saved:done' },
+      { profileId: VIEWER, action: 'roadmap_item', target: ANSWERED, result: 'refused', detail: 'not_found' }
+    ]);
+  });
+
+  it('makes a roadmap suggestion an item, adds it to one or hides it; only a Global Viewer may', async () => {
+    expect(parseAction({ kind: 'roadmap-suggestion', id: SUGGESTION, decision: 'add', item: ITEM })).toEqual({ kind: 'roadmap-suggestion', id: SUGGESTION, decision: 'add', item: ITEM });
+    expect(parseAction({ kind: 'roadmap-suggestion', id: SUGGESTION, decision: 'hide', item: ITEM })).toEqual({ kind: 'roadmap-suggestion', id: SUGGESTION, decision: 'hide', item: null });
+    for (const bad of [{ kind: 'roadmap-suggestion', id: SUGGESTION, decision: 'add' }, { kind: 'roadmap-suggestion', id: 'x', decision: 'new' }, { kind: 'roadmap-suggestion', id: SUGGESTION, decision: 'keep' }]) {
+      expect(parseAction(bad)).toBeNull();
+    }
+    const d = deps();
+    expect(await act(d, 'aal2', { kind: 'roadmap-suggestion', id: SUGGESTION, decision: 'new' })).toEqual({ ok: true, result: ITEM });
+    expect(await act(d, 'aal2', { kind: 'roadmap-suggestion', id: SUGGESTION, decision: 'hide' })).toEqual({ ok: true, result: 'hidden' });
+    expect(await act(d, 'aal2', { kind: 'roadmap-suggestion', id: ANSWERED, decision: 'add', item: ITEM })).toMatchObject({ ok: false, status: 404 });
+    expect(d.rows).toEqual([
+      { profileId: VIEWER, action: 'roadmap_suggestion', target: SUGGESTION, result: 'ok', detail: 'new' },
+      { profileId: VIEWER, action: 'roadmap_suggestion', target: SUGGESTION, result: 'ok', detail: 'hide' },
+      { profileId: VIEWER, action: 'roadmap_suggestion', target: ANSWERED, result: 'refused', detail: 'not_found' }
+    ]);
+    const refused = deps();
+    expect(await act(refused, 'aal1', { kind: 'roadmap-suggestion', id: SUGGESTION, decision: 'hide' })).toMatchObject({ ok: false, status: 403 });
+    expect(refused.done).toEqual([]);
   });
 });

@@ -31,6 +31,7 @@ export const GROUPS = [
   { id: 'access', title: 'Keys and access', src: 'Global Viewers, limits hit, tokens, device grants, webhooks, review links, and what expires', parts: ['security', 'integrations', 'expiry', 'claudeplan'] },
   { id: 'stores', title: 'App stores', src: 'Google Play vitals and reviews, App Store review state, builds and reviews', parts: ['googleplay', 'appstore'] },
   { id: 'nightly', title: 'Nightly tests', src: 'The line each nightly suite left on its latest scheduled run on main: what ran, what passed, and the Linear issue of each test that failed', wide: true, parts: ['nightly'] },
+  { id: 'roadmap', title: 'Roadmap', src: 'The public roadmap at /roadmap: each item and its part, how important people said it is and what they wrote, and the suggestions that wait for an answer', wide: true, parts: ['roadmap'] },
   { id: 'tutorials', title: 'Tutorial videos', src: 'Each video\'s state and timeline in each app language, what an admin must do, what the workers do now and tonight, each channel, Publish, and what came in', wide: true, parts: ['videos', 'tutorials', 'videofeedback'] }
 ] as const;
 
@@ -49,7 +50,7 @@ export const PART_TITLES: Record<string, string> = {
 export const OPS_IDS = ['fleet', 'safety', 'people', 'cron', 'dbdetail', 'push', 'worker', 'integrations', 'support', 'security', 'tutorials', 'videofeedback', 'userissues', 'userreports', 'research', 'nearby'] as const;
 
 /** Each from its own call (/ops/api/<id>), like the providers. */
-export const OWN_CALL_IDS = ['expiry', 'storage', 'capacity', 'releases', 'container', 'adoption', 'videos', 'pipeline', 'nightly', 'claudeplan'] as const;
+export const OWN_CALL_IDS = ['expiry', 'storage', 'capacity', 'releases', 'container', 'adoption', 'videos', 'pipeline', 'nightly', 'claudeplan', 'roadmap'] as const;
 
 export const OPS_SECTIONS = [
   { id: 'safety', title: 'Work safety', src: 'Refused work, upload delay, clock skew, the fold canary, projection lag and snapshots', wide: true },
@@ -77,7 +78,8 @@ export const OPS_SECTIONS = [
   { id: 'research', title: 'Research', src: 'ops.research_reports and ops.research_items: the research team\'s report of each day and what it found (docs/research-team.md)' },
   { id: 'nearby', title: 'Nearby sync', src: 'diag.ops_nearby: the phones\' nearby records of the last 7 days, and the organizations with nearby, joining offline or sharing while open on (decision 235)' },
   { id: 'nightly', title: 'Nightly tests', src: 'GitHub: the line each nightly suite leaves on its latest scheduled run on main (decisions.md 209)' },
-  { id: 'claudeplan', title: 'Frontier Claude plan this week', src: 'GitHub: the reading claude-plan.yml leaves on its latest run, every hour, with the agent team\'s token' }
+  { id: 'claudeplan', title: 'Frontier Claude plan this week', src: 'GitHub: the reading claude-plan.yml leaves on its latest run, every hour, with the agent team\'s token' },
+  { id: 'roadmap', title: 'Roadmap', src: 'diag.ops_roadmap: ops.roadmap_items and ops.roadmap_notes, what people sent from the public roadmap (docs/roadmap.md)' }
 ] as const;
 
 export const OPS_SCRIPT = String.raw`

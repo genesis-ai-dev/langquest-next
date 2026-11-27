@@ -39,6 +39,7 @@ The app
 - [tutorial-teaching.md](./tutorial-teaching.md) — What a tutorial owes the person watching: their goal first, the whole job, every line checked against the app
 - [card-words.md](./card-words.md) — The word standard for every ops dashboard card and every line Claude writes for one: the shape of a card, the words, why Claude stopped, and the checks that enforce it
 - [tutorial-videos.md](./tutorial-videos.md) — The how-to videos: scripts the app plays through on the web export, filmed and voiced in every app language (decision 177)
+- [roadmap.md](./roadmap.md) — The public roadmap at /roadmap: what the team works on, plans and considers, what anyone can send about it, and the dashboard page that controls it
 
 People, organizations and outside apps
 

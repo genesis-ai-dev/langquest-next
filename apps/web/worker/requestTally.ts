@@ -38,7 +38,7 @@ export function routeClass(method: string, path: string): RouteClass | null {
   if (path.startsWith('/api/nearby/') || path === '/api/relay') return 'nearby';
   // The tutorial videos: people play them, and the intake job asks for each film whether it is stored.
   if (path.startsWith('/api/tutorials/')) return 'tutorials';
-  if (path.startsWith('/api/') || path === '/connect' || path.startsWith('/r/') || path.startsWith('/v/') || path.startsWith('/apk/') || path === '/videos') return 'other';
+  if (path.startsWith('/api/') || path === '/connect' || path.startsWith('/r/') || path.startsWith('/v/') || path.startsWith('/apk/') || path === '/videos' || path === '/roadmap' || path.startsWith('/roadmap/')) return 'other';
   return null;
 }
 

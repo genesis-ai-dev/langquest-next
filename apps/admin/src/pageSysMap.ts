@@ -170,6 +170,7 @@ const SM_NODES = [
   { id: 'userreports', z: 'care', x: 2216, y: 456, name: 'User reports', icon: 'chat', group: 'userreports', parts: ['userreports'], what: 'Problems and ideas that people send from help mode in the app.' },
   { id: 'watch', z: 'care', x: 2216, y: 560, name: 'Watch for user issues', icon: 'eye', group: 'userissues', parts: ['userissues'], kinds: ['-user-issues-open'], what: 'Every 15 minutes, Claude reads new problems from phones, server jobs and user reports. Claude files each real problem in Linear.' },
   { id: 'research', z: 'care', x: 2216, y: 770, name: 'Research team', icon: 'search', group: 'research', parts: ['research'], what: 'Each day, Claude looks for security holes, new versions and one more subject.' },
+  { id: 'roadmap', z: 'care', x: 2441, y: 352, name: 'Public roadmap', icon: 'road', group: 'roadmap', parts: ['roadmap'], what: 'The roadmap page on the website. Anyone can say how important an item is, write why, and suggest a new item.' },
   { id: 'linear', z: 'care', x: 2441, y: 560, name: 'Linear', icon: 'list', group: 'userissues', parts: [], kinds: ['user-issues-open'], what: 'Linear keeps every issue and its state. The dashboard reads Linear.' },
   { id: 'fixteam', z: 'care', x: 2441, y: 770, name: 'Agent fix team', icon: 'wrench', group: 'userissues', parts: [], what: 'Claude writes a fix for each issue as a pull request, the most important issue first. The dashboard shows its work on User issues; it has no line of its own.' },
   { id: 'filming', z: 'video', x: 616, y: 105, name: 'Tutorial filming', icon: 'video', group: 'tutorials', parts: ['videos'], what: 'Each night, GitHub Actions film the how-to videos in each app language.' },
@@ -296,6 +297,7 @@ function smNodeMatch(node, kinds, words) {
 /** Drawing the map, zoom and move, the panel, the walk-throughs and the search. */
 export const SYSMAP_SCRIPT = String.raw`
 const SM_ICON = {
+  road: 'M4 6h9M4 12h13M4 18h6M15 6a2 2 0 1 0 4 0 2 2 0 1 0-4 0M18 18a2 2 0 1 0 4 0 2 2 0 1 0-4 0',
   branch: 'M6 3v12M18 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM6 21a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM18 9a9 9 0 0 1-9 9',
   rocket: 'M4.5 16.5c-1.5 1.3-2 5-2 5s3.7-.5 5-2c.7-.8.7-2.1-.1-2.9a2.2 2.2 0 0 0-2.9-.1zM12 15l-3-3a22 22 0 0 1 2-3.9A12.9 12.9 0 0 1 22 2c0 2.7-.8 7.5-6 11a22 22 0 0 1-4 2zM9 12H4s.6-3 2-4c1.6-1.1 5 0 5 0M12 15v5s3-.6 4-2c1.1-1.6 0-5 0-5',
   refresh: 'M21 12a9 9 0 1 1-3-6.7L21 8M21 3v5h-5',

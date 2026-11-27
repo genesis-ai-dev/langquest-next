@@ -144,5 +144,30 @@
     "none": "Pas encore de vidéos dans cette langue.",
     "failed": "Les vidéos ne se sont pas chargées. Rechargez la page pour réessayer.",
     "privacy": "Confidentialité"
+  },
+  "roadmap": {
+    "pageTitle": "Feuille de route · LangQuest",
+    "language": "Langue",
+    "title": "Feuille de route",
+    "done": "Terminé",
+    "suggest": "Proposer",
+    "progress": "En cours",
+    "planned": "Prévu",
+    "considering": "À l’étude",
+    "none": "Rien ici pour le moment.",
+    "failed": "La feuille de route ne s’est pas chargée. Rechargez la page pour réessayer.",
+    "question": "Quelle importance cela a-t-il pour vous ?",
+    "imp0": "Pas important",
+    "imp1": "Ce serait bien",
+    "imp2": "Important",
+    "imp3": "Essentiel",
+    "needs": "De quoi avez-vous besoin ? En quoi cela vous aiderait-il ?",
+    "idea": "Que voulez-vous faire ? En quoi cela vous aiderait-il ?",
+    "email": "E-mail (facultatif)",
+    "send": "Envoyer",
+    "sent": "Envoyé",
+    "sendFailed": "Non envoyé. Réessayez.",
+    "close": "Fermer",
+    "privacy": "Confidentialité"
   }
 }

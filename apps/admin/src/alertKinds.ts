@@ -188,6 +188,8 @@ export const KINDS = {
   'research-security-hole': { part: 'research', title: 'A serious security hole waits for a fix', recheck: LIVE, person: true },
   'research-waits': { part: 'research', title: 'Research items wait for a developer', recheck: LIVE, person: true },
   'research-stopped': { part: 'research', title: 'The research team stopped writing reports', recheck: { daily: ['13:23'], takesMin: 60 } },
+  'roadmap-suggestions': { part: 'roadmap', title: 'Roadmap suggestions wait for an answer', recheck: LIVE, person: true },
+  'roadmap-full': { part: 'roadmap', title: 'The public roadmap took its sends of the day', recheck: LIVE },
 
   // ---- The page itself ----
   'unreadable': { part: '', title: 'A part could not be read', recheck: LIVE }
