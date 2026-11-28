@@ -11,6 +11,7 @@ import { LinearError, linearIssues, type IssueInfo, type IssueState } from '../.
 import { fileSuggestion } from './fileSuggestion';
 import { startRun, type RunStart, type RunWorkflow } from './startRun';
 import { CARD, PAGE, QUESTION_MAX } from '../../../server/cardQuestions';
+import { parseRoadmapAction, type RoadmapAction } from './roadmapActions';
 
 /**
  * The few things the ops dashboard may do (docs/ops-dashboard-plan.md
@@ -24,8 +25,9 @@ import { CARD, PAGE, QUESTION_MAX } from '../../../server/cardQuestions';
  * question from any card or page (docs/decisions/2026-11-23-ask-claude-from-every-dashboard-card.md),
  * mark a line resolved until its problem comes back, or show it again
  * (docs/decisions/2026-11-24-a-resolved-line-comes-back-with-its-problem.md),
- * mark an account's quiet installs not an issue, claim or release a Linear issue, and mark Claude's
- * replies seen (docs/decisions/2026-11-24-claim-issues-and-see-claudes-replies.md). The dashboard's own Worker holds no writer's key; it
+ * mark an account's quiet installs not an issue, claim or release a Linear issue, mark Claude's
+ * replies seen (docs/decisions/2026-11-24-claim-issues-and-see-claudes-replies.md), and make or change
+ * an item of the public roadmap or answer a suggestion sent there (docs/roadmap.md). The dashboard's own Worker holds no writer's key; it
  * calls this entrypoint over a service binding with the person's own token,
  * and this Worker checks that token itself (a live session, a Global Viewer
  * on an `aal2` session) before acting with the service role. Every attempt
@@ -93,7 +95,9 @@ export type Action =
    * The issues the Releases page's line of merges names: each one's title, when it was reported and its status
    * (docs/decisions/2026-11-26-release-timeline-on-the-releases-page.md). It reads only.
    */
-  | { kind: 'issue-info'; issues: string[] };
+  | { kind: 'issue-info'; issues: string[] }
+  /** The public roadmap: an item made or changed, or a suggestion answered (roadmapActions.ts, docs/roadmap.md). */
+  | RoadmapAction;
 
 /** A line as the page showed it when the admin tapped Resolved (migration 20261124013000_ops_line_resolves.sql). */
 export interface ResolvedLine {
@@ -165,6 +169,10 @@ export interface ActionDeps {
   fileSuggestion(id: string): Promise<string | null>;
   /** A suggestion to fix in the app, by this person (`ops_suggestion_fix_in_app`): what happened, its kind, and its issue when it has one. */
   fixInApp(id: string, by: string, askFirst: boolean): Promise<{ result: string; kind?: string; issue?: string | null }>;
+  /** A roadmap item made or changed by this person (`ops_roadmap_item_save`): its id, or null when no item has that id. */
+  saveRoadmapItem(item: Extract<RoadmapAction, { kind: 'roadmap-item' }>, by: string): Promise<string | null>;
+  /** A roadmap suggestion answered by this person (`ops_roadmap_suggestion_decide`): the item's id, `hidden`, or `not_found`. */
+  decideRoadmapSuggestion(id: string, decision: 'new' | 'add' | 'hide', item: string | null, by: string): Promise<string>;
   now(): number;
 }
 
@@ -222,6 +230,8 @@ function tutorialItems(items: unknown): [string, string, string][] | null {
 /** What the dashboard sent, checked; anything else is refused before anyone is asked. */
 export function parseAction(input: unknown): Action | null {
   if (typeof input !== 'object' || input === null) return null;
+  const kind = (input as { kind?: unknown }).kind;
+  if (kind === 'roadmap-item' || kind === 'roadmap-suggestion') return parseRoadmapAction(input);
   const a = input as { kind?: unknown; id?: unknown; status?: unknown; key?: unknown; profile?: unknown; ok?: unknown; askFirst?: unknown };
   if (a.kind === 'feedback' && typeof a.id === 'string' && UUID.test(a.id) && (a.status === 'new' || a.status === 'seen' || a.status === 'done')) {
     return { kind: 'feedback', id: a.id, status: a.status };
@@ -338,6 +348,8 @@ function nameOf(action: Action): { name: string; target: string } {
     case 'issue-close': return { name: 'issue_close', target: action.issue };
     case 'issue-states': return { name: 'issue_states', target: `${action.issues.length} issues` };
     case 'issue-info': return { name: 'issue_info', target: `${action.issues.length} issues` };
+    case 'roadmap-item': return { name: 'roadmap_item', target: action.id ?? 'new item' };
+    case 'roadmap-suggestion': return { name: 'roadmap_suggestion', target: action.id };
     default: return { name: NAMES[action.kind], target: 'youtube' };
   }
 }
@@ -356,6 +368,17 @@ export async function act(deps: ActionDeps, token: string, input: unknown): Prom
     return { ok: false, status: 403, error: 'Only Global Viewers on a session verified with their authenticator may act here.' };
   }
   try {
+    if (action.kind === 'roadmap-item') {
+      const id = await deps.saveRoadmapItem(action, who.profileId);
+      await deps.record({ profileId: who.profileId, action: name, target, result: id ? 'ok' : 'refused', detail: id ? `${action.id ? 'saved' : 'made'}:${action.state}` : 'not_found' });
+      return id ? { ok: true, result: id } : { ok: false, status: 404, error: 'No roadmap item has that id.' };
+    }
+    if (action.kind === 'roadmap-suggestion') {
+      const answer = await deps.decideRoadmapSuggestion(action.id, action.decision, action.item, who.profileId);
+      const done = answer !== 'not_found';
+      await deps.record({ profileId: who.profileId, action: name, target, result: done ? 'ok' : 'refused', detail: done ? action.decision : answer });
+      return done ? { ok: true, result: answer } : { ok: false, status: 404, error: 'That suggestion was answered already, or the item is gone.' };
+    }
     if (action.kind === 'feedback') {
       const found = await deps.setFeedbackStatus(action.id, action.status);
       await deps.record({ profileId: who.profileId, action: name, target, result: found ? 'ok' : 'refused', ...(found ? {} : { detail: 'not_found' }) });
@@ -707,6 +730,17 @@ export function actionDeps(env: Env): ActionDeps {
       return data as { result: string; kind?: string; issue?: string | null };
     },
     fileSuggestion: async (id) => await fileSuggestion(db(), env.LINEAR_API_KEY, id),
+    saveRoadmapItem: async (item, by) => {
+      const p = { id: item.id, state: item.state, title: item.title, body: item.body, issue: item.issue, ...('picture' in item ? { picture: item.picture } : {}) };
+      const { data, error } = await db().rpc('ops_roadmap_item_save', { p, p_by: by });
+      if (error) throw new Error(`ops_roadmap_item_save: ${error.message}`);
+      return typeof data === 'string' ? data : null;
+    },
+    decideRoadmapSuggestion: async (id, decision, item, by) => {
+      const { data, error } = await db().rpc('ops_roadmap_suggestion_decide', { p_id: id, p_decision: decision, p_item: item, p_by: by });
+      if (error) throw new Error(`ops_roadmap_suggestion_decide: ${error.message}`);
+      return String(data);
+    },
     now: () => Date.now(),
     record: async (row) => {
       const { error } = await db().rpc('ops_record_action', {

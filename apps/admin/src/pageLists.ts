@@ -447,7 +447,9 @@ export const FOLDED_CONTROLS = ['data-quiet', 'data-ok', 'data-run', 'data-org',
   'data-resolve', 'data-unresolve', 'data-square', 'data-sqi', 'data-claim-on', 'data-close-as', 'data-sm', 'data-sm-go',
   // The line of merges on the Releases page (pageReleaseLineDraw.ts): filters, zoom and the change to look at.
   'data-rl-a', 'data-rl-all', 'data-rl-clear', 'data-rl-g', 'data-rl-ga', 'data-rl-go', 'data-rl-goto', 'data-rl-h', 'data-rl-i', 'data-rl-k', 'data-rl-on', 'data-rl-s', 'data-rl-v',
-  'data-rl-za', 'data-rl-zb', 'data-rl-zoom'];
+  'data-rl-za', 'data-rl-zb', 'data-rl-zoom',
+  // The Roadmap page (pageRoadmap.ts): open, make, close and save an item, its state and picture, and a suggestion's answer.
+  'data-rm-open', 'data-rm-new', 'data-rm-close', 'data-rm-state', 'data-rm-save', 'data-rm-nopic', 'data-rm-sug', 'data-rm-do', 'data-rm-pic'];
 /** Whether a part's body holds a queue control (above). */
 export const QUEUE_SOURCE = String.raw`\s(?:` + QUEUE_CONTROLS.join('|') + String.raw`)(?=[\s=>])`;
 

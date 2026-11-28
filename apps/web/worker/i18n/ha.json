@@ -144,5 +144,30 @@
     "none": "Babu bidiyoyi a wannan harshe tukuna.",
     "failed": "Bidiyoyin ba su loda ba. Sake loda shafin don sake gwadawa.",
     "privacy": "Sirri"
+  },
+  "roadmap": {
+    "pageTitle": "Taswirar aiki · LangQuest",
+    "language": "Harshe",
+    "title": "Taswirar aiki",
+    "done": "An gama",
+    "suggest": "Ba da shawara",
+    "progress": "Ana aiki a kai",
+    "planned": "An tsara",
+    "considering": "Ana nazari",
+    "none": "Babu komai a nan tukuna.",
+    "failed": "Taswirar aiki ba ta loda ba. Sake loda shafin don sake gwadawa.",
+    "question": "Yaya muhimmancin wannan a gare ka?",
+    "imp0": "Ba muhimmi ba",
+    "imp1": "Zai yi kyau",
+    "imp2": "Muhimmi",
+    "imp3": "Muhimmi sosai",
+    "needs": "Me kake bukata? Ta yaya wannan zai taimaka maka?",
+    "idea": "Me kake so ka yi? Ta yaya hakan zai taimaka maka?",
+    "email": "Imel (ba dole ba)",
+    "send": "Aika",
+    "sent": "An aika",
+    "sendFailed": "Ba a aika ba. Sake gwadawa.",
+    "close": "Rufe",
+    "privacy": "Sirri"
   }
 }

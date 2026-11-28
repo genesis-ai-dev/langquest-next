@@ -42,6 +42,8 @@ const ALLOWED: Record<string, string> = {
   'api_device_grants.approved_at': 'when a person approved a device sign-in for the API, not an approval of work',
   'org_exports.status': "where an organization export request stands (queued, running, ready, failed, expired), the job's own state (decisions.md 206), not a status of work",
   'org_verification_requests.status': "where an organization's blue check request stands, the server's own state (decisions.md 173), not a status of work",
+  'ops.roadmap_items.state': 'which part of the public roadmap a team-written item shows in (docs/roadmap.md), not a status of translation work',
+  'ops.roadmap_notes.state': 'whether an admin answered a public roadmap suggestion (new, added or hidden), not a status of translation work',
   'ops.user_issues.verdict': 'what the watch for user issues decided about a kind of failure the app reported (filed, known, noise or fixed; decisions.md 202), not a status of work',
   'ops.user_issue_fixes.verdict': "what the issue manager of the agent team said about its fix (fix, review, decision and so on; docs/decisions/2026-11-19-an-agent-team-fixes-user-issues.md), kept for the ops dashboard, not a status of work",
 };

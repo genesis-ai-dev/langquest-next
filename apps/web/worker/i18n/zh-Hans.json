@@ -144,5 +144,30 @@
     "none": "此语言暂无视频。",
     "failed": "视频未能加载。请重新加载页面再试。",
     "privacy": "隐私"
+  },
+  "roadmap": {
+    "pageTitle": "路线图 · LangQuest",
+    "language": "语言",
+    "title": "路线图",
+    "done": "已完成",
+    "suggest": "提建议",
+    "progress": "进行中",
+    "planned": "已计划",
+    "considering": "考虑中",
+    "none": "这里还没有内容。",
+    "failed": "路线图未能加载。请重新加载页面再试。",
+    "question": "这对你有多重要？",
+    "imp0": "不重要",
+    "imp1": "有更好",
+    "imp2": "重要",
+    "imp3": "非常重要",
+    "needs": "你需要什么？这对你有什么帮助？",
+    "idea": "你想做什么？那对你有什么帮助？",
+    "email": "电子邮件（可选）",
+    "send": "发送",
+    "sent": "已发送",
+    "sendFailed": "未发送。请再试一次。",
+    "close": "关闭",
+    "privacy": "隐私"
   }
 }

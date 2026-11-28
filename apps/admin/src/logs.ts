@@ -32,7 +32,7 @@ export const LOG_SOURCES: Record<LogSource, string> = {
   ...API_SOURCES,
   'worker-builds': 'The latest Workers Builds (how a merge to main deploys a Worker): {worker?, limit?}',
   'worker-build-log': 'One Workers Build\'s log: {build}',
-  'worker-logs': 'A Worker\'s own logs (Workers Logs), each request with its wall time in ms: {worker?, minutes?, level?, search?, limit?, slow?} (slow: only requests that took at least this many ms)',
+  'worker-logs': 'A Worker\'s own logs (Workers Logs): {worker?, minutes?, level?, search?, limit?}',
   'supabase-logs': 'Supabase\'s logs (Postgres, sign-in, edge functions, API, storage, realtime): {sql, minutes?} (Logs Explorer SQL on table logs; source names the log, e.g. function_logs, postgres_logs, auth_logs, edge_logs), or {query: postgres-errors | http-errors, minutes?}',
   'eas-builds': 'The latest EAS builds of the phone app: {limit?}',
   'eas-build-log': 'One EAS build\'s log: {build}',
@@ -123,17 +123,7 @@ async function workerBuildLog(d: LogsDeps, body: Record<string, unknown>): Promi
 interface CfEvent {
   timestamp?: number; source?: unknown;
   $metadata?: { level?: string; message?: string; error?: string; service?: string; trigger?: string; statusCode?: number; url?: string };
-  $workers?: { scriptName?: string; outcome?: string; eventType?: string; scriptVersion?: { id?: string }; wallTimeMs?: number };
-}
-
-/**
- * `slow`: only the requests that took at least this many ms, so a slow route's requests can be named by path
- * (LAN-328: the Worker's request tally times each route, not each path). It comes as text from a
- * `name=value` read, or as a number.
- */
-function slowMs(v: unknown): number | undefined {
-  const n = typeof v === 'number' ? v : typeof v === 'string' && /^\d+$/.test(v) ? Number(v) : undefined;
-  return n !== undefined && Number.isFinite(n) && n > 0 ? Math.floor(n) : undefined;
+  $workers?: { scriptName?: string; outcome?: string; eventType?: string; scriptVersion?: { id?: string } };
 }
 
 async function workerLogs(d: LogsDeps, body: Record<string, unknown>, login: ReadLogin): Promise<LogAnswer> {
@@ -148,8 +138,6 @@ async function workerLogs(d: LogsDeps, body: Record<string, unknown>, login: Rea
   if (worker) filters.push({ key: '$workers.scriptName', operation: 'eq', type: 'string', value: worker });
   const levels = asked ? [asked] : null;
   if (levels) filters.push({ kind: 'group', filterCombination: 'or', filters: levels.map((value) => ({ key: '$metadata.level', operation: 'eq', type: 'string', value })) });
-  const slow = slowMs(body.slow);
-  if (slow !== undefined) filters.push({ key: '$workers.wallTimeMs', operation: 'gte', type: 'number', value: slow });
   const now = d.now();
   const answer = await getJson<{ result?: { events?: { events?: CfEvent[] } } }>(d.fetcher,
     `https://api.cloudflare.com/client/v4/accounts/${d.env.CLOUDFLARE_ACCOUNT_ID}/workers/observability/telemetry/query`, {
@@ -165,11 +153,10 @@ async function workerLogs(d: LogsDeps, body: Record<string, unknown>, login: Rea
     const m = e.$metadata ?? {};
     const text = [m.message, m.error].filter(Boolean).join(' | ') || (typeof e.source === 'string' ? e.source : JSON.stringify(e.source ?? ''));
     const url = login === 'agent_reader' && m.url ? m.url.replace(/\?.*$/, '') : m.url;
-    const wall = e.$workers?.wallTimeMs;
-    const line = [e.timestamp ? ISO(e.timestamp) : '', e.$workers?.scriptName ?? m.service ?? '', m.level ?? '', e.$workers?.outcome ?? '', m.statusCode ?? '', typeof wall === 'number' ? Math.round(wall) : '', url ?? m.trigger ?? '', text].join('\t');
+    const line = [e.timestamp ? ISO(e.timestamp) : '', e.$workers?.scriptName ?? m.service ?? '', m.level ?? '', e.$workers?.outcome ?? '', m.statusCode ?? '', url ?? m.trigger ?? '', text].join('\t');
     return login === 'agent_reader' ? redact(line) : line;
   }).sort();
-  return tail(['time\tworker\tlevel\toutcome\tstatus\tms\turl or trigger\tmessage', ...lines], `The last ${minutes} minutes, at most ${limit} events${levels ? `, level ${levels.join(' or ')}` : ''}${slow !== undefined ? `, ${slow} ms or more` : ''}.`);
+  return tail(['time\tworker\tlevel\toutcome\tstatus\turl or trigger\tmessage', ...lines], `The last ${minutes} minutes, at most ${limit} events${levels ? `, level ${levels.join(' or ')}` : ''}.`);
 }
 
 // ---- Supabase ----

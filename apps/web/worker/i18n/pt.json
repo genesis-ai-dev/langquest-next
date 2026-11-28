@@ -144,5 +144,30 @@
     "none": "Ainda não há vídeos neste idioma.",
     "failed": "Os vídeos não carregaram. Recarregue a página para tentar de novo.",
     "privacy": "Privacidade"
+  },
+  "roadmap": {
+    "pageTitle": "Roteiro · LangQuest",
+    "language": "Idioma",
+    "title": "Roteiro",
+    "done": "Concluído",
+    "suggest": "Sugerir",
+    "progress": "Em andamento",
+    "planned": "Planejado",
+    "considering": "Em análise",
+    "none": "Ainda não há nada aqui.",
+    "failed": "O roteiro não carregou. Recarregue a página para tentar de novo.",
+    "question": "Quão importante isto é para você?",
+    "imp0": "Não é importante",
+    "imp1": "Seria bom",
+    "imp2": "Importante",
+    "imp3": "Crítico",
+    "needs": "Do que você precisa? Como isto ajudaria você?",
+    "idea": "O que você quer fazer? Como isso ajudaria você?",
+    "email": "E-mail (opcional)",
+    "send": "Enviar",
+    "sent": "Enviado",
+    "sendFailed": "Não foi enviado. Tente de novo.",
+    "close": "Fechar",
+    "privacy": "Privacidade"
   }
 }

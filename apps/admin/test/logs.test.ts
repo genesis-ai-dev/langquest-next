@@ -124,25 +124,6 @@ describe('Workers Logs', () => {
     expect(JSON.parse(String(d.calls[0]!.init!.body)).parameters.filters).toHaveLength(2);
     expect(answer.lines[1]).toContain('ann@example.org');
   });
-
-  it('gives each request its wall time, and asks only for the slow ones when slow is given (LAN-328)', async () => {
-    const timed = { result: { events: { events: [
-      { timestamp: 1763812800000, $metadata: { level: 'info', message: 'GET https://next.langquest.org/api/x', url: 'https://next.langquest.org/api/x' }, $workers: { scriptName: 'langquest-next', outcome: 'ok', wallTimeMs: 12345.6 } },
-      { timestamp: 1763812801000, $metadata: { level: 'info', message: 'a scheduled job' }, $workers: { scriptName: 'langquest-next', outcome: 'ok' } }
-    ] } } };
-    const d = await deps(() => timed);
-    const answer = await (await handleLogs(post({ source: 'worker-logs', slow: '1000' }, AGENT_JWT), d)).json();
-    expect(JSON.parse(String(d.calls[0]!.init!.body)).parameters.filters).toEqual([
-      { key: '$workers.wallTimeMs', operation: 'gte', type: 'number', value: 1000 }]);
-    expect(answer.lines[0]).toBe('time\tworker\tlevel\toutcome\tstatus\tms\turl or trigger\tmessage');
-    expect(answer.lines[1].split('\t')[5]).toBe('12346');
-    expect(answer.lines[1].split('\t')[6]).toBe('https://next.langquest.org/api/x');
-    expect(answer.lines[2].split('\t')[5]).toBe('');
-    for (const slow of ['0', 'x', '-5', undefined]) {
-      await handleLogs(post({ source: 'worker-logs', slow }, AGENT_JWT), d);
-      expect(JSON.parse(String(d.calls.at(-1)!.init!.body)).parameters.filters).toEqual([]);
-    }
-  });
 });
 
 describe('Supabase logs', () => {

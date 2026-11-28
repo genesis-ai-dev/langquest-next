@@ -144,5 +144,30 @@
     "none": "Bado hakuna video katika lugha hii.",
     "failed": "Video hazikupakia. Pakia upya ukurasa ili ujaribu tena.",
     "privacy": "Faragha"
+  },
+  "roadmap": {
+    "pageTitle": "Ramani ya kazi · LangQuest",
+    "language": "Lugha",
+    "title": "Ramani ya kazi",
+    "done": "Imekamilika",
+    "suggest": "Pendekeza",
+    "progress": "Inafanyiwa kazi",
+    "planned": "Imepangwa",
+    "considering": "Inazingatiwa",
+    "none": "Hakuna kitu hapa bado.",
+    "failed": "Ramani ya kazi haikupakia. Pakia upya ukurasa ili ujaribu tena.",
+    "question": "Hili lina umuhimu gani kwako?",
+    "imp0": "Si muhimu",
+    "imp1": "Ingekuwa vizuri",
+    "imp2": "Muhimu",
+    "imp3": "Muhimu sana",
+    "needs": "Unahitaji nini? Hili lingekusaidiaje?",
+    "idea": "Unataka kufanya nini? Hilo lingekusaidiaje?",
+    "email": "Barua pepe (si lazima)",
+    "send": "Tuma",
+    "sent": "Imetumwa",
+    "sendFailed": "Haikutumwa. Jaribu tena.",
+    "close": "Funga",
+    "privacy": "Faragha"
   }
 }
