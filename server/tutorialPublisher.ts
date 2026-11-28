@@ -1,6 +1,6 @@
 import {
   accessToken, addToPlaylist, brandChannel, brandOf, channelFull, entriesOf, heldComments, outOfQuota, placeInPlaylist, playlistFor, playlistsOf, publicOf,
-  removeEntry, retire, setHome, TRAILER, uploadVideo, YouTubeError, type ChannelLanguage, type Client, type Fetch
+  removeEntry, retire, setHome, TRAILER, uploadVideo, YouTubeError, type ChannelLanguage, type Client, type Fetch, type HomeCounts
 } from './youtube';
 
 /**
@@ -107,6 +107,8 @@ export interface PublishReport {
   outOfQuota: boolean;
   /** Channels that reached their own day's limit: their videos wait, the others went on. */
   channelsFull: number;
+  /** The home page rows tried on all channels, and why each differed (youtube.ts `HomeCounts`). */
+  home: HomeCounts;
   /** The first failure's code, for the job run. */
   firstError: string | null;
 }
@@ -135,7 +137,7 @@ export async function publishTutorials(deps: PublisherDeps, report: PublishRepor
   for (const [channelId, language] of run.newPlaylists) {
     if (report.outOfQuota) break;
     try {
-      await setHome(deps.fetcher, await tokenFor(deps, run, channelId), language);
+      await setHome(deps.fetcher, await tokenFor(deps, run, channelId), language, report.home);
     } catch (e) {
       report.firstError ??= failureCode(e);
       report.outOfQuota ||= outOfQuota(e);
@@ -223,7 +225,7 @@ async function tendChannels(deps: PublisherDeps, run: Run, report: PublishReport
       if (report.outOfQuota) return;
     }
     try {
-      await setHome(deps.fetcher, token, channel.language);
+      await setHome(deps.fetcher, token, channel.language, report.home);
     } catch (e) {
       report.firstError ??= failureCode(e);
       report.outOfQuota ||= outOfQuota(e);
