@@ -135,6 +135,9 @@ describe('the app Worker and support', () => {
     // A partner paging through every language waits seconds a page by design (2026-11-17); a page that fails still warns.
     expect(workerAlerts(routeRows({ agent_list_2xx: 100, agent_list_lt1s: 40, agent_list_lt10s: 50, agent_list_over10s: 10 }))).toEqual([]);
     expect(workerAlerts(routeRows({ agent_list_2xx: 90, agent_list_5xx: 10 })).map((a) => a.level)).toEqual(['problem']);
+    // The team's own workflows wait for the dashboard's lines (LAN-328): their time does not warn, their failures do.
+    expect(workerAlerts(routeRows({ automation_2xx: 100, automation_lt1s: 30, automation_lt10s: 50, automation_over10s: 20 }))).toEqual([]);
+    expect(workerAlerts(routeRows({ automation_2xx: 90, automation_5xx: 10 })).map((a) => a.level)).toEqual(['problem']);
     // The API's quick calls still warn when slow.
     expect(workerAlerts(routeRows({ agent_api_2xx: 100, agent_api_lt1s: 90, agent_api_lt10s: 10 })).map((a) => a.level)).toEqual(['watch']);
   });

@@ -15,7 +15,14 @@ import { statusClass, type JobRun } from '../../../server/jobRuns';
  */
 export type RouteClass =
   | 'blobs_put' | 'blobs_get' | 'blob_access' | 'r2_put' | 'record_blob'
-  | 'reports' | 'agent_api' | 'agent_list' | 'mcp' | 'webhook' | 'device' | 'links' | 'nearby' | 'tutorials' | 'ops' | 'other';
+  | 'reports' | 'agent_api' | 'agent_list' | 'mcp' | 'webhook' | 'device' | 'links' | 'nearby' | 'tutorials' | 'automation' | 'ops' | 'other';
+
+/**
+ * The calls of the team's own GitHub workflows (OIDC, never a person): the watch for user issues
+ * (userIssues.ts), questions from the ops dashboard's cards (cardQuestions.ts), the nightly look at
+ * the tutorial videos (tutorialReview.ts) and the tutorial intake (tutorialFilmed.ts).
+ */
+const AUTOMATION_PATHS = ['/api/user-issues', '/api/card-questions', '/api/tutorial-review', '/api/tutorial-filmed'];
 
 /** Which kind of request this is; null for what is not counted (the web app and its files). */
 export function routeClass(method: string, path: string): RouteClass | null {
@@ -38,6 +45,8 @@ export function routeClass(method: string, path: string): RouteClass | null {
   if (path.startsWith('/api/nearby/') || path === '/api/relay') return 'nearby';
   // The tutorial videos: people play them, and the intake job asks for each film whether it is stored.
   if (path.startsWith('/api/tutorials/')) return 'tutorials';
+  // The watch's call waits for the ops dashboard's lines (7 s at the median from 2026-11-17, LAN-328): apart from people's pages.
+  if (AUTOMATION_PATHS.some((p) => path === p || path.startsWith(`${p}/`))) return 'automation';
   if (path.startsWith('/api/') || path === '/connect' || path.startsWith('/r/') || path.startsWith('/v/') || path.startsWith('/apk/') || path === '/videos' || path === '/roadmap' || path.startsWith('/roadmap/')) return 'other';
   return null;
 }
