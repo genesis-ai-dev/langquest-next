@@ -13,7 +13,7 @@ type GroupId = (typeof GROUPS)[number]['id'];
 
 /** The menu's groups, in order. Every section but Look up (the top line has it) is in exactly one (test/shell.test.ts). */
 export const NAV: readonly { title: string; ids: readonly GroupId[] }[] = [
-  { title: 'The product', ids: ['releases', 'phones', 'people', 'safety', 'stores'] },
+  { title: 'The product', ids: ['releases', 'phones', 'people', 'safety', 'stores', 'roadmap'] },
   { title: 'Care', ids: ['userreports', 'userissues', 'research', 'support', 'tutorials', 'nightly'] },
   { title: 'Behind the scenes', ids: ['jobs', 'database', 'traffic', 'storage', 'access'] }
 ];
@@ -29,6 +29,7 @@ export const ICONS: Readonly<Record<string, string>> = {
   userissues: '<circle cx="12" cy="12" r="9"/><path d="M12 7.5v5.5M12 16.5v.01"/>',
   userreports: '<path d="M4 5h16v11H11l-4 4v-4H4z"/><path d="M12 8v3.5M12 13.5v.01"/>',
   research: '<circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L21 21"/>',
+  roadmap: '<path d="M4 6h9M4 12h13M4 18h6"/><circle cx="17" cy="6" r="2"/><circle cx="20" cy="18" r="2"/>',
   support: '<path d="M4 5h16v11H9l-5 4z"/>',
   tutorials: '<rect x="3" y="5" width="18" height="14" rx="3"/><path d="M10 9.5v5l4.5-2.5z"/>',
   nightly: '<path d="M20 14.5A8 8 0 019.5 4 8 8 0 1020 14.5z"/>',

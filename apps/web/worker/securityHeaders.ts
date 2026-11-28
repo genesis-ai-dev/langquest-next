@@ -22,6 +22,7 @@ export function ownsResponse(url: URL, request: Pick<Request, 'method'>): boolea
   if (url.pathname.startsWith('/v/')) return true;
   if (url.pathname.startsWith('/apk/')) return true;
   if (url.pathname === '/videos' && request.method === 'GET') return true;
+  if (url.pathname === '/roadmap' || url.pathname.startsWith('/roadmap/')) return true;
   return url.pathname.startsWith('/api/');
 }
 

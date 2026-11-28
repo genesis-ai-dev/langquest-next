@@ -144,5 +144,30 @@
     "none": "Belum ada video dalam bahasa ini.",
     "failed": "Video tidak termuat. Muat ulang halaman untuk mencoba lagi.",
     "privacy": "Privasi"
+  },
+  "roadmap": {
+    "pageTitle": "Peta jalan · LangQuest",
+    "language": "Bahasa",
+    "title": "Peta jalan",
+    "done": "Selesai",
+    "suggest": "Usulkan",
+    "progress": "Sedang dikerjakan",
+    "planned": "Direncanakan",
+    "considering": "Sedang dipertimbangkan",
+    "none": "Belum ada apa-apa di sini.",
+    "failed": "Peta jalan tidak termuat. Muat ulang halaman untuk mencoba lagi.",
+    "question": "Seberapa penting ini bagi Anda?",
+    "imp0": "Tidak penting",
+    "imp1": "Bagus jika ada",
+    "imp2": "Penting",
+    "imp3": "Sangat penting",
+    "needs": "Apa yang Anda butuhkan? Bagaimana ini akan membantu Anda?",
+    "idea": "Apa yang ingin Anda lakukan? Bagaimana itu akan membantu Anda?",
+    "email": "Email (opsional)",
+    "send": "Kirim",
+    "sent": "Terkirim",
+    "sendFailed": "Tidak terkirim. Coba lagi.",
+    "close": "Tutup",
+    "privacy": "Privasi"
   }
 }

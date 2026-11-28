@@ -24,7 +24,7 @@ Migration `20261121194800_claude_readers.sql` makes them;
 | Who | cloud threads, a laptop | the agent teams (`user-issues.yml` and `card-questions.yml` on main) |
 | Reads | `public`, `diag`, `ops`, `v2_import`, the report functions | the same tables; what people typed through the views of `masked` |
 | Never | sign-in codes, password resets, push tokens, webhook secrets, API and invite token hashes, discovery keys, emails; `auth`, `storage`, `vault` | the above, and personal data: `profiles.display_name` and `avatar_blob`, `diag.feedback`'s name, screenshot, voice and picture; the report functions |
-| Typed text | whole | `masked.events` (payloads), `masked.feedback`, `masked.join_requests`, `masked.content_reports`: emails, phone numbers and IP addresses taken out (`masked.personal`) |
+| Typed text | whole | `masked.events` (payloads), `masked.feedback`, `masked.join_requests`, `masked.content_reports`, `masked.roadmap_notes`: emails, phone numbers and IP addresses taken out (`masked.personal`) |
 | Statistics | `masked.slow_statements` (every login's statements, from `pg_stat_statements`) and `masked.connections` (what each connection runs and waits on, and which it is blocked by): no IP address, emails and numbers masked in the text | the same |
 | Writes | nothing: no grant to insert, update, delete or truncate anywhere | nothing |
 

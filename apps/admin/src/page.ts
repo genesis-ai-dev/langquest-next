@@ -24,6 +24,7 @@ import { RESOLVE_CSS, RESOLVE_LOGIC, RESOLVE_SCRIPT } from './pageResolve';
 import { ISSUE_CSS, ISSUE_LOGIC, ISSUE_SCRIPT } from './pageIssues';
 import { REPORT_CSS, REPORT_LOGIC, REPORT_SCRIPT } from './pageReports';
 import { RESEARCH_CSS, RESEARCH_LOGIC, RESEARCH_SCRIPT } from './pageResearch';
+import { ROADMAP_CSS, ROADMAP_LOGIC, ROADMAP_SCRIPT } from './pageRoadmap';
 import { RESEARCH_TEAM } from './researchTeam';
 import { CARD_CSS, CARD_LOGIC, CARD_SCRIPT } from './pageCards';
 import { SEND_CSS, SEND_LOGIC, SEND_SCRIPT } from './pageSends';
@@ -233,6 +234,7 @@ ${RESOLVE_CSS}
 ${ISSUE_CSS}
 ${REPORT_CSS}
 ${RESEARCH_CSS}
+${ROADMAP_CSS}
 ${CARD_CSS}
 ${SUMMARY_CSS}
 ${BLOCKS_CSS}
@@ -1125,6 +1127,8 @@ ${REPORT_SCRIPT}
 const RESEARCH_TEAM = ${JSON.stringify(RESEARCH_TEAM)};
 ${RESEARCH_LOGIC}
 ${RESEARCH_SCRIPT}
+${ROADMAP_LOGIC}
+${ROADMAP_SCRIPT}
 // ---- each line as a card on its section's page, and the way from the Overview to it (pageCards.ts) ----
 ${CARD_LOGIC}
 ${CARD_SCRIPT}
