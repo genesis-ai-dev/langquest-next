@@ -4,7 +4,7 @@ import { Platform } from 'react-native';
 import type { BlobStore } from '../sync/blobs';
 import { hashOf, mimeOf, type StoredFile } from '../storage/storedFile';
 import { timedTransfer, type TransferTimings } from '../diagnostics/diagnostics';
-import { limitedFetch, transferLimitMs } from './sessionSafeFetch';
+import { limitedDownload, limitedFetch, transferLimitMs } from './sessionSafeFetch';
 import { supabase } from './supabase';
 
 /**
@@ -138,10 +138,17 @@ async function uploadFromWeb(url: string, headers: Record<string, string>, ref: 
   return { status: res.status, body: await res.text() };
 }
 
-/** Web: the same verification as on disk, with the bytes kept only if their hash matches. */
+/**
+ * Web: the same verification as on disk, with the bytes kept only if their hash matches. Held to
+ * `limitedDownload`, so a download on a dead connection fails and is tried again, and frees the
+ * language's later downloads (LAN-343).
+ */
 async function downloadOnWeb(signedUrl: string, ref: StoredFile, store: BlobStore, timings: TransferTimings, lap: () => number): Promise<void> {
-  const res = await fetch(signedUrl);
-  if (!res.ok) throw new Error(`Download failed (${res.status})`);
+  const res = await limitedDownload(signedUrl);
+  if (!res.ok) {
+    void res.body?.cancel().catch(() => undefined);
+    throw new Error(`Download failed (${res.status})`);
+  }
   const bytes = new Uint8Array(await res.arrayBuffer());
   timings.fetchMs = lap();
   const actual = await hashOf(bytes);

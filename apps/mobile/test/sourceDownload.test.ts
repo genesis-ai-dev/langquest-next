@@ -204,6 +204,25 @@ describe('download in a browser', () => {
     expect(asked).toEqual(['/api/bible/file/ENGESVO1DA/GEN/1 Bearer tok']);
   });
 
+  it('a chapter whose bytes stop coming fails in time, so the pass ends and the next chapters can come (LAN-343)', async () => {
+    // Why: a bare fetch on a connection that died never ended, and the pass
+    // that waited for it kept every other chapter from downloading until the
+    // tab was reloaded.
+    fake.platform = 'web';
+    vi.useFakeTimers();
+    try {
+      const { download } = await offline();
+      const { ANSWER_WITHIN_MS, NO_ANSWER } = await import('../src/server/sessionSafeFetch');
+      vi.stubGlobal('fetch', async () => new Response(new ReadableStream({ start(c) { c.enqueue(new Uint8Array([1])); } })));
+      const outcome = download(fakeStore() as never, 'k', 'https://x/slow', {}).then(() => 'kept', (e: unknown) => e);
+      await vi.advanceTimersByTimeAsync(ANSWER_WITHIN_MS);
+      expect(String(await outcome)).toContain(NO_ANSWER);
+      expect(index()).toEqual({});
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('a phone still downloads from the link itself', async () => {
     const { download } = await offline();
     fake.served.set('https://x/phone', 'p');

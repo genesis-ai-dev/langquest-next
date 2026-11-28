@@ -4,6 +4,7 @@
 // no other site's reads, so a browser asking them itself always failed.
 // Phones download from the source's own link, as before.
 import { reportsServer } from '../reports/reportsServer';
+import { limitedDownload } from '../server/sessionSafeFetch';
 
 /** Where the Worker serves a library source's audio link (apps/web/worker/sourceAudio.ts). */
 export const libraryAudioPath = (url: string): string => `/api/source-audio?url=${encodeURIComponent(url)}`;
@@ -12,11 +13,18 @@ export const libraryAudioPath = (url: string): string => `/api/source-audio?url=
 export const bibleFilePath = (fileset: string, book: string, chapter: number): string =>
   `/api/bible/file/${encodeURIComponent(fileset)}/${book}/${chapter}`;
 
-/** Fetch one of those as the person signed in. A refusal is an error, as any download's is. */
+/**
+ * Fetch one of those as the person signed in. A refusal is an error, as any download's is. Held to
+ * `limitedDownload`, so a download on a dead connection fails, and the Sources pass that waits for
+ * it ends and runs again (LAN-343).
+ */
 export async function fetchThroughWorker(path: string): Promise<Response> {
   const token = await reportsServer?.token();
   if (!reportsServer || !token) throw new Error('Not signed in.');
-  const res = await (reportsServer.fetch ?? fetch)(`${reportsServer.baseUrl}${path}`, { headers: { authorization: `Bearer ${token}` } });
-  if (!res.ok) throw new Error(`Download failed (${res.status})`);
+  const res = await (reportsServer.fetch ?? limitedDownload)(`${reportsServer.baseUrl}${path}`, { headers: { authorization: `Bearer ${token}` } });
+  if (!res.ok) {
+    void res.body?.cancel().catch(() => undefined);
+    throw new Error(`Download failed (${res.status})`);
+  }
   return res;
 }

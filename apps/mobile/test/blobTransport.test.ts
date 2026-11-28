@@ -117,6 +117,91 @@ describe('blob transport', () => {
     expect(env.tallied).toHaveLength(2);
   });
 
+  describe('a web download on a connection that died (LAN-343)', () => {
+    // Why: the web read a recording with a bare fetch. On a connection that
+    // died without an error the download never ended, and the transfers held
+    // the language's later downloads until the tab was reloaded.
+    beforeEach(() => { vi.useFakeTimers(); });
+    afterEach(() => { vi.useRealTimers(); });
+
+    const kept: number[] = [];
+    const web = { ...store, putVerified: async (_ref: unknown, bytes: Uint8Array) => { kept.push(bytes.byteLength); } };
+    /** The hash the faked hashOf gives, so a whole download is kept. */
+    const whole = { hash: 'h'.repeat(64), format: 'wav' as const };
+
+    /** The Worker: the link at once, then the file's headers at once and `body` as it comes. */
+    function serve(body: () => ReadableStream<Uint8Array>, heard: { stopped: boolean }) {
+      vi.stubGlobal('fetch', async (url: string, init?: RequestInit) => {
+        if (url.includes('/api/blob-urls/')) return new Response(JSON.stringify({ path: `/api/blobs/o/L1/${HASH}.wav?expires=1&sig=s` }));
+        init?.signal?.addEventListener('abort', () => { heard.stopped = true; });
+        return new Response(body());
+      });
+    }
+    /** One piece of the file, then nothing more, and no error. */
+    const stalls = () => new ReadableStream<Uint8Array>({ start(c) { c.enqueue(new Uint8Array([1])); } });
+
+    it('a download whose body stops coming fails as offline in time, and is stopped', async () => {
+      const { downloadBlob } = await load('web');
+      const { ANSWER_WITHIN_MS, NO_ANSWER } = await import('../src/server/sessionSafeFetch');
+      const heard = { stopped: false };
+      serve(stalls, heard);
+      const outcome = downloadBlob('o', 'L1', whole, web as never).then(() => 'kept', (e: unknown) => e);
+      await vi.advanceTimersByTimeAsync(ANSWER_WITHIN_MS - 1000);
+      expect(await Promise.race([outcome, Promise.resolve('waiting')])).toBe('waiting');
+      await vi.advanceTimersByTimeAsync(1000);
+      expect(String(await outcome)).toContain(NO_ANSWER);
+      expect(heard.stopped).toBe(true);
+    });
+
+    it('a slow download that keeps sending finishes, however long the whole file takes', async () => {
+      const { downloadBlob } = await load('web');
+      const { ANSWER_WITHIN_MS } = await import('../src/server/sessionSafeFetch');
+      const heard = { stopped: false };
+      kept.length = 0;
+      // Five pieces, each 90 seconds after the last: 7.5 minutes for the file, never 2 minutes without a byte.
+      serve(() => {
+        let sent = 0;
+        return new ReadableStream<Uint8Array>({
+          async pull(c) {
+            await new Promise((r) => setTimeout(r, 90_000));
+            if (sent++ < 5) c.enqueue(new Uint8Array(10));
+            else c.close();
+          }
+        });
+      }, heard);
+      const outcome = downloadBlob('o', 'L1', whole, web as never).then(() => 'kept', (e: unknown) => e);
+      await vi.advanceTimersByTimeAsync(6 * 90_000 + ANSWER_WITHIN_MS);
+      expect(await outcome).toBe('kept');
+      expect(kept).toEqual([50]);
+      expect(heard.stopped).toBe(false);
+    });
+
+    it('when the network goes or comes back, a download still out is stopped at once', async () => {
+      const { downloadBlob } = await load('web');
+      const { NETWORK_CHANGED, stopRequestsInFlight } = await import('../src/server/sessionSafeFetch');
+      const heard = { stopped: false };
+      serve(stalls, heard);
+      const outcome = downloadBlob('o', 'L1', whole, web as never).then(() => 'kept', (e: unknown) => e);
+      await vi.advanceTimersByTimeAsync(1000);
+      expect(stopRequestsInFlight()).toBe(1);
+      expect(String(await outcome)).toContain(NETWORK_CHANGED);
+      expect(heard.stopped).toBe(true);
+    });
+
+    it('a download that is refused or finished leaves nothing out to stop', async () => {
+      const { downloadBlob } = await load('web');
+      const { stopRequestsInFlight } = await import('../src/server/sessionSafeFetch');
+      vi.stubGlobal('fetch', async (url: string) => (url.includes('/api/blob-urls/')
+        ? new Response(JSON.stringify({ path: `/api/blobs/o/L1/${HASH}.wav?expires=1&sig=s` }))
+        : new Response('gone', { status: 404 })));
+      await expect(downloadBlob('o', 'L1', whole, web as never)).rejects.toThrow('Download failed (404)');
+      expect(stopRequestsInFlight()).toBe(0);
+      serve(() => new Response('abc').body!, { stopped: false });
+      await downloadBlob('o', 'L1', whole, web as never);
+      expect(stopRequestsInFlight()).toBe(0);
+    });
+  });
+
   it('a refusal is a refusal, and a server fault is worth retrying', async () => {
     const { UploadError } = await load('web');
     expect(new UploadError(405, '').refused).toBe(true);
