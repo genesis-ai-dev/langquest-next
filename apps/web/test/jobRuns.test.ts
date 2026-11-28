@@ -82,6 +82,7 @@ describe('the Worker request tally', () => {
     expect(routeClass('POST', '/api/tutorial-filmed')).toBe('automation');
     expect(routeClass('GET', '/api/tutorial-pictures/a.png')).toBe('other');
     expect(routeClass('GET', '/api/user-issues-x')).toBe('other');
+    expect(routeClass('GET', '/v/en/x')).toBe('other');
     expect(routeClass('GET', '/index.html')).toBeNull();
   });
 
