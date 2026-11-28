@@ -14,6 +14,7 @@ import { handleAgentApi, type AgentDeps } from './agent/http';
 import { handleNearby, isNearbyPath, type NearbyDeps } from './nearby';
 import { handleRelay, RELAY_PATH, type RelayDeps } from './relay';
 import { handleJoin, JOIN_PATH, type JoinDeps } from './nearbyJoin';
+import { SLOW_REPORTS_MS } from './orgFolder';
 
 export interface ApiDeps {
   /** The profile a Supabase access token belongs to, or null when it is not valid. */
@@ -88,6 +89,21 @@ function withCors(request: Request, res: Response): Response {
   return new Response(res.body, { status: res.status, headers });
 }
 
+/** The steps of one reports request, in ms: the token, membership (or Global Viewer), the organization's object, and the answer's text. */
+export interface ReportsTimes { signIn: number; access: number; organization: number; answer: number }
+
+/**
+ * One log line for a slow reports request (LAN-319), or null when it was
+ * quick: which step took the time, with no organization, person or token.
+ * The organization's object logs its own line about the pass it ran
+ * (orgSnapshot.ts).
+ */
+export function slowReportsLine(t: ReportsTimes, fresh: boolean, rows: number): string | null {
+  const total = t.signIn + t.access + t.organization + t.answer;
+  if (total < SLOW_REPORTS_MS) return null;
+  return `reports-slow: ${total} ms; sign-in ${t.signIn} ms, access ${t.access} ms, organization ${t.organization} ms, answer ${t.answer} ms; ${rows} languages${fresh ? ', fresh' : ''}`;
+}
+
 /**
  * `GET /api/orgs/:org/reports[?fresh=1][&view=summary]` with
  * `Authorization: Bearer <access token>`. `view=summary` answers each
@@ -140,24 +156,41 @@ async function answer(request: Request, deps: ApiDeps): Promise<Response> {
   } catch {
     return json(400, { error: 'That organization id is not valid.' });
   }
+  const began = Date.now();
+  const times: ReportsTimes = { signIn: 0, access: 0, organization: 0, answer: 0 };
   const token = /^Bearer (.+)$/.exec(request.headers.get('authorization') ?? '')?.[1];
   const profileId = token ? await deps.profileOf(token) : null;
+  times.signIn = Date.now() - began;
   if (!profileId) return json(401, { error: 'Sign in again.' });
   let out: OrgReportsResponse | null;
+  const fresh = url.searchParams.get('fresh') === '1';
   try {
     // Membership first, as the token routes do, so nobody wakes an
     // organization's object, or makes it read the database again with
     // fresh=1, by naming it.
     // A Global Viewer whose access is on reads every organization's, every language of it (decisions.md 158).
-    const fresh = url.searchParams.get('fresh') === '1';
-    out = (await deps.orgsOf(profileId)).includes(orgId) ? await deps.reports(orgId, profileId, fresh)
-      : (await deps.globalViewerOn?.(token!)) ? await deps.reports(orgId, profileId, fresh, true)
+    let step = Date.now();
+    const everyLanguage = (await deps.orgsOf(profileId)).includes(orgId) ? false
+      : (await deps.globalViewerOn?.(token!)) ? true
       : null;
+    times.access = Date.now() - step;
+    step = Date.now();
+    out = everyLanguage === null ? null : everyLanguage ? await deps.reports(orgId, profileId, fresh, true) : await deps.reports(orgId, profileId, fresh);
+    times.organization = Date.now() - step;
   } catch (e) {
     console.error(`reports ${orgId}:`, e);
     return json(502, { error: 'The server could not read this organization just now. Try again.' });
   }
   if (!out) return json(403, { error: 'You are not a member of this organization.' });
+  const answerAt = Date.now();
+  const res = await reportsAnswer(request, url, out);
+  times.answer = Date.now() - answerAt;
+  const slow = slowReportsLine(times, fresh, out.rows.length);
+  if (slow) console.warn(slow);
+  return res;
+}
+
+async function reportsAnswer(request: Request, url: URL, out: OrgReportsResponse): Promise<Response> {
   const body = url.searchParams.get('view') === 'summary' ? summarizeReports(out) : withOverdueZero(out);
   // A language moving out of "being prepared" changes the answer, not only its rows.
   const preparing = 'preparing' in body ? body.preparing ?? [] : [];

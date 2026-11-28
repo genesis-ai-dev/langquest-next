@@ -112,6 +112,56 @@ interface Summary {
 const isoDay = (ms: number): string => new Date(ms).toISOString().slice(0, 10);
 
 /**
+ * What one pass did and why, so a slow reports request can say which step
+ * took its time (LAN-319; orgSnapshot.ts logs it). Counts only: no
+ * organization, language or person.
+ */
+export interface PassStats {
+  /** When the pass started and how long it took (ms, by the folder's clock). */
+  at: number;
+  ms: number;
+  /** The first pass since the object woke: the organization's fold and the summaries came from its cache. */
+  cold: boolean;
+  /** `fresh` was asked for. */
+  forced: boolean;
+  /** The organization stream had moved, so every language's summary was made again. */
+  orgMoved: boolean;
+  /** A summary was from an earlier day. */
+  dayTurned: boolean;
+  languages: number;
+  /** Languages whose stored report inputs were read from the database. */
+  inputsRead: number;
+  /** Languages folded here. */
+  folded: number;
+  /** Server snapshots asked for: folds neither in memory nor in the cache. */
+  fromServer: number;
+  /** Pages of events pulled from the log. */
+  pages: number;
+}
+
+/** A reports request this long or longer logs where its time went (the ops dashboard's slow-route line counts from 1 s). */
+export const SLOW_REPORTS_MS = 1_000;
+
+/** A pass in words, for a log line. */
+export function passLine(p: PassStats): string {
+  const why = [p.cold && 'cold', p.forced && 'fresh', p.orgMoved && 'organization moved', p.dayTurned && 'day turned'].filter(Boolean);
+  return `${p.ms} ms${why.length ? `, ${why.join(', ')}` : ''}; ${p.languages} languages, ${p.inputsRead} stored inputs read, ${p.folded} folded, ${p.fromServer} server snapshots asked for, ${p.pages} pages pulled`;
+}
+
+/**
+ * The line the organization's object logs for a slow reports call, or null
+ * when it was quick: how long it waited for its turn (everything that folds
+ * runs one at a time), and what the pass that answered it did. A call that
+ * ran no pass of its own, or shared one that started before it, says so.
+ */
+export function slowObjectLine(ms: number, began: number, pass: PassStats | null): string | null {
+  if (ms < SLOW_REPORTS_MS) return null;
+  const served = pass && pass.at + pass.ms >= began ? pass : null;
+  if (!served) return `reports-slow-object: ${ms} ms; no pass`;
+  return `reports-slow-object: ${ms} ms; waited ${Math.max(0, served.at - began)} ms for its turn; pass ${passLine(served)}`;
+}
+
+/**
  * One organization's reports, kept by the app's Worker (decision 44):
  * the organization stream and every language stream, folded with the same
  * reducer the phones run and caught up from the log's tail on request.
@@ -135,6 +185,10 @@ export class OrgFolder {
   private running: Promise<void> | null = null;
   private queued: Promise<void> | null = null;
   private chain: Promise<unknown> = Promise.resolve();
+  /** The pass running now, counting what it does; null between passes. */
+  private counting: PassStats | null = null;
+  /** What the last finished pass did (LAN-319), or null before the first. */
+  lastPass: PassStats | null = null;
 
   constructor(
     private readonly source: Source,
@@ -264,24 +318,42 @@ export class OrgFolder {
   }
 
   /** Restore the organization's fold once, then fold what the log has past it, when the log moved (or its head is unknown). */
-  private async catchUpOrg(heads: Record<string, number> | null): Promise<void> {
+  private async catchUpOrg(heads: Record<string, number> | null): Promise<boolean> {
     if (!this.restored) {
       this.org = await this.restore<OrgState>('org');
       this.restored = true;
     }
     const orgMoved = !this.org || heads === null || (heads[ORG_STREAM] ?? 0) > this.org.cursor;
-    if (!orgMoved) return;
+    if (!orgMoved) return false;
+    const before = this.org?.cursor;
     const next = await this.catchUp(ORG_STREAM, this.org, emptyOrgState, foldOrg);
     if (next !== this.org && next.cursor > 0) await this.cache.put('org', this.pack(next));
     this.org = next;
+    return next.cursor !== before;
   }
 
   private async pass(force: boolean): Promise<void> {
     const startedAt = this.now();
+    const stats: PassStats = {
+      at: startedAt, ms: 0, cold: !this.restored, forced: force, orgMoved: false, dayTurned: false,
+      languages: 0, inputsRead: 0, folded: 0, fromServer: 0, pages: 0
+    };
+    this.counting = stats;
+    try {
+      await this.passCounted(force, startedAt, stats);
+    } finally {
+      this.counting = null;
+      stats.ms = this.now() - startedAt;
+      this.lastPass = stats;
+    }
+  }
+
+  private async passCounted(force: boolean, startedAt: number, stats: PassStats): Promise<void> {
     const day = isoDay(startedAt);
     const heads = (await this.source.heads?.(this.orgId)) ?? null;
-    await this.catchUpOrg(heads);
+    stats.orgMoved = await this.catchUpOrg(heads);
     const ids = orgLanguages(this.org!.state).map((l) => l.languageId);
+    stats.languages = ids.length;
     // Small languages run PARALLEL at a time; a large one (by the size its
     // last summary recorded) runs alone, since one parsed fold can fill the
     // isolate. A language with no recorded size (a cold object, or a summary
@@ -332,6 +404,7 @@ export class OrgFolder {
     const org = this.org!;
     const summary = this.summaries.get(id) ?? (await this.restoreSummary(id));
     if (summary) this.summaries.set(id, summary);
+    if (this.counting && summary && summary.day !== day) this.counting.dayTurned = true;
     // Stored inputs serve unless a fold here is newer than they are, or a
     // catch-up (`fresh`, "Catch up with the server") finds them behind the
     // stream: then a language small enough is folded now, as before 142, and
@@ -346,6 +419,7 @@ export class OrgFolder {
         summary.asOf = asOf(stored);
         return;
       }
+      if (this.counting) this.counting.inputsRead++;
       const read = await this.source.reportInputs(this.orgId, id);
       if (read) {
         const info = languageInfo(org.state, id);
@@ -373,6 +447,7 @@ export class OrgFolder {
         if (peeked.length === 0) return;
       }
     }
+    if (this.counting) this.counting.folded++;
     const known = await this.stateOf(id);
     // The peeked tail is reusable only when it starts where the fold ends; a fold already at the head needs no pull.
     const tail = peeked && known?.cursor === summary?.cursor ? peeked
@@ -413,6 +488,7 @@ export class OrgFolder {
       this.saved.set(id, cached.cursor);
       return cached;
     }
+    if (this.counting) this.counting.fromServer++;
     const meta = await this.source.snapshotMeta(this.orgId, id, REDUCER_VERSION);
     if (!meta) return null;
     const snapshot = await fetchSnapshot(this.source, this.orgId, id, REDUCER_VERSION, { meta });
@@ -499,6 +575,7 @@ export class OrgFolder {
     const all: AnyEvent[] = [];
     for (;;) {
       const page = await this.source.pull(this.orgId, streamId, after, PAGE);
+      if (this.counting) this.counting.pages++;
       all.push(...page);
       if (page.length < PAGE) return all;
       after = page[page.length - 1]!.serverSeq!;

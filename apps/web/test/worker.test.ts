@@ -3,8 +3,8 @@ import {
   emptyLanguageState, encodeHlc, foldLanguage, REDUCER_VERSION, REPORT_VERSION, reportInputs, SEED_ROLES, takeSnapshot,
   type AnyEvent, type OrgReportsResponse, type ReportInputs
 } from '@langquest-next/core';
-import { handleApi, type ApiDeps } from '../worker/api';
-import { FOLD_ON_CATCH_UP_EVENTS, MemoryCache, OrgFolder, STATE_SAVE_EVERY, type Source } from '../worker/orgFolder';
+import { handleApi, slowReportsLine, type ApiDeps } from '../worker/api';
+import { FOLD_ON_CATCH_UP_EVENTS, MemoryCache, OrgFolder, passLine, SLOW_REPORTS_MS, slowObjectLine, STATE_SAVE_EVERY, type Source } from '../worker/orgFolder';
 import { SqlCache, splitText } from '../worker/sqlCache';
 
 /**
@@ -119,6 +119,46 @@ describe('OrgFolder', () => {
     expect(report(later).name).toBe('Renamed');
     expect(log.pulls.slice(pulled).find((p) => p.streamId === 'din')).toEqual({ streamId: 'din', after: 1 });
     expect(Date.parse(later!.asOf) - Date.parse(first!.asOf)).toBe(61_000);
+  });
+
+  it('says what each pass did and why, so a slow reports request can name its step (LAN-319)', async () => {
+    let now = Date.UTC(2026, 8, 30, 12);
+    const log = orgLog();
+    log.snapshot('din');
+    const folder = new OrgFolder(log, ORG, new MemoryCache(), () => now);
+    expect(folder.lastPass).toBeNull();
+    await folder.reportsFor('admin');
+    // Cold, nothing cached: the organization is folded (one page); din starts from its server snapshot, nus has none and is pulled.
+    expect(folder.lastPass).toEqual({
+      at: now, ms: 0, cold: true, forced: false, orgMoved: true, dayTurned: false,
+      languages: 2, inputsRead: 0, folded: 2, fromServer: 2, pages: 2
+    });
+    log.add('_org', 'v1.LanguageRenamed', { languageId: 'din', name: 'Renamed' });
+    now += 61_000;
+    await folder.reportsFor('admin');
+    // The organization moved: every language's summary is made again, from the folds in memory.
+    expect(folder.lastPass).toMatchObject({ cold: false, orgMoved: true, dayTurned: false, folded: 2, fromServer: 0, pages: 1 });
+    now += 86_400_000;
+    await folder.reportsFor('admin');
+    // The next day: nothing moved, but each summary is a day old.
+    expect(folder.lastPass).toMatchObject({ orgMoved: false, dayTurned: true, folded: 2, fromServer: 0, pages: 0 });
+    now += 1_000;
+    await folder.reportsFor('admin', true);
+    // Fresh, with nothing new: no language is touched.
+    expect(folder.lastPass).toMatchObject({ forced: true, orgMoved: false, dayTurned: false, folded: 0, pages: 0 });
+  });
+
+  it('writes a slow pass as one line with no organization, language or person (LAN-319)', () => {
+    const pass = { at: 1_000, ms: 1_200, cold: true, forced: false, orgMoved: true, dayTurned: false, languages: 2, inputsRead: 0, folded: 1, fromServer: 1, pages: 3 };
+    expect(passLine(pass)).toBe('1200 ms, cold, organization moved; 2 languages, 0 stored inputs read, 1 folded, 1 server snapshots asked for, 3 pages pulled');
+    expect(passLine({ ...pass, cold: false, orgMoved: false })).toBe('1200 ms; 2 languages, 0 stored inputs read, 1 folded, 1 server snapshots asked for, 3 pages pulled');
+    // Quick: no line.
+    expect(slowObjectLine(SLOW_REPORTS_MS - 1, 1_000, pass)).toBeNull();
+    // The call waited 300 ms for its turn, then the pass took 1.2 s.
+    expect(slowObjectLine(1_500, 700, pass)).toBe(`reports-slow-object: 1500 ms; waited 300 ms for its turn; pass ${passLine(pass)}`);
+    // The last pass ended before the call began: the call ran none.
+    expect(slowObjectLine(1_500, 5_000, pass)).toBe('reports-slow-object: 1500 ms; no pass');
+    expect(slowObjectLine(1_500, 5_000, null)).toBe('reports-slow-object: 1500 ms; no pass');
   });
 
   it('shares one pass among requests that arrive together', async () => {
@@ -574,6 +614,28 @@ describe('the reports API', () => {
     const off = deps({ globalViewerOn: async () => false });
     expect((await handleApi(get('/api/orgs/someone-else/reports', 'good'), off)).status).toBe(403);
     expect(off.calls).toEqual([]);
+  });
+
+  it('logs where a slow request\'s time went, step by step, with no organization, person or token (LAN-319)', async () => {
+    expect(slowReportsLine({ signIn: 100, access: 50, organization: 800, answer: 49 }, false, 2)).toBeNull();
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(Date.UTC(2026, 10, 26, 12));
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    try {
+      const d = deps({
+        profileOf: async (token) => { vi.setSystemTime(Date.now() + 200); return token === 'good' ? 'p1' : null; },
+        reports: async () => { vi.setSystemTime(Date.now() + 1_500); return body; }
+      });
+      expect((await handleApi(get('/api/orgs/o/reports?fresh=1', 'good'), d)).status).toBe(200);
+      expect(warn.mock.calls).toEqual([['reports-slow: 1700 ms; sign-in 200 ms, access 0 ms, organization 1500 ms, answer 0 ms; 0 languages, fresh']]);
+      // A quick request logs nothing.
+      warn.mockClear();
+      expect((await handleApi(get('/api/orgs/o/reports', 'good'), deps())).status).toBe(200);
+      expect(warn).not.toHaveBeenCalled();
+    } finally {
+      warn.mockRestore();
+      vi.useRealTimers();
+    }
   });
 
   it('tells a stranger no, and a failure apart from a refusal', async () => {
