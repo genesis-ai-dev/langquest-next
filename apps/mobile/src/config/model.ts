@@ -461,6 +461,7 @@ export function libraryMaterialLine(doc: LibraryDoc | null, versificationName: s
       return { type: 'study', line: line(t('config.libraryLine.studyGuide'), language, where, t('config.libraryLine.steps', { count: doc.steps.length }), ...(doc.ref ? v : [])) };
     }
     case 'source@1': return { type: 'material', line: line(t('config.libraryLine.bible'), language, doc.abbreviation) };
+    case 'usfmBible@1': return { type: 'material', line: line(t('config.libraryLine.uploadedBible'), language, t('config.libraryLine.bibleBooks', { count: doc.books.length })) };
     default: return { type: 'material', line: t('config.libraryLine.notReference') };
   }
 }
