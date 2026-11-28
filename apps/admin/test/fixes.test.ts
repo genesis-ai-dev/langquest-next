@@ -238,6 +238,16 @@ describe('the lines the watch hands to Claude', () => {
     expect(watchLines(Array.from({ length: 80 }, (_, i) => item('r2-missing', { watchKey: `ops:r2-missing:${i}` })))).toHaveLength(WATCH_LINES_MAX);
   });
 
+  it('hands over no Could not read of the Supabase project: a 502 or no answer from its management service is not a LangQuest problem', () => {
+    const read = (text: string) => item('supabase-unreadable', { level: 'watch', text, section: 'supabase', watchKey: watchKeyOf({ key: 'supabase-unreadable', subject: 'Next' }) });
+    expect(watchLines([read('Next: could not read the project (health: HTTP 502).'), read('Next: could not read the project (The operation was aborted due to timeout).')])).toEqual([]);
+    // What the project's answer says is still handed over.
+    expect(watchLines([item('supabase-services-down', { level: 'urgent', section: 'supabase', watchKey: watchKeyOf({ key: 'supabase-services-down', subject: 'Next' }) })]).map((l) => l.key))
+      .toEqual(['ops:supabase-services-down:Next']);
+    // Every kind that says the page could not read is one of these.
+    expect(Object.entries(kinds).filter(([, k]) => k.unread).map(([key]) => key).sort()).toEqual(['supabase-unreadable', 'unreadable']);
+  });
+
   it('says for each line when its check can no longer find a problem a fix or a close took away: never before the page says it clears', () => {
     expect(settleMinutes({})).toBe(30);
     expect(settleMinutes({ windowH: 24 })).toBe(30 + 1440);
