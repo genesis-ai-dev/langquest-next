@@ -5,8 +5,9 @@
 // version never changes), and the latest one asked for its next check. The
 // published ones are deleted by whoever published them (LAN-83), or by an
 // admin of the language (decisions.md 124, amended 2026-11-13). Deleting
-// a draft or a version asks first (ConfirmDelete). The footer starts a new
-// version from nothing. The record's history follows.
+// a draft or a version asks first (ConfirmDelete). A draft part of which
+// cannot be heard on this device has its Done dimmed (LAN-317). The footer
+// starts a new version from nothing. The record's history follows.
 import { newCommandId, canDeleteVersion, commands, draftsBy, type DraftView, type Version } from '@langquest-next/core';
 import { deleteVersion } from './deleteVersion';
 import { ConfirmDelete } from '../ui/ConfirmDelete';
@@ -32,6 +33,8 @@ import { C, radius, space, target } from '../ui/theme';
 import { versionReviewsSummary } from './recordTextModel';
 import { deletesAny, draftName, startedFrom } from './versionsModel';
 import { useVersesHeld } from './useVerses';
+import { unheardOf } from '../audio/clipReachModel';
+import { useClipsReach } from '../audio/useClipsReach';
 
 export function VersionsPage(props: {
   ctx: Ctx; v: PassageView; canRecord: boolean;
@@ -101,10 +104,7 @@ export function VersionsPage(props: {
               trailing={<IconBtn name="trash" label={t('passage.versions.delete', { name })} help={t('passage.versions.deleteHelp')} bg="transparent" color={C.muted} size={44}
                 onPress={() => setAsking({ name, sub: length(d.cardHashes), go: () => remove(d, name) })} />}>
               {props.canRecord ? <SmallBtn label={t('common.edit')} icon="edit" help={t('passage.versions.editDraftHelp')} onPress={() => props.go('workspace', { draftId: d.rootTakeId })} /> : null}
-              {props.canRecord ? (
-                <SmallBtn label={t('common.done')} icon="send" tone="primary" disabled={unchanged} help={t('passage.versions.doneHelp')}
-                  onPress={() => props.go('workspace', { draftId: d.rootTakeId, publish: '1' })} />
-              ) : null}
+              {props.canRecord ? <DraftDone ctx={ctx} hashes={d.cardHashes} unchanged={unchanged} onPress={() => props.go('workspace', { draftId: d.rootTakeId, publish: '1' })} /> : null}
             </ItemCard>
           </HelpRow>
         );
@@ -122,6 +122,19 @@ export function VersionsPage(props: {
       <ConfirmDelete visible={!!asking} name={asking?.name ?? ''} {...(asking?.sub ? { sub: asking.sub } : {})}
         onClose={() => setAsking(null)} onConfirm={() => { const go = asking?.go; setAsking(null); go?.(); }} />
     </Screen>
+  );
+}
+
+/**
+ * A draft's Done: dimmed while part of the draft cannot be heard on this
+ * device, and a tap says so, since the workspace would not send it (LAN-317,
+ * docs/decisions/2026-11-20-unheard-recordings-are-not-judged-or-changed.md).
+ */
+function DraftDone(props: { ctx: Ctx; hashes: readonly string[]; unchanged: boolean; onPress: () => void }) {
+  const unheard = unheardOf(useClipsReach(props.ctx.language, props.hashes));
+  return (
+    <SmallBtn label={t('common.done')} icon="send" tone="primary" disabled={props.unchanged} dimmed={!!unheard} help={t('passage.versions.doneHelp')}
+      onPress={() => (unheard ? props.ctx.toast(t('translate.lockedTitle')) : props.onPress())} />
   );
 }
 

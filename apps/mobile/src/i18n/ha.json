@@ -4239,7 +4239,9 @@
       "sayWhy": "Ku faɗi dalili. {{who}} da tawagar za su ji shi.",
       "tapAndSay": "Taɓa ku faɗi dalili",
       "keepItHelp": "Yana barin wannan siga yadda take, ya aika dalilinku.",
-      "sayWhyHelp": "Ku bar wannan siga yadda take. Za ku faɗi dalili; za su ji shi."
+      "sayWhyHelp": "Ku bar wannan siga yadda take. Za ku faɗi dalili; za su ji shi.",
+      "waitsOffline": "An faɗi wannan sharhin da baki, kuma ba ya kan wannan na'ura. Ku haɗu da intanet ku saurare shi kafin ku bar sigar yadda take.",
+      "waitsNotUploaded": "An faɗi wannan sharhin da baki, kuma ba a ɗora shi ba tukuna daga na'urar da aka naɗa shi. Ku saurare shi kafin ku bar sigar yadda take."
     },
     "addNote": {
       "done": "An ƙara bayani — yana bin wannan nassi",
@@ -5243,6 +5245,7 @@
       "withBible": "an naɗa tare da Littafi Mai Tsarki na {{bible}}",
       "atMoment": "A {{time}}:",
       "answers": "Yana amsa sharhin {{kind}} daga {{from}}",
+      "answersUnheard": "Sharhin da aka faɗa da baki bai iso wannan na'ura ba tukuna.",
       "tied_one": "Muhimmiyar kalma {{count, number}} an haɗa ta da wannan siga",
       "tied_other": "Muhimman kalmomi {{count, number}} an haɗa su da wannan siga",
       "whatChangedQuestion": "Me ya canja?",
@@ -6763,8 +6766,9 @@
     "redone": "An maimaita.",
     "newRecording": "Sabon naɗi",
     "lockedTitle": "Wani sashe na wannan naɗin bai zo wannan na'ura ba tukuna",
-    "lockedOffline": "Ba za a iya canza sashen ko a aika shi daga nan ba har sai wannan na'ura ta haɗu da intanet kuma ta samu shi. Don ku naɗa ba tare da shi ba, ku buɗe {{versions}} a cikin nassin ku zaɓi {{newVersion}}.",
-    "lockedNotUploaded": "Ba a ɗora sashen ba tukuna daga na'urar da aka yi shi, don haka ba za a iya canza shi ko a aika shi daga nan ba. Don ku naɗa ba tare da shi ba, ku buɗe {{versions}} a cikin nassin ku zaɓi {{newVersion}}."
+    "lockedOffline": "Ba za a iya canza sashen ko a aika shi daga nan ba har sai wannan na'ura ta haɗu da intanet kuma ta samu shi. Don ku naɗa ba tare da shi ba, ku taɓa {{newVersion}}.",
+    "lockedNotUploaded": "Ba a ɗora sashen ba tukuna daga na'urar da aka yi shi, don haka ba za a iya canza shi ko a aika shi daga nan ba. Zai zo nan da zarar waccan na'urar ta haɗu da intanet. Don ku naɗa ba tare da shi ba, ku taɓa {{newVersion}}.",
+    "lockedNotUploadedYours": "Kun naɗa shi a wata na'ura, kuma ba a ɗora shi daga can ba tukuna. Ku buɗe LangQuest a waccan na'urar lokacin da take haɗe da intanet, sai ya zo nan da kansa. Kafin nan ba za a iya canza shi ko a aika shi daga nan ba. Don ku naɗa ba tare da shi ba, ku taɓa {{newVersion}}."
   },
   "reference": {
     "organization": "Ƙungiya",

@@ -349,7 +349,11 @@ for (const name of fs.readdirSync(catalogs).filter((f) => f.endsWith('.json') &&
 // Raised by 4 KB with every request ending (Caleb, 2026-11-26, LAN-339,
 // docs/decisions/2026-11-26-every-request-ends-and-a-network-change-stops-it.md), 3,229 bytes past it: the first
 // visit's growth below, and nearby's calls to the Worker held to the same limit. 867 bytes are left.
-const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 204 * 1024;
+// Raised by 3 KB with the follow-up to LAN-317 (Carl, 2026-11-25,
+// docs/decisions/2026-11-20-unheard-recordings-are-not-judged-or-changed.md as amended), 2,264 bytes past it with main merged in: the
+// first visit's growth (FIRST_VISIT_BUDGET_BYTES, below, says what) and the back translation's hold on deleting a
+// part that cannot be heard. 808 bytes are left.
+const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 207 * 1024;
 // A first visit's cap rose to 5.75 MB when Global Viewers' read-only guard on
 // the recorder (decisions.md 158) took it past 5.7 MB by a few hundred bytes
 // (5.70 MB then): main had 50 bytes left, and a guard that refuses before the
@@ -517,7 +521,13 @@ const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 204 * 1024;
 // fetch for the Worker (server/sessionSafeFetch.ts), the stop on a network change (sync/wake.ts), and `SyncClient`'s
 // backup limit (packages/sync/src/requestLimit.ts). Every Supabase request and every sync go through them, so none
 // of it can load later. 1,341 bytes are left; all chunks have 867.
-const FIRST_VISIT_BUDGET_BYTES = 3.94 * 1024 * 1024 + 144 * 1024;
+// Raised by 2 KB with the follow-up to LAN-317 (Carl, 2026-11-25,
+// docs/decisions/2026-11-20-unheard-recordings-are-not-judged-or-changed.md as amended), 1,789 bytes past it with main merged in: six
+// English lines in the catalog every visit carries (the lock banner's three, Keep's two, Done's one); the lock
+// banner's New version and the Done screen that stays open when the device goes offline (screens/translate.tsx,
+// recording/workspaceModel.ts); Keep's hold on spoken feedback (screens/passage.tsx, passage/reviewModel.ts); Done's
+// line for it (recording/publish.tsx); and the Versions page's dimmed Done. 259 bytes are left.
+const FIRST_VISIT_BUDGET_BYTES = 3.94 * 1024 * 1024 + 146 * 1024;
 
 const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path.join(dir, e.name)) : [path.join(dir, e.name)]));
 let moved = 0;

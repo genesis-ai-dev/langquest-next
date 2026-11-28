@@ -760,11 +760,12 @@ test('REC-033 Record and publish in airplane mode @p0', async ({ page, context }
 // server, its files did not, so no device can play them until that phone sends them (`upload`).
 
 const LOCKED = words(en, 'translate.lockedTitle');
-const lockedBody = (key: 'lockedOffline' | 'lockedNotUploaded') =>
-  words(en, `translate.${key}`, { versions: words(en, 'passage.page.history'), newVersion: words(en, 'passage.versions.newVersion') });
+const NEW_VERSION = words(en, 'passage.versions.newVersion');
+type LockedKey = 'lockedOffline' | 'lockedNotUploaded' | 'lockedNotUploadedYours';
+const lockedBody = (key: LockedKey) => words(en, `translate.${key}`, { newVersion: NEW_VERSION });
 
 /** The workspace is locked: the banner with this reason, and neither Record nor Done. */
-async function expectLocked(page: Page, key: 'lockedOffline' | 'lockedNotUploaded'): Promise<void> {
+async function expectLocked(page: Page, key: LockedKey): Promise<void> {
   await expect(text(page, lockedBody(key))).toBeVisible({ timeout: 30_000 });
   await expect(text(page, LOCKED)).toBeVisible();
   await expect(recordButton(page)).toHaveAttribute('aria-disabled', 'true');
@@ -783,9 +784,9 @@ test('REC-062 A draft with a part not on this device is locked until the part ca
   await expectParts(page, 2);
   const before = await deviceLog(page, w.languages.A.orgId, w.languages.A.languageId);
   await expectLocked(page, 'lockedOffline');
-  // Online, the server does not have the parts yet: the other reason, still locked.
+  // Online, the server does not have the parts yet: the other reason, still locked. They are TRANS's own, so it says to bring that device online.
   await context.setOffline(false);
-  await expectLocked(page, 'lockedNotUploaded');
+  await expectLocked(page, 'lockedNotUploadedYours');
   // The phone it was made on sends them: the draft opens up by itself, without leaving the workspace.
   await draft.upload();
   await expect(text(page, LOCKED)).toHaveCount(0, { timeout: 30_000 });
@@ -819,6 +820,43 @@ test('REC-063 A new version started empty offline is not locked by a draft that 
   await context.setOffline(false);
   await expectUploaded(page, w);
   await expectNothingRefused(page, w);
+});
+
+test('REC-064 A locked draft\'s banner starts a new version there, empty', async ({ page }) => {
+  const w = world();
+  const label = await untouchedPassage(w);
+  // TREV's Version 1, published from a phone that has not been online since: a draft from it cannot be heard anywhere.
+  await recordNotUploaded(w, 'TREV', { label }, { parts: 2, publish: true });
+  await openAs(page, w, 'TRANS');
+  await caughtUp(page, w, 'TRANS');
+  await openLabel(page, label);
+  // TRANS has no draft of it: Edit on Version 1 starts one from its parts.
+  await button(page, 'Versions and history').click();
+  await page.getByRole('button', { name: 'Edit', exact: true }).first().click();
+  await expectParts(page, 2);
+  // The parts are TREV's: the banner names the device they were made on, not another of TRANS's.
+  await expectLocked(page, 'lockedNotUploaded');
+  await button(page, NEW_VERSION).click();
+  await expect(text(page, LOCKED)).toHaveCount(0);
+  await expect(recordButton(page)).not.toHaveAttribute('aria-disabled', 'true');
+  await recordSaid(page, [3000]);
+  await expect(text(page, LOCKED)).toHaveCount(0);
+  await publishButton(page).click();
+  // Version 2 says what changed, as REC-016's does.
+  await button(page, /^Say what changed\. /).click();
+  await mic(page).mode('tone');
+  await button(page, 'Say what changed').click();
+  await say(page, 3000, 0);
+  await button(page, 'Stop recording').click();
+  await expect(button(page, 'Play voice note')).toBeVisible();
+  await button(page, 'Done').click();
+  await button(page, "Done, don't ask anyone").click();
+  await expectToast(page, 'Version 2 published.');
+  await expectUploaded(page, w);
+  await expectNothingRefused(page, w);
+  const state = (await clientAs(w, 'COORD', 'A')).getState() as LanguageState;
+  const versions = derivePassage(state, Object.entries(state.units).find(([, u]) => u.label === label)![0]).versions;
+  expect(versions.map((x) => x.cardHashes.length)).toEqual([2, 1]);
 });
 
 // ---- Listening while recording ------------------------------------------------------

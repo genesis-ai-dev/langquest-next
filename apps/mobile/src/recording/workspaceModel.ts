@@ -8,6 +8,7 @@ import {
 } from '@langquest-next/core';
 import { formatClock } from '../i18n/format';
 import { parseHistory, type History, type Step } from '../ui/undoModel';
+import type { Unheard } from '../audio/clipReachModel';
 
 /**
  * Which of a person's drafts the workspace opens (decisions.md 83), named by
@@ -21,6 +22,42 @@ export function draftToOpen(mine: readonly Pick<DraftView, 'takeId' | 'rootTakeI
   let latest: Pick<DraftView, 'takeId' | 'rootTakeId' | 'hlc'> | undefined;
   for (const d of mine) if (!latest || d.hlc > latest.hlc || (d.hlc === latest.hlc && d.takeId > latest.takeId)) latest = d;
   return latest?.rootTakeId ?? null;
+}
+
+/** What a workspace opened on keeps when a new version starts there instead: not its draft, the version it started from, or a Done asked for. */
+const LEFT_BEHIND = new Set(['draftId', 'from', 'publish']);
+
+/**
+ * The workspace's params once a new version is started from the banner of a
+ * locked draft (LAN-317): an empty draft, as Versions' New version opens,
+ * still answering the feedback the workspace was opened for.
+ */
+export function emptyDraftParams(params: Readonly<Record<string, string>>): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [k, value] of Object.entries(params)) if (!LEFT_BEHIND.has(k)) out[k] = value;
+  return { ...out, fresh: '1' };
+}
+
+/**
+ * Who recorded a part of this passage: its recording's maker or, for a part's
+ * cleaned sound, whoever cleaned it up (the file is made on their phone).
+ * Null when the record does not say.
+ */
+export function partMaker(state: LanguageState, unitId: string, hash: string): string | null {
+  for (const r of recordingsOf(state, unitId)) if (r.cards.some((c) => c.hash === hash)) return r.actorId;
+  for (const note of Object.values(state.cardCleanUps?.[unitId] ?? {})) if (note.value.cleanedHash === hash) return note.value.actorId;
+  return null;
+}
+
+/**
+ * Whether Done's screen shows (LAN-317): asked for, and the draft can be heard
+ * here; or it could while Done was open, and only the device going offline
+ * has stopped that since. Those parts are on the server already, so what Done
+ * sends is safe, and the person is not put out of a screen they were using.
+ * A Done asked for while the draft is locked does not show.
+ */
+export function doneShows(o: { asked: boolean; locked: Unheard | null; heardWhileOpen: boolean }): boolean {
+  return o.asked && (!o.locked || (o.locked === 'offline' && o.heardWhileOpen));
 }
 
 export function sameCards(a: readonly string[], b: readonly string[]): boolean {

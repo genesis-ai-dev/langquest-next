@@ -4109,7 +4109,9 @@
       "sayWhy": "Sebutkan alasannya. {{who}} dan tim akan mendengarnya.",
       "tapAndSay": "Ketuk dan sebutkan alasannya",
       "keepItHelp": "Membiarkan versi ini apa adanya, dan mengirim alasan Anda.",
-      "sayWhyHelp": "Biarkan versi ini apa adanya. Anda menyebutkan alasannya; mereka mendengarnya."
+      "sayWhyHelp": "Biarkan versi ini apa adanya. Anda menyebutkan alasannya; mereka mendengarnya.",
+      "waitsOffline": "Masukan ini disampaikan lewat suara, dan tidak ada di perangkat ini. Sambungkan ke internet dan dengarkan sebelum Anda membiarkan versi ini apa adanya.",
+      "waitsNotUploaded": "Masukan ini disampaikan lewat suara, dan belum diunggah dari perangkat tempat masukan itu direkam. Dengarkan sebelum Anda membiarkan versi ini apa adanya."
     },
     "addNote": {
       "done": "Catatan ditambahkan — catatan ini ikut bersama perikop ini",
@@ -5066,6 +5068,7 @@
       "withBible": "direkam dengan Alkitab {{bible}}",
       "atMoment": "Di {{time}}:",
       "answers": "Menjawab masukan {{kind}} dari {{from}}",
+      "answersUnheard": "Masukan suara itu belum ada di perangkat ini.",
       "tied_other": "{{count, number}} kata kunci dikaitkan dengan versi ini",
       "whatChangedQuestion": "Apa yang berubah?",
       "saySomething": "Katakan sesuatu tentang ini",
@@ -6484,8 +6487,9 @@
     "redone": "Diulangi.",
     "newRecording": "Rekaman baru",
     "lockedTitle": "Sebagian rekaman ini belum ada di perangkat ini",
-    "lockedOffline": "Bagian itu tidak bisa diubah atau dikirim dari sini sampai perangkat ini online dan sudah menerimanya. Untuk merekam tanpanya, buka {{versions}} di perikop dan pilih {{newVersion}}.",
-    "lockedNotUploaded": "Bagian itu belum diunggah dari perangkat tempat bagian itu dibuat, jadi tidak bisa diubah atau dikirim dari sini. Untuk merekam tanpanya, buka {{versions}} di perikop dan pilih {{newVersion}}."
+    "lockedOffline": "Bagian itu tidak bisa diubah atau dikirim dari sini sampai perangkat ini online dan sudah menerimanya. Untuk merekam tanpanya, ketuk {{newVersion}}.",
+    "lockedNotUploaded": "Bagian itu belum diunggah dari perangkat tempat bagian itu dibuat, jadi tidak bisa diubah atau dikirim dari sini. Bagian itu akan sampai di sini setelah perangkat itu online. Untuk merekam tanpanya, ketuk {{newVersion}}.",
+    "lockedNotUploadedYours": "Anda merekamnya di perangkat lain, dan belum diunggah dari sana. Buka LangQuest di perangkat itu saat online, dan bagian itu akan sampai di sini dengan sendirinya. Sampai saat itu, bagian itu tidak bisa diubah atau dikirim dari sini. Untuk merekam tanpanya, ketuk {{newVersion}}."
   },
   "reference": {
     "organization": "Organisasi",

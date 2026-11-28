@@ -4239,7 +4239,9 @@
       "sayWhy": "Say why. {{who}} and the team will hear it.",
       "tapAndSay": "Tap and say why",
       "keepItHelp": "Keeps this version as it is, and sends your reason.",
-      "sayWhyHelp": "Keep this version as it is. You say why; they hear it."
+      "sayWhyHelp": "Keep this version as it is. You say why; they hear it.",
+      "waitsOffline": "This feedback was spoken, and it is not on this device. Go online and listen to it before you keep the version as it is.",
+      "waitsNotUploaded": "This feedback was spoken, and it has not been uploaded yet from the device it was made on. Listen to it before you keep the version as it is."
     },
     "addNote": {
       "done": "Note added — it follows this passage",
@@ -5243,6 +5245,7 @@
       "withBible": "recorded with the {{bible}} Bible",
       "atMoment": "At {{time}}:",
       "answers": "Answers the {{kind}} feedback from {{from}}",
+      "answersUnheard": "The spoken feedback is not on this device yet.",
       "tied_one": "{{count, number}} key word tied to this version",
       "tied_other": "{{count, number}} key words tied to this version",
       "whatChangedQuestion": "What changed?",
@@ -6763,8 +6766,9 @@
     "redone": "Redone.",
     "newRecording": "New recording",
     "lockedTitle": "Part of this recording is not on this device yet",
-    "lockedOffline": "It cannot be changed or sent from here until this device is online and has it. To record without it, open {{versions}} on the passage and choose {{newVersion}}.",
-    "lockedNotUploaded": "It has not been uploaded yet from the device it was made on, so it cannot be changed or sent from here. To record without it, open {{versions}} on the passage and choose {{newVersion}}."
+    "lockedOffline": "It cannot be changed or sent from here until this device is online and has it. To record without it, tap {{newVersion}}.",
+    "lockedNotUploaded": "It has not been uploaded yet from the device it was made on, so it cannot be changed or sent from here. It comes here once that device is online. To record without it, tap {{newVersion}}.",
+    "lockedNotUploadedYours": "You recorded it on another device, and it has not been uploaded from there yet. Open LangQuest on that device while it is online, and it comes here by itself. Until then it cannot be changed or sent from here. To record without it, tap {{newVersion}}."
   },
   "reference": {
     "organization": "Organization",

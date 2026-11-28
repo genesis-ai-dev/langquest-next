@@ -12,6 +12,7 @@ import { currentLocale, t } from '../i18n';
 import { commaList, feedbackSource, versionTitle } from './passageView';
 import type { PassageView } from './passageView';
 import { answeredQuestions, type NameFn } from './recordTextModel';
+import type { Unheard } from '../audio/clipReachModel';
 
 // ---- one review (REC-10) --------------------------------------------------------------
 
@@ -95,6 +96,21 @@ export function hasFeedback(review: Pick<ReviewView, 'comment' | 'commentBlobHas
 /** Nothing was said in the feedback: no words, no recording, no captured parts. */
 export function feedbackIsEmpty(review: Pick<ReviewView, 'comment' | 'commentBlobHash' | 'artifacts'>): boolean {
   return !review.comment && !review.commentBlobHash && !review.artifacts?.length;
+}
+
+/** What the feedback says aloud: its voice note, and what the review captured (a retelling, a session's recording). */
+export function feedbackSounds(review: Pick<ReviewView, 'commentBlobHash' | 'artifacts'>): string[] {
+  return [...(review.commentBlobHash ? [review.commentBlobHash] : []), ...(review.artifacts ?? []).map((c) => c.hash)];
+}
+
+/**
+ * Why "Keep it, say why" waits, or null when it need not (LAN-317,
+ * docs/decisions/2026-11-20-unheard-recordings-are-not-judged-or-changed.md):
+ * feedback said only aloud is heard before the version is kept as it is,
+ * while typed words can be read. `why` is why its sounds cannot be heard here.
+ */
+export function keepWaits(review: Pick<ReviewView, 'comment'>, why: Unheard | null): Unheard | null {
+  return review.comment?.trim() ? null : why;
 }
 
 /** The translator's answer: "Tom revised it · 2 days ago" or "Tom kept it · …". */

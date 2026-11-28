@@ -4109,7 +4109,9 @@
       "sayWhy": "说明原因。{{who}}和团队会听到。",
       "tapAndSay": "点按并说明原因",
       "keepItHelp": "保持这个版本原样，并发送你的原因。",
-      "sayWhyHelp": "保持这个版本原样。你说明原因，他们会听到。"
+      "sayWhyHelp": "保持这个版本原样。你说明原因，他们会听到。",
+      "waitsOffline": "这条反馈是口头说的，不在本设备上。请先联网听一听，再决定保持版本原样。",
+      "waitsNotUploaded": "这条反馈是口头说的，还没有从录制它的设备上传。请先听一听，再决定保持版本原样。"
     },
     "addNote": {
       "done": "已添加备注——它会跟着这个经段",
@@ -5066,6 +5068,7 @@
       "withBible": "配合{{bible}}圣经录制",
       "atMoment": "在 {{time}} 处：",
       "answers": "回应来自{{from}}的{{kind}}反馈",
+      "answersUnheard": "口头反馈还不在本设备上。",
       "tied_other": "{{count, number}} 个关键词已关联到这个版本",
       "whatChangedQuestion": "改了什么？",
       "saySomething": "说说这个版本",
@@ -6484,8 +6487,9 @@
     "redone": "已重做。",
     "newRecording": "新录音",
     "lockedTitle": "这段录音有一部分还不在本设备上",
-    "lockedOffline": "在本设备联网并收到这部分之前，无法在这里修改或发送。如果不用这部分来录，请在经段中打开{{versions}}，再选择{{newVersion}}。",
-    "lockedNotUploaded": "这部分还没有从录制它的设备上传，所以无法在这里修改或发送。如果不用这部分来录，请在经段中打开{{versions}}，再选择{{newVersion}}。"
+    "lockedOffline": "在本设备联网并收到这部分之前，无法在这里修改或发送。如果不用这部分来录，请点{{newVersion}}。",
+    "lockedNotUploaded": "这部分还没有从录制它的设备上传，所以无法在这里修改或发送。那台设备联网后，它就会来到这里。如果不用这部分来录，请点{{newVersion}}。",
+    "lockedNotUploadedYours": "这部分是你在另一台设备上录的，还没有从那里上传。请在那台设备联网时打开 LangQuest，它就会自动来到这里。在那之前，无法在这里修改或发送。如果不用这部分来录，请点{{newVersion}}。"
   },
   "reference": {
     "organization": "机构",

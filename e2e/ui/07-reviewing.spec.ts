@@ -24,7 +24,7 @@ import {
 } from './support';
 import { deletePart, publishButton, recordButton, recordParts, undoButton } from './06-recording-helpers';
 import {
-  act, ask, device, doCheck, langAs, offerExampleGuides, open, openLabel, openRecord, passageNow, publishVersion, recordNotUploaded, reviewLatest, sawToast, toTabs,
+  act, ask, device, doCheck, langAs, offerExampleGuides, open, openLabel, openRecord, passageNow, publishVersion, recordNotUploaded, reviewLatest, reviewNotUploaded, sawToast, toTabs,
   unitByLabel, untouchedPassage, recordedFor, useRunWorld, visible
 } from './reviewing-helpers';
 import { clientAs, send } from './fixture';
@@ -1116,6 +1116,43 @@ test('REV-042 Record a fix offline', async ({ page, context }) => {
   await expectSent(page, world(), 'A', 60_000);
   const p = await passageNow(world(), 'REV', 'P-Q2');
   expect(p.versions.length).toBe(3);
+});
+
+/** TRANS's Version 1 of a passage nobody else has recorded, its parts on the server, and REV's spoken-only "needs changes" whose voice note is not uploaded. */
+async function spokenFeedbackAway(page: Page): Promise<{ label: string; upload: () => Promise<void> }> {
+  const w = world();
+  const label = await untouchedPassage(w, [JOHN]);
+  const v = await recordNotUploaded(w, 'TRANS', { label }, { publish: true, parts: 2 });
+  await v.upload();
+  const feedback = await reviewNotUploaded(w, 'REV', { label });
+  await open(page, w, 'TRANS');
+  await caughtUp(page, w, 'TRANS');
+  await openLabel(page, label);
+  await button(page, 'Hear the feedback').click();
+  return { label, upload: feedback.upload };
+}
+
+test('REV-057 Feedback said only aloud is heard before the version is kept as it is', async ({ page }) => {
+  const feedback = await spokenFeedbackAway(page);
+  // Keep waits and says why; Record a fix does not.
+  await expect(text(page, words(en, 'passage.keep.waitsNotUploaded'))).toBeVisible({ timeout: 30_000 });
+  await expect(button(page, 'Keep it, say why')).toBeDisabled();
+  await expect(button(page, 'Record a fix')).toBeEnabled();
+  // REV's phone sends the voice note: Keep comes on by itself.
+  await feedback.upload();
+  await expect(button(page, 'Keep it, say why')).toBeEnabled({ timeout: 30_000 });
+  await expect(text(page, words(en, 'passage.keep.waitsNotUploaded'))).toHaveCount(0);
+});
+
+test('REV-058 Done says when the feedback it answers was said aloud and is not on this device', async ({ page }) => {
+  await spokenFeedbackAway(page);
+  await button(page, 'Record a fix').click();
+  await recordAPart(page);
+  await publishButton(page).click();
+  await expect(text(page, words(en, 'recording.publish.answersUnheard'))).toBeVisible();
+  // It says so, and does not hold Done.
+  await button(page, "Done, don't ask anyone").or(button(page, /^Finish Version \d+$/)).first().click();
+  await sawToast(page, 'Version 2 published.');
 });
 
 /** TRANS on a passage's feedback, at "Keep it, say why". */

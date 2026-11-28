@@ -748,9 +748,9 @@ Steps:
 3. The other phone comes online and uploads the parts. Stay in the workspace.
 
 Expected:
-- Step 1 opens the draft with its two parts, and at the top of the recorder a banner "Part of this recording is not on this device yet" with "It cannot be changed or sent from here until this device is online and has it. To record without it, open Versions and history on the passage and choose New version."
+- Step 1 opens the draft with its two parts, and at the top of the recorder a banner "Part of this recording is not on this device yet" with "It cannot be changed or sent from here until this device is online and has it. To record without it, tap New version." and a "New version" button (REC-064).
 - The red Record button and Done are off. Undo and Redo, deleting, moving, inserting, recording over a part, verse labels and Clean up are off too; parts that are on the device still play, and the reference half works (checked by hand; the automated test checks Record and Done).
-- After step 2 the banner reads "It has not been uploaded yet from the device it was made on, so it cannot be changed or sent from here. To record without it, open Versions and history on the passage and choose New version.", and it stays locked.
+- After step 2 the banner reads "You recorded it on another device, and it has not been uploaded from there yet. Open LangQuest on that device while it is online, and it comes here by itself. Until then it cannot be changed or sent from here. To record without it, tap New version.", since the parts are TRANS's own (amended 2026-11-25), and it stays locked.
 - After step 3, without leaving the workspace, the banner goes and Record and Done come on, with the same two parts.
 - Nothing is written while it is locked.
 
@@ -769,6 +769,27 @@ Expected:
 - Step 1 opens "New draft" with no banner, and Record is on: an empty draft has no part to hear.
 - Step 2 publishes "Version 1 published." as REC-033 does, and nothing locks on the way.
 - After step 3 nothing waits to upload and nothing is refused.
+- Versions and history shows the draft that cannot be heard with its "Done" dimmed; a tap on it says "Part of this recording is not on this device yet" and opens nothing (checked by hand).
+
+### REC-064 A locked draft's banner starts a new version there, empty
+Roles: TRANS · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
+
+Decided 2026-11-25 (LAN-317, `docs/decisions/2026-11-20-unheard-recordings-are-not-judged-or-changed.md`, amended): the lock banner's own button starts the new version, instead of sending the person to Versions and history.
+
+Preconditions:
+- A passage nobody else has recorded, with TREV's Version 1 of two parts published from a phone that has not been online since: its events reached the server, its parts did not.
+- TRANS's device is up to date and online.
+
+Steps:
+1. Open the passage, "Versions and history", and "Edit" on Version 1 (TRANS has no draft of it, so the workspace starts from Version 1's parts).
+2. In the banner, tap "New version".
+3. Record a part, tap "Done", say what changed, then "Done, don't ask anyone".
+
+Expected:
+- Step 1 shows the two parts, locked, with "It has not been uploaded yet from the device it was made on, so it cannot be changed or sent from here. It comes here once that device is online. To record without it, tap New version." (the parts are TREV's, so it does not say they are on another device of TRANS's).
+- After step 2 the workspace is empty, with no banner, and Record is on.
+- Step 3 publishes "Version 2 published." with the one part said.
+- The button is off while something just said is still being kept.
 
 ---
 

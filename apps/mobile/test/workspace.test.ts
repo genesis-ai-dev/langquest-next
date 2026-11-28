@@ -3,7 +3,7 @@ import {
   type AnyEvent, type EventPayloads, type EventSpec, type EventType, type PartMark
 } from '@langquest-next/core';
 import {
-  backTranslationDraftKey, canPublish, cardDurations, draftToOpen, markTerms, mmss, parseBackTranslationDraft, removeCardSpecs,
+  backTranslationDraftKey, canPublish, cardDurations, doneShows, draftToOpen, emptyDraftParams, markTerms, mmss, parseBackTranslationDraft, partMaker, removeCardSpecs,
   termsInText, tiedTermIds, tieTermsSpecs, unsavedParts, withoutPart, withPart, workingCards, slotRows, targetNumber,
   changedParts, cleanUpNoteOf, helpBinRow, historyFits, marksAfterMove, marksForSaid, marksKeepingLabels, marksOf, movedList, opensAbove, parsePartsHistory, restoreSpecs,
   type PartsSnap
@@ -435,6 +435,38 @@ describe('what an undo or redo shows (Caleb, 2026-10-16)', () => {
     });
     const set = specs.filter((x) => x.type === 'v1.CardVerseSet').map((x) => (x.payload as { hash: string; mark: string }));
     expect(set).toEqual([expect.objectContaining({ hash: 'a', mark: 'next' }), expect.objectContaining({ hash: 'b', mark: 'set' })]);
+  });
+});
+
+describe('a draft that cannot be heard here (LAN-317)', () => {
+  it('starts a new version in place: empty, still answering the feedback it was opened for', () => {
+    // Why: Carl, 2026-11-25: the lock banner's New version opens an empty draft at once, as Versions' New version does.
+    expect(emptyDraftParams({ unitId: 'u', languageId: 'l', draftId: 'd', from: 'v', publish: '1', reviewId: 'r' }))
+      .toEqual({ unitId: 'u', languageId: 'l', reviewId: 'r', fresh: '1' });
+    expect(emptyDraftParams({ unitId: 'u', languageId: 'l' })).toEqual({ unitId: 'u', languageId: 'l', fresh: '1' });
+  });
+
+  it('knows who recorded a part, and who made a cleaned sound', () => {
+    // Why: a part not uploaded that the person recorded is on another device of theirs, which they can bring online.
+    const h = history();
+    h.record('a');
+    h.record('b', 'target', 'them');
+    h.run(h.cmd().keepTake({ commandId: 'k1', unitId: 'passage', cardHashes: ['a', 'b'], actorId: 'me' }));
+    h.run(h.cmd().cleanUpParts({ commandId: 'c1', unitId: 'passage', actorId: 'me', cardHashes: ['a', 'b'], tool: 'dfn3', limitDb: 12,
+      parts: [{ hash: 'b', use: 'cleaned', cleaned: { hash: 'b2', format: 'm4a' } }] }));
+    expect(partMaker(h.state(), 'passage', 'a')).toBe('me');
+    expect(partMaker(h.state(), 'passage', 'b')).toBe('them');
+    expect(partMaker(h.state(), 'passage', 'b2')).toBe('me');
+    expect(partMaker(h.state(), 'passage', 'nowhere')).toBeNull();
+  });
+
+  it('keeps Done open when the device goes offline after the draft was heard, and only then', () => {
+    // Why: Carl, 2026-11-25: those parts are on the server already, so what Done sends is safe; a Done asked for while locked still waits.
+    expect(doneShows({ asked: true, locked: null, heardWhileOpen: false })).toBe(true);
+    expect(doneShows({ asked: true, locked: 'offline', heardWhileOpen: true })).toBe(true);
+    expect(doneShows({ asked: true, locked: 'offline', heardWhileOpen: false })).toBe(false);
+    expect(doneShows({ asked: true, locked: 'notSent', heardWhileOpen: true })).toBe(false);
+    expect(doneShows({ asked: false, locked: null, heardWhileOpen: true })).toBe(false);
   });
 });
 

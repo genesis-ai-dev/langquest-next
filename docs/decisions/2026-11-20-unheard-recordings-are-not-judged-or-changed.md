@@ -54,3 +54,27 @@ Reverse if: translators in the field are often stopped by the whole-draft
 lock on work they recorded themselves on another phone, which would argue
 for locking only the parts that cannot be heard; or reviewers turn out to
 need to finish, offline, reviews of versions they never played in the app.
+
+Amended (2026-11-25, Carl Sauder): a check of every case found the line in
+the right place, with a few gaps, now closed. Starting over with an empty
+version is the way to record without what cannot be heard, since it builds
+on none of it: the lock banner has its own **New version** button, which
+starts an empty draft in the workspace itself, instead of sending the person
+to Versions and history. A draft not uploaded from a device of the person's
+own says to open LangQuest on that device while it is online, before
+offering to start over, since starting over repeats work that already
+exists. A Done screen open when the device goes offline stays open and can
+send: the draft could be heard while it was open, and those parts are on the
+server already (`doneShows` in `recording/workspaceModel.ts`); a Done asked
+for while the draft is locked still waits. The Versions page dims a draft's
+Done while part of it cannot be heard, and a tap says so. In a back
+translation, the bin on a part that cannot be heard waits with Record, since
+what was said for it could not be said again. On feedback, "Keep it, say
+why" waits while feedback said only aloud (its voice note, or what the review
+captured) cannot be heard on this device, and says why; typed words can be
+read, so feedback with them is not held, and "Record a fix" is never held
+(`keepWaits` in `passage/reviewModel.ts`). Done's line for the feedback a new
+version answers says when that feedback was said aloud and is not on this
+device, without holding Done: holding it would also stop a translator
+starting over offline. Carl chose each of these (2026-11-25); the UI tests
+are REC-064, REV-057 and REV-058.

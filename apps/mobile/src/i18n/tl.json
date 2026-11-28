@@ -4239,7 +4239,9 @@
       "sayWhy": "Sabihin kung bakit. Maririnig ito ni {{who}} at ng pangkat.",
       "tapAndSay": "I-tap at sabihin kung bakit",
       "keepItHelp": "Pinapanatili ang bersiyong ito nang ganito, at ipinapadala ang iyong dahilan.",
-      "sayWhyHelp": "Panatilihin ang bersiyong ito nang ganito. Sasabihin mo kung bakit; maririnig nila ito."
+      "sayWhyHelp": "Panatilihin ang bersiyong ito nang ganito. Sasabihin mo kung bakit; maririnig nila ito.",
+      "waitsOffline": "Sinabi nang pasalita ang punang ito, at wala ito sa device na ito. Mag-online at pakinggan ito bago mo panatilihin ang bersiyon nang ganito.",
+      "waitsNotUploaded": "Sinabi nang pasalita ang punang ito, at hindi pa ito na-upload mula sa device kung saan ito ni-record. Pakinggan ito bago mo panatilihin ang bersiyon nang ganito."
     },
     "addNote": {
       "done": "Naidagdag ang tala — sumusunod ito sa siping ito",
@@ -5243,6 +5245,7 @@
       "withBible": "na-record kasama ang Bibliyang {{bible}}",
       "atMoment": "Sa {{time}}:",
       "answers": "Sumasagot sa puna sa {{kind}} mula kay {{from}}",
+      "answersUnheard": "Wala pa sa device na ito ang pasalitang puna.",
       "tied_one": "{{count, number}} mahalagang salitang nakaugnay sa bersiyong ito",
       "tied_other": "{{count, number}} mahalagang salitang nakaugnay sa bersiyong ito",
       "whatChangedQuestion": "Ano ang nagbago?",
@@ -6763,8 +6766,9 @@
     "redone": "Inulit.",
     "newRecording": "Bagong rekording",
     "lockedTitle": "Wala pa sa device na ito ang isang bahagi ng rekording na ito",
-    "lockedOffline": "Hindi mababago o maipapadala mula rito ang bahaging iyon hangga't hindi pa online ang device na ito at hindi pa ito nakukuha. Para mag-record nang wala ito, buksan ang {{versions}} sa sipi at piliin ang {{newVersion}}.",
-    "lockedNotUploaded": "Hindi pa na-upload ang bahaging iyon mula sa device kung saan ito ginawa, kaya hindi ito mababago o maipapadala mula rito. Para mag-record nang wala ito, buksan ang {{versions}} sa sipi at piliin ang {{newVersion}}."
+    "lockedOffline": "Hindi mababago o maipapadala mula rito ang bahaging iyon hangga't hindi pa online ang device na ito at hindi pa ito nakukuha. Para mag-record nang wala ito, i-tap ang {{newVersion}}.",
+    "lockedNotUploaded": "Hindi pa na-upload ang bahaging iyon mula sa device kung saan ito ginawa, kaya hindi ito mababago o maipapadala mula rito. Darating ito rito kapag nag-online na ang device na iyon. Para mag-record nang wala ito, i-tap ang {{newVersion}}.",
+    "lockedNotUploadedYours": "Ni-record mo ito sa ibang device, at hindi pa ito na-upload mula roon. Buksan ang LangQuest sa device na iyon habang online ito, at kusa itong darating dito. Hanggang doon, hindi ito mababago o maipapadala mula rito. Para mag-record nang wala ito, i-tap ang {{newVersion}}."
   },
   "reference": {
     "organization": "Organisasyon",

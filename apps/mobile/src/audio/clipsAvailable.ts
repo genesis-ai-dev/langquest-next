@@ -32,3 +32,11 @@ export function clipReachOf(language: LanguageHandle, hashes: readonly string[])
   if (!state || !store) return 'none';
   return clipReach(hashes.map((hash) => ({ here: store.has(hash), stored: isStored(state, hash) })), language.online);
 }
+
+/** The parts neither on this device nor on the server: still only on the device they were recorded on. Empty until the language and its files are open. */
+export function unsentOf(language: LanguageHandle, hashes: readonly string[]): string[] {
+  const state = language.state;
+  const store = language.blobs.store;
+  if (!state || !store) return [];
+  return hashes.filter((hash) => !store.has(hash) && !isStored(state, hash));
+}

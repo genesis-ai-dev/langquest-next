@@ -4369,7 +4369,9 @@
       "sayWhy": "Di por qué. {{who}} y el equipo lo escucharán.",
       "tapAndSay": "Toca y di por qué",
       "keepItHelp": "Deja esta versión como está y envía tu razón.",
-      "sayWhyHelp": "Deja esta versión como está. Dices por qué, y lo escuchan."
+      "sayWhyHelp": "Deja esta versión como está. Dices por qué, y lo escuchan.",
+      "waitsOffline": "Estos comentarios se dijeron en voz, y no están en este dispositivo. Conéctate y escúchalos antes de dejar la versión como está.",
+      "waitsNotUploaded": "Estos comentarios se dijeron en voz, y todavía no se han subido desde el dispositivo donde se grabaron. Escúchalos antes de dejar la versión como está."
     },
     "addNote": {
       "done": "Nota agregada: acompaña a este pasaje",
@@ -5420,6 +5422,7 @@
       "withBible": "grabado con la Biblia {{bible}}",
       "atMoment": "En {{time}}:",
       "answers": "Responde a los comentarios de {{kind}} de {{from}}",
+      "answersUnheard": "Los comentarios en voz todavía no están en este dispositivo.",
       "tied_one": "{{count, number}} palabra clave ligada a esta versión",
       "tied_many": "{{count, number}} palabras clave ligadas a esta versión",
       "tied_other": "{{count, number}} palabras clave ligadas a esta versión",
@@ -7042,8 +7045,9 @@
     "redone": "Rehecho.",
     "newRecording": "Grabación nueva",
     "lockedTitle": "Parte de esta grabación todavía no está en este dispositivo",
-    "lockedOffline": "Esa parte no se puede cambiar ni enviar desde aquí hasta que este dispositivo tenga conexión y la reciba. Para grabar sin ella, abre {{versions}} en el pasaje y elige {{newVersion}}.",
-    "lockedNotUploaded": "Esa parte todavía no se ha subido desde el dispositivo donde se hizo, así que no se puede cambiar ni enviar desde aquí. Para grabar sin ella, abre {{versions}} en el pasaje y elige {{newVersion}}."
+    "lockedOffline": "Esa parte no se puede cambiar ni enviar desde aquí hasta que este dispositivo tenga conexión y la reciba. Para grabar sin ella, toca {{newVersion}}.",
+    "lockedNotUploaded": "Esa parte todavía no se ha subido desde el dispositivo donde se hizo, así que no se puede cambiar ni enviar desde aquí. Llegará aquí cuando ese dispositivo tenga conexión. Para grabar sin ella, toca {{newVersion}}.",
+    "lockedNotUploadedYours": "La grabaste en otro dispositivo y todavía no se ha subido desde allí. Abre LangQuest en ese dispositivo mientras tenga conexión, y llegará aquí sola. Hasta entonces no se puede cambiar ni enviar desde aquí. Para grabar sin ella, toca {{newVersion}}."
   },
   "reference": {
     "organization": "Organización",

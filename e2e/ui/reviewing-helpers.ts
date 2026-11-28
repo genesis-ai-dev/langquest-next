@@ -120,6 +120,22 @@ export async function recordNotUploaded(world: UiWorld, who: AccountKey, key: Pa
   return { hashes, upload: async () => { for (const w of wavs) await putVoice(world, who, w.hash, w.bytes); } };
 }
 
+/**
+ * `who` asks for changes to a passage's latest version by voice alone, on
+ * another device that has not been online since (LAN-317): the review
+ * reaches the server, its voice note does not, until `upload` sends it as
+ * that device would.
+ */
+export async function reviewNotUploaded(world: UiWorld, who: AccountKey, key: { label: string }): Promise<{ upload: () => Promise<void> }> {
+  const c = await langAs(world, who);
+  const takeId = derivePassage(c.getState(), unitByLabel(c.getState(), key.label)).latest!.takeId;
+  const note = voiceWav();
+  await c.appendMany([{ id: id(), type: 'v1.AudioFormatSet', payload: { hash: note.hash, format: 'wav' } }] as never);
+  await c.appendMany(commands(c.getState()).recordReview({ commandId: id(), takeIds: [takeId], kindId: 'peer', outcome: 'needs_changes', via: 'app', commentBlobHash: note.hash }) as never);
+  await send(c as SyncClient<unknown>, `${who} asks for changes to ${key.label} by voice without uploading`);
+  return { upload: () => putVoice(world, who, note.hash, note.bytes) };
+}
+
 /** A passage of LANG-A nobody has recorded and the fixture does not name, other than `except` ("Luke 17:1–10"). */
 export async function untouchedPassage(world: UiWorld, except: string[] = []): Promise<string> {
   const s = (await langAs(world, 'COORD')).getState();
