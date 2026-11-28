@@ -14,6 +14,31 @@ describe('device identity and clock survive restarts', () => {
     expect(await ensureDeviceId(b, gen)).toBe('dev-2');
   });
 
+  it('gives one id to callers that ask at once on a fresh store (LAN-315)', async () => {
+    // Why: at sign-in the diagnostics delivery and the organization's sync both
+    // asked a fresh store; each found no id and made its own, so the phone
+    // reported under two install ids and the first went quiet at once.
+    let n = 0;
+    const gen = () => `dev-${++n}`;
+    const store = new MemoryStore();
+    const ids = await Promise.all([ensureDeviceId(store, gen), ensureDeviceId(store, gen), ensureDeviceId(store, gen)]);
+    expect(ids).toEqual(['dev-1', 'dev-1', 'dev-1']);
+    expect(await store.meta('deviceId')).toBe('dev-1');
+    expect(await ensureDeviceId(store, gen)).toBe('dev-1');
+  });
+
+  it('tries again after a failed write', async () => {
+    const store = new MemoryStore();
+    const setMeta = store.setMeta.bind(store);
+    let fail = true;
+    store.setMeta = async (k, v) => { if (fail) { fail = false; throw new Error('disk'); } return setMeta(k, v); };
+    let n = 0;
+    const gen = () => `dev-${++n}`;
+    await expect(ensureDeviceId(store, gen)).rejects.toThrow('disk');
+    expect(await ensureDeviceId(store, gen)).toBe('dev-2');
+    expect(await store.meta('deviceId')).toBe('dev-2');
+  });
+
   it('a relaunched client keeps counting from its persisted clock', async () => {
     // Why: HlcClock in memory forgets everything on restart. If the phone's
     // clock was corrected backwards meanwhile, the next event would sort
