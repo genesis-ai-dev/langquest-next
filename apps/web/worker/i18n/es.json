@@ -144,5 +144,30 @@
     "none": "Todavía no hay videos en este idioma.",
     "failed": "Los videos no se cargaron. Vuelve a cargar la página para intentarlo de nuevo.",
     "privacy": "Privacidad"
+  },
+  "roadmap": {
+    "pageTitle": "Hoja de ruta · LangQuest",
+    "language": "Idioma",
+    "title": "Hoja de ruta",
+    "done": "Hecho",
+    "suggest": "Sugerir",
+    "progress": "En curso",
+    "planned": "Planeado",
+    "considering": "En estudio",
+    "none": "Aún no hay nada aquí.",
+    "failed": "La hoja de ruta no se cargó. Vuelve a cargar la página para intentarlo de nuevo.",
+    "question": "¿Qué tan importante es esto para ti?",
+    "imp0": "No es importante",
+    "imp1": "Estaría bien",
+    "imp2": "Importante",
+    "imp3": "Crítico",
+    "needs": "¿Qué necesitas? ¿Cómo te ayudaría esto?",
+    "idea": "¿Qué quieres hacer? ¿Cómo te ayudaría eso?",
+    "email": "Correo electrónico (opcional)",
+    "send": "Enviar",
+    "sent": "Enviado",
+    "sendFailed": "No se envió. Inténtalo de nuevo.",
+    "close": "Cerrar",
+    "privacy": "Privacidad"
   }
 }

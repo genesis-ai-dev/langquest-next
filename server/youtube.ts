@@ -269,6 +269,19 @@ interface Section { id: string; snippet: { type: string; title?: string; positio
 interface Row { type: 'multipleChannels' | 'singlePlaylist'; title?: string; ids: string[] }
 
 /**
+ * The home page rows `setHome` tried to put or take away, each costing 50
+ * units: `added` (a row with none at its place), `removed` (a row past the
+ * ones wanted), and, for a row put again over one there, each way the one
+ * there differed (its `type`, its `position`, its `title`, its channels or
+ * playlist, `ids`). Counted before the call, so a refused one counts too. A
+ * channel already laid out adds nothing; the publish job keeps the sums in
+ * its run (on 2026-11-12 YouTube's day ran out by 20:17 UTC with no upload
+ * that day, while the comments job could still read at 23:50).
+ */
+export interface HomeCounts { added: number; removed: number; type: number; position: number; title: number; ids: number }
+export const noHomeCounts = (): HomeCounts => ({ added: 0, removed: 0, type: 0, position: 0, title: 0, ids: 0 });
+
+/**
  * The most channels one row of the other channels holds. A channel's home page
  * shows no more than 12 in a row (on 2026-11-03 English's row of 14 showed
  * Burmese and Chinese nowhere).
@@ -287,9 +300,10 @@ const rowsOf = <T>(all: T[], most: number): T[][] => {
  * everyone's first. Only the rows that differ are put or taken away, so a
  * channel already laid out costs 2 units of the day's 10,000; each row put
  * or taken away costs 50. A playlist with no video yet has no row until it
- * has one. Rows people added by hand in Studio give way to these.
+ * has one. Rows people added by hand in Studio give way to these. `counts`,
+ * when given, is told each row tried and why it differed (HomeCounts).
  */
-export async function setHome(fetcher: Fetch, token: string, language: ChannelLanguage): Promise<'made' | 'updated'> {
+export async function setHome(fetcher: Fetch, token: string, language: ChannelLanguage, counts?: HomeCounts): Promise<'made' | 'updated'> {
   const have = ((await answer<{ items?: Section[] }>(
     await fetcher(`${API}/channelSections?part=snippet,contentDetails&mine=true`, { headers: json(token) }))).items ?? [])
     .sort((a, b) => a.snippet.position - b.snippet.position);
@@ -302,18 +316,27 @@ export async function setHome(fetcher: Fetch, token: string, language: ChannelLa
       return id ? [{ type: 'singlePlaylist', ids: [id] }] : [];
     })
   ];
-  const same = (row: Row, section: Section, position: number) =>
-    section.snippet.type === row.type && section.snippet.position === position && (row.title === undefined || section.snippet.title === row.title) &&
-    JSON.stringify((row.type === 'multipleChannels' ? section.contentDetails?.channels : section.contentDetails?.playlists) ?? []) === JSON.stringify(row.ids);
+  const differs = (row: Row, section: Section, position: number) => ({
+    type: section.snippet.type !== row.type,
+    position: section.snippet.position !== position,
+    title: row.title !== undefined && section.snippet.title !== row.title,
+    ids: JSON.stringify((row.type === 'multipleChannels' ? section.contentDetails?.channels : section.contentDetails?.playlists) ?? []) !== JSON.stringify(row.ids)
+  });
   let made = false;
   for (let position = 0; position < Math.max(want.length, have.length); position += 1) {
     const row = want[position];
     const section = have[position];
-    if (row && section && same(row, section, position)) continue;
+    if (row && section) {
+      const d = differs(row, section, position);
+      if (!d.type && !d.position && !d.title && !d.ids) continue;
+      if (counts) for (const k of ['type', 'position', 'title', 'ids'] as const) if (d[k]) counts[k] += 1;
+    }
     if (!row) {
+      if (counts) counts.removed += 1;
       await answer(await fetcher(`${API}/channelSections?id=${encodeURIComponent(section!.id)}`, { method: 'DELETE', headers: json(token) }));
       continue;
     }
+    if (counts && !section) counts.added += 1;
     const body = {
       ...(section ? { id: section.id } : {}),
       snippet: { type: row.type, position, ...(row.title ? { title: row.title } : {}) },

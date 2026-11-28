@@ -230,6 +230,32 @@ async function serve(request: Request, env: Env, ctx: ExecutionContext): Promise
     if (error) console.error(`ops_tutorial_list ${language}:`, error.message);
     return videosPage(language, error ? null : pageVideos(data));
   }
+  // The public roadmap: the page, an item's picture, and what a reader sends (roadmap.ts, docs/roadmap.md).
+  if (url.pathname === '/roadmap' || url.pathname.startsWith('/roadmap/')) {
+    const [{ handleRoadmap }, { pageLanguage }] = await Promise.all([import('./roadmap'), import('./i18n/pages')]);
+    const answer = await handleRoadmap(request, {
+      list: async () => {
+        const { data, error } = await serviceClient(env).rpc('ops_roadmap_list');
+        if (error) throw new Error(error.message);
+        return data;
+      },
+      picture: async (id) => {
+        const { data, error } = await serviceClient(env).rpc('ops_roadmap_picture', { p_id: id });
+        if (error) throw new Error(error.message);
+        return typeof data === 'string' ? data : null;
+      },
+      send: async (row) => {
+        const { data, error } = await serviceClient(env).rpc('ops_roadmap_send', {
+          p_item: row.item, p_importance: row.importance, p_words: row.words, p_email: row.email, p_language: row.language
+        });
+        if (error) throw new Error(error.message);
+        return String(data);
+      },
+      allowed: async (req) => !env.ROADMAP_RATE_LIMIT || (await env.ROADMAP_RATE_LIMIT.limit({ key: req.headers.get('cf-connecting-ip') ?? 'unknown' })).success,
+      language: pageLanguage
+    });
+    if (answer) return answer;
+  }
   // A tutorial video to download, by a link that lasts (decisions.md 187), linked from its description on YouTube.
   if (url.pathname.startsWith('/v/') && url.pathname.endsWith('.mp4')) {
     return handleDownload(request, async (tutorial, language) => {

@@ -144,5 +144,30 @@
     "none": "Wala pang video sa wikang ito.",
     "failed": "Hindi nag-load ang mga video. I-reload ang pahina para subukan ulit.",
     "privacy": "Privacy"
+  },
+  "roadmap": {
+    "pageTitle": "Roadmap · LangQuest",
+    "language": "Wika",
+    "title": "Roadmap",
+    "done": "Tapos na",
+    "suggest": "Magmungkahi",
+    "progress": "Ginagawa na",
+    "planned": "Nakaplano",
+    "considering": "Pinag-iisipan",
+    "none": "Wala pang laman dito.",
+    "failed": "Hindi nag-load ang roadmap. I-reload ang pahina para subukan ulit.",
+    "question": "Gaano ito kahalaga sa iyo?",
+    "imp0": "Hindi mahalaga",
+    "imp1": "Maganda kung mayroon",
+    "imp2": "Mahalaga",
+    "imp3": "Napakahalaga",
+    "needs": "Ano ang kailangan mo? Paano ka nito matutulungan?",
+    "idea": "Ano ang gusto mong gawin? Paano ka nito matutulungan?",
+    "email": "Email (hindi kailangan)",
+    "send": "Ipadala",
+    "sent": "Naipadala",
+    "sendFailed": "Hindi naipadala. Subukan ulit.",
+    "close": "Isara",
+    "privacy": "Privacy"
   }
 }

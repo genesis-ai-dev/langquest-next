@@ -144,5 +144,30 @@
     "none": "No videos in this language yet.",
     "failed": "The videos did not load. Reload the page to try again.",
     "privacy": "Privacy"
+  },
+  "roadmap": {
+    "pageTitle": "Roadmap · LangQuest",
+    "language": "Language",
+    "title": "Roadmap",
+    "done": "Done",
+    "suggest": "Suggest",
+    "progress": "In progress",
+    "planned": "Planned",
+    "considering": "Under consideration",
+    "none": "Nothing here yet.",
+    "failed": "The roadmap did not load. Reload the page to try again.",
+    "question": "How important is this to you?",
+    "imp0": "Not important",
+    "imp1": "Nice to have",
+    "imp2": "Important",
+    "imp3": "Critical",
+    "needs": "What do you need? How would this help you?",
+    "idea": "What do you want to do? How would that help you?",
+    "email": "Email (optional)",
+    "send": "Send",
+    "sent": "Sent",
+    "sendFailed": "Not sent. Try again.",
+    "close": "Close",
+    "privacy": "Privacy"
   }
 }

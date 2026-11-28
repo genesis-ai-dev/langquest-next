@@ -18,6 +18,7 @@ import { videosSection } from './sources/videos';
 import { fixesSection } from './sources/fixes';
 import { askedNumbers, PRS_MAX, prInfos } from './sources/prs';
 import { nightlySection } from './sources/nightly';
+import { roadmapSection } from './sources/roadmap';
 import { claudePlanSection } from './sources/claudePlan';
 import { supabaseSection } from './sources/supabase';
 import { containerSection } from './sources/container';
@@ -75,7 +76,8 @@ const PROVIDERS: Record<string, (env: Env) => Promise<Section>> = {
   container: (env) => containerSection(env),
   videos: (env) => videosSection(env),
   nightly: (env) => nightlySection(env),
-  claudeplan: (env) => claudePlanSection(env)
+  claudeplan: (env) => claudePlanSection(env),
+  roadmap: (env) => roadmapSection(env)
 };
 
 /** The sections read as diag_reader together (db.ts withDiag), with what each says when that connection fails. */

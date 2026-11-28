@@ -79,7 +79,9 @@ begin
        'ledger.key', 'stamps.key', 'languoid_property.key', 'region_property.key', 'region_staging.key',
        'languoid_property_staging.key', '_languoid_staged_property.key', 'user_issues.key', 'user_issue_logs.key',
        -- library documents (templates, flows), a Bible timing's answer and the v2 import's own log: no person's words
-       'library_documents.body', 'timing_job_results.body', 'log.message');
+       'library_documents.body', 'timing_job_results.body', 'log.message',
+       -- a public roadmap item's words and picture, which the team wrote for the website
+       'roadmap_items.body', 'roadmap_items.picture');
   if bad is not null then raise exception 'agent_reader reads a secret or personal column: %', bad; end if;
 end $$;
 
@@ -136,6 +138,7 @@ begin
     'select token_hash from public.api_tokens', 'select email from public.invites', 'select * from public.sign_in_codes',
     'select * from public.password_resets', 'select * from public.push_tokens', 'select secret from public.api_webhooks',
     'select shared_email from diag.feedback', 'select email from v2_import.people_links', 'select * from auth.users',
+    'select email from ops.roadmap_notes',
     'select * from storage.objects', 'select * from vault.secrets'
   ] loop
     begin
@@ -170,6 +173,7 @@ begin
   perform body, has_voice from masked.feedback limit 1;
   perform message from masked.join_requests limit 1;
   perform details from masked.content_reports limit 1;
+  perform words, has_contact from masked.roadmap_notes limit 1;
   perform count(*) from pg_stat_activity;
   perform count(*) from masked.slow_statements;
   perform count(*) from masked.connections where blocked_by <> '{}';
@@ -183,6 +187,7 @@ begin
     'select display_name from public.profiles', 'select * from diag.feedback', 'select body from diag.feedback',
     'select shared_name from diag.feedback', 'select message from public.join_requests',
     'select details from public.content_reports', 'select token_hash from public.api_tokens',
+    'select words from ops.roadmap_notes', 'select email from ops.roadmap_notes',
     'select email from public.invites', 'select * from public.sign_in_codes', 'select * from public.push_tokens',
     'select email from v2_import.people_links', 'select * from auth.users', 'select * from vault.secrets',
     'select * from diag.find(''x'')'

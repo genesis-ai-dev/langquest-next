@@ -2,6 +2,7 @@ import { connectPage } from '../worker/agent/connectPage';
 import { reviewPage } from '../worker/agent/reviewPage';
 import { PAGE_CATALOGS, pageLanguage } from '../worker/i18n/pages';
 import { pageVideos, videosPage, type PageVideo } from '../worker/videosPage';
+import { roadmapPage, type RoadmapItem } from '../worker/roadmapPage';
 import { UI_LANGUAGES } from '../../mobile/src/i18n/languages';
 
 /** The shared review link page in the reader's language (LAN-42, worker/i18n/pages.ts). */
@@ -18,7 +19,7 @@ function runPageScript(script: string, given: Record<string, unknown> = {}) {
   });
   const storage = { getItem: () => null, setItem() {}, removeItem() {} };
   const browser = {
-    document: { getElementById: element, querySelectorAll: () => [], documentElement: { lang: 'en' } },
+    document: { getElementById: element, querySelectorAll: () => [], addEventListener() {}, documentElement: { lang: 'en' } },
     location: { href: 'https://x/connect', search: '', origin: 'https://x', replace() {} },
     localStorage: storage, sessionStorage: storage,
     navigator: { clipboard: { writeText: async () => {} } },
@@ -46,12 +47,17 @@ describe('pages the Worker serves, in the reader’s language', () => {
 
   // A video's title and playlist come from the database, in the video's language.
   const video = (tutorial: string, youtube: boolean): PageVideo => ({ tutorial, sha256: 'a'.repeat(64), title: 'ж', playlist: 'ж', seconds: 93, bytes: 12_900_000, youtube });
+  // A roadmap item's words come from the dashboard, in the team's language.
+  const item = (state: RoadmapItem['state'], picture: number | null): RoadmapItem => ({ id: `0000000${['progress', 'planned', 'considering', 'done'].indexOf(state)}-0000-4000-8000-000000000000`, state, title: 'ж', body: 'ж', picture, doneAt: state === 'done' ? '2026-11-20T10:00:00Z' : null });
   const pages = {
     review: (lang: 'my' | 'es') => reviewPage('a'.repeat(22), lang),
     connect: (lang: 'my' | 'es') => connectPage({ supabaseUrl: 'https://x.supabase.co', anonKey: 'k' }, lang),
     videos: (lang: 'my' | 'es') => videosPage(lang, [video('record-a-passage', true), video('do-a-check', false)]),
     'empty videos': (lang: 'my' | 'es') => videosPage(lang, []),
-    'failed videos': (lang: 'my' | 'es') => videosPage(lang, null)
+    'failed videos': (lang: 'my' | 'es') => videosPage(lang, null),
+    roadmap: (lang: 'my' | 'es') => roadmapPage(lang, [item('progress', 1), item('planned', null), item('done', null)]),
+    'empty roadmap': (lang: 'my' | 'es') => roadmapPage(lang, []),
+    'failed roadmap': (lang: 'my' | 'es') => roadmapPage(lang, null)
   };
 
   for (const [name, page] of Object.entries(pages)) {

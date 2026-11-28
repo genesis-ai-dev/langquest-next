@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { publishTutorials, type Channel, type Due, type PublishReport, type Up } from '../../../server/tutorialPublisher';
-import { brandOf, channelAbout, CHANNELS } from '../../../server/youtube';
+import { brandOf, channelAbout, CHANNELS, noHomeCounts } from '../../../server/youtube';
 
 /** The publish job (server/tutorialPublisher.ts, decisions.md 180) against a YouTube that answers by address. */
 
-const fresh = (): PublishReport => ({ branded: 0, brandFailed: 0, held: 0, due: 0, published: 0, replaced: 0, failed: 0, incomplete: 0, tidied: 0, outOfQuota: false, channelsFull: 0, firstError: null, units: 0, tendUnits: 0, uploads: 0 });
+const fresh = (): PublishReport => ({ branded: 0, brandFailed: 0, held: 0, due: 0, published: 0, replaced: 0, failed: 0, incomplete: 0, tidied: 0, outOfQuota: false, channelsFull: 0, home: noHomeCounts(), firstError: null });
 const video = (tutorial: string, over: Partial<Due> = {}): Due => ({
   tutorial, language: 'es', sha256: 'a'.repeat(64), title: tutorial, description: 'd', playlist: 'Traductores', bytes: 5,
   channelId: CHANNELS.es, replaces: null, ...over
@@ -66,6 +66,10 @@ function youtube(options: {
     }
     if (path === '/youtube/v3/channelSections') {
       if (method === 'GET') return Response.json({ items: sections });
+      if (method === 'DELETE') {
+        sections.splice(sections.findIndex((s) => s.id === new URL(input).searchParams.get('id')), 1);
+        return new Response(null, { status: 204 });
+      }
       const body = JSON.parse(String(init?.body)) as Section;
       if (method === 'POST') sections.push({ ...body, id: `row${sections.length}` });
       else sections.splice(sections.findIndex((s) => s.id === body.id), 1, body);
@@ -232,7 +236,9 @@ describe('the publish job', () => {
     const yt = youtube({ sections: rows });
     const es: Channel = { channelId: CHANNELS.es, language: 'es', branded: null };
     const d = deps([video('record-a-passage')], yt, undefined, [es]);
-    expect(await publishTutorials(d.deps, fresh())).toMatchObject({ branded: 1, brandFailed: 0, held: 3, published: 1 });
+    expect(await publishTutorials(d.deps, fresh())).toMatchObject({
+      branded: 1, brandFailed: 0, held: 3, published: 1, home: { added: 3, removed: 0, type: 0, position: 0, title: 0, ids: 0 }
+    });
     expect(yt.calls.slice(1, 9)).toEqual([
       'GET /youtube/v3/channels', 'POST /upload/youtube/v3/channelBanners/insert', 'PUT /youtube/v3/channels',
       'GET /youtube/v3/channelSections', 'GET /youtube/v3/playlists', 'POST /youtube/v3/channelSections', 'POST /youtube/v3/channelSections', 'POST /youtube/v3/channelSections'
@@ -251,31 +257,28 @@ describe('the publish job', () => {
 
     // The next run changes nothing on the channel, and counts again.
     const again = youtube({ sections: rows });
-    await publishTutorials(deps([], again, undefined, [es]).deps, fresh());
+    expect((await publishTutorials(deps([], again, undefined, [es]).deps, fresh())).home).toEqual(noHomeCounts());
     expect(again.calls).toEqual([
       'POST https://oauth2.googleapis.com/token', 'GET /youtube/v3/channelSections', 'GET /youtube/v3/playlists', 'GET /youtube/v3/commentThreads', 'GET /youtube/v3/commentThreads'
     ]);
   });
 
-  it('counts the units its calls cost of YouTube\'s day, the part spent on the channels first, and the uploads (LAN-295)', async () => {
-    const rows: Section[] = [];
-    const es: Channel = { channelId: CHANNELS.es, language: 'es', branded: null };
-    await publishTutorials(deps([], youtube({ sections: rows }), undefined, [es]).deps, fresh());
-    // A channel already in order: its home page's rows and playlists read (2), its held comments in two pages (2).
-    const yt = youtube({ sections: rows });
-    const report = await publishTutorials(deps([video('record-a-passage', { replaces: 'oldvideo001' })], yt, undefined, [es]).deps, fresh());
-    // Then the new version: its playlist found (1), the old one's place read (1), the new put in and the old taken out (100),
-    // and the old one read and unlisted (51). The upload is counted on its own; its file and Google's token cost nothing.
-    expect(report).toMatchObject({ published: 1, replaced: 1, uploads: 1, tendUnits: 4, units: 157 });
-  });
-
-  it('counts the units of a run that YouTube\'s day stops at the start', async () => {
+  it('counts each home page row it puts again and why it differed, so a run that rewrites rows each time shows it', async () => {
     const es: Channel = { channelId: CHANNELS.es, language: 'es', branded: await brandOf('es', BANNER) };
-    const d = deps([video('a')], youtube(), undefined, [es]);
-    d.deps.fetcher = async (input: string) => input.includes('oauth2')
-      ? Response.json({ access_token: 'ya29' })
-      : Response.json({ error: { errors: [{ reason: 'quotaExceeded' }] } }, { status: 403 });
-    expect(await publishTutorials(d.deps, fresh())).toMatchObject({ outOfQuota: true, due: 0, uploads: 0, tendUnits: 1, units: 1 });
+    // A home page as YouTube might answer it: the rows of other channels without their titles, numbered
+    // from 1, and a row of recent uploads after the playlist's.
+    const rows: Section[] = [
+      { id: 'r0', snippet: { type: 'multipleChannels', position: 1 }, contentDetails: { channels: Object.values(CHANNELS).filter((c) => c !== CHANNELS.es).slice(0, 8) } },
+      { id: 'r1', snippet: { type: 'multipleChannels', position: 2 }, contentDetails: { channels: Object.values(CHANNELS).filter((c) => c !== CHANNELS.es).slice(8) } },
+      { id: 'r2', snippet: { type: 'singlePlaylist', position: 3 }, contentDetails: { playlists: ['PLtrad'] } },
+      { id: 'r3', snippet: { type: 'recentUploads', position: 4 }, contentDetails: {} }
+    ];
+    const yt = youtube({ sections: rows });
+    const report = await publishTutorials(deps([], yt, undefined, [es]).deps, fresh());
+    expect(report).toMatchObject({ firstError: null, home: { added: 0, removed: 1, type: 0, position: 3, title: 2, ids: 0 } });
+    expect(yt.calls.filter((c) => c.endsWith('/youtube/v3/channelSections') && !c.startsWith('GET'))).toEqual([
+      'PUT /youtube/v3/channelSections', 'PUT /youtube/v3/channelSections', 'PUT /youtube/v3/channelSections', 'DELETE /youtube/v3/channelSections'
+    ]);
   });
 
   it('gives a playlist the run made its row on the home page before the run ends (decision 192)', async () => {

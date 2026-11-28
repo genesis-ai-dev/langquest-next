@@ -10,10 +10,11 @@
  * `held` (comments held for review, on all channels),
  * `due`, `published`, `replaced`, `failed` and `incomplete`, `tidied` (playlist
  * places and old versions put right, tutorialPublisher.ts `tidyChannel`), `channels_full`
- * (channels at their own day's limit), `partial` when any failed or
- * YouTube's day ran out, for the project or a channel; `units`, `tend_units` and `uploads`
- * (what the run's calls cost of YouTube's day, the part before any video, and the uploads
- * started: tutorialPublisher.ts `unitsOf`). Each channel's banner is read from the
+ * (channels at their own day's limit), `home_added`, `home_removed` and,
+ * for each home page row put again, how it differed: `home_type`,
+ * `home_position`, `home_title`, `home_ids` (youtube.ts `HomeCounts`, 50
+ * units each), `partial` when any failed or
+ * YouTube's day ran out, for the project or a channel. Each channel's banner is read from the
  * web app (API_URL) too. The log prints counts, never
  * titles or tokens.
  *   SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... API_URL=... YOUTUBE_CLIENT_ID=... YOUTUBE_CLIENT_SECRET=... npx tsx server/tutorialPublish.ts
@@ -22,7 +23,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { errorClassOf, jobRunSink, noJobRuns } from './jobRuns';
 import { failureCode, publishTutorials, type Channel, type Due, type PublishReport, type Up } from './tutorialPublisher';
-import { bannerPath } from './youtube';
+import { bannerPath, noHomeCounts } from './youtube';
 
 const url = process.env['SUPABASE_URL'] ?? 'http://127.0.0.1:54421';
 const key = process.env['SUPABASE_SERVICE_ROLE_KEY'];
@@ -43,7 +44,7 @@ process.once('SIGTERM', () => {
   console.error('SIGTERM: finishing the upload in hand');
 });
 // Counted as it goes, so a run cut short still reports what it did.
-const report: PublishReport = { branded: 0, brandFailed: 0, held: 0, due: 0, published: 0, replaced: 0, failed: 0, incomplete: 0, tidied: 0, outOfQuota: false, channelsFull: 0, firstError: null, units: 0, tendUnits: 0, uploads: 0 };
+const report: PublishReport = { branded: 0, brandFailed: 0, held: 0, due: 0, published: 0, replaced: 0, failed: 0, incomplete: 0, tidied: 0, outOfQuota: false, channelsFull: 0, home: noHomeCounts(), firstError: null };
 
 async function rpc<T>(name: string, args: Record<string, unknown>): Promise<T> {
   const { data, error } = await service.rpc(name, args);
@@ -84,11 +85,12 @@ const errorClass = error !== undefined ? errorClassOf(error) : report.firstError
 await record({
   job: 'tutorial_publish', startedAt: started, ms: Date.now() - started,
   outcome: error !== undefined && report.published === 0 ? 'error' : error !== undefined || stopping || report.failed > 0 || report.incomplete > 0 || report.brandFailed > 0 || report.outOfQuota || report.channelsFull > 0 ? 'partial' : 'ok',
-  n: { branded: report.branded, brand_failed: report.brandFailed, held: report.held, due: report.due, published: report.published, replaced: report.replaced, failed: report.failed, incomplete: report.incomplete, tidied: report.tidied, out_of_quota: report.outOfQuota ? 1 : 0, channels_full: report.channelsFull, units: report.units, tend_units: report.tendUnits, uploads: report.uploads },
+  n: { branded: report.branded, brand_failed: report.brandFailed, held: report.held, due: report.due, published: report.published, replaced: report.replaced, failed: report.failed, incomplete: report.incomplete, tidied: report.tidied, out_of_quota: report.outOfQuota ? 1 : 0, channels_full: report.channelsFull,
+    home_added: report.home.added, home_removed: report.home.removed, home_type: report.home.type, home_position: report.home.position, home_title: report.home.title, home_ids: report.home.ids },
   ...(errorClass ? { errorClass } : {})
 });
 console.log(`channels: ${report.branded} brought up to date, ${report.brandFailed} failed, ${report.tidied} playlist places and old versions put right, ${report.held} comments held for review`);
-console.log(`publish: ${report.published} of ${report.due} up (${report.replaced} replacing), ${report.failed} failed, ${report.incomplete} incomplete${report.outOfQuota ? ', out of YouTube\'s day' : ''}${report.channelsFull ? `, ${report.channelsFull} channels at their day's limit` : ''}, ${report.uploads} uploads started, ${report.units} units besides them (${report.tendUnits} on the channels first), ${Math.round((Date.now() - started) / 1000)} s`);
+console.log(`publish: ${report.published} of ${report.due} up (${report.replaced} replacing), ${report.failed} failed, ${report.incomplete} incomplete${report.outOfQuota ? ', out of YouTube\'s day' : ''}${report.channelsFull ? `, ${report.channelsFull} channels at their day's limit` : ''}, ${Math.round((Date.now() - started) / 1000)} s`);
 if (error !== undefined) {
   console.error(`failed: ${failureCode(error)}`);
   process.exit(1);
