@@ -123,7 +123,10 @@ reads only the request's organization. A request is a private row
 `server/orgExport.ts` in the job container (`docs/server-jobs.md`), started by
 the request. It folds each language, reads each file from R2 by hash through
 the Worker, and writes the zip in 32 MiB parts to R2 through
-`/api/org-exports/:id/upload`. `packages/sync/src/orgExport.ts` decides what
+`/api/org-exports/:id/upload`. A file read that fails for a moment (a 5xx or
+429 from the Worker or R2; R2's failures from 2026-10-15 to 2026-11-22 lasted
+at most about two minutes) is asked for again for about three minutes before the export fails
+(`packages/sync/src/workerBlobs.ts`, LAN-345). `packages/sync/src/orgExport.ts` decides what
 goes where and is pure; `server/orgExportJob.ts` and `server/orgExportZip.ts`
 write it. Zip64 is used past 4 GB or 65,535 files, and no one file may pass
 4 GB.

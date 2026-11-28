@@ -16,10 +16,11 @@ export interface BlobFiles {
 export const blobKey = (orgId: string, streamId: string, hash: string, format: string) => `${orgId}/${streamId}/${hash}.${format}`;
 
 /**
- * How long a listing waits before it asks for a failed page again: about three minutes in all, longer
- * than the list failures seen in production (LAN-298: at most about two minutes).
+ * How long a request waits before it asks again after a failure that may pass: about three minutes
+ * in all, longer than the failures seen in production (LAN-298: at most about two minutes). Every
+ * request waits so (LAN-345): one failed read used to end a whole organization's export.
  */
-export const LIST_WAITS_MS = [2_000, 4_000, 8_000, 16_000, 32_000, 60_000, 60_000] as const;
+export const BLOB_WAITS_MS = [2_000, 4_000, 8_000, 16_000, 32_000, 60_000, 60_000] as const;
 
 /** A status that says the Worker or R2 failed for a moment, so the same request can work again. */
 const mayWorkAgain = (status: number) => status === 429 || status >= 500;
@@ -35,21 +36,33 @@ export function workerBlobs(apiUrl: string, token: string, opts: { wait?: (ms: n
   const auth = { authorization: `Bearer ${token}` };
   const path = (key: string) => `${base}/api/blobs/${key.split('/').map(encodeURIComponent).join('/')}`;
   const fail = async (what: string, res: Response) => new Error(`${what} (${res.status}): ${(await res.text()).slice(0, 200)}`);
-  // One page of a listing, asked again while it fails for a moment (LAN-298): a list page failed
-  // 66 times from October to November 2026, at most about two minutes at a time, and each failure
-  // stopped a whole v2 project's transfer. Only that page is asked again, not the pages before it,
-  // which each cost a class A operation.
-  const listPage = async (url: string, prefix: string) => {
+  // One request, asked again while the Worker or R2 fails for a moment. A list page failed 66
+  // times from October to November 2026, at most about two minutes at a time, and each failure
+  // stopped a whole v2 project's transfer (LAN-298). A download that failed so ended a whole
+  // organization's export, which can run for hours (LAN-345). Each request is safe to send again:
+  // a file's name is its content, and removing a file twice removes it once. A listing asks only
+  // for the failed page again, not the pages before it, which each cost a class A operation.
+  const ask = async <T>(
+    what: string,
+    url: string,
+    init: RequestInit,
+    read: (res: Response) => Promise<T>,
+    done: (res: Response) => boolean = (res) => res.ok
+  ): Promise<T> => {
     for (let attempt = 0; ; attempt++) {
-      const res = await fetch(url, { headers: auth }).catch((e: unknown) => {
-        if (attempt >= LIST_WAITS_MS.length) throw e;
+      const last = attempt >= BLOB_WAITS_MS.length;
+      const res = await fetch(url, { ...init, headers: auth }).catch((e: unknown) => {
+        if (last) throw e;
         return null;
       });
-      if (res?.ok) return (await res.json()) as { objects: { key: string; size: number }[]; cursor: string | null };
-      if (res && (!mayWorkAgain(res.status) || attempt >= LIST_WAITS_MS.length)) throw await fail(`list ${prefix}`, res);
+      if (res && done(res)) return read(res);
+      if (res && (!mayWorkAgain(res.status) || last)) throw await fail(what, res);
       if (res) await res.body?.cancel();
-      await wait(LIST_WAITS_MS[attempt]!);
+      await wait(BLOB_WAITS_MS[attempt]!);
     }
+  };
+  const drop = async (res: Response) => {
+    await res.body?.cancel();
   };
   return {
     async list(prefix) {
@@ -57,24 +70,21 @@ export function workerBlobs(apiUrl: string, token: string, opts: { wait?: (ms: n
       let cursor: string | null = null;
       do {
         const query = new URLSearchParams({ prefix, ...(cursor ? { cursor } : {}) });
-        const page = await listPage(`${base}/api/blobs?${query}`, prefix);
+        const page = await ask(`list ${prefix}`, `${base}/api/blobs?${query}`, {}, async (res) =>
+          (await res.json()) as { objects: { key: string; size: number }[]; cursor: string | null });
         out.push(...page.objects);
         cursor = page.cursor;
       } while (cursor);
       return out;
     },
     async get(key) {
-      const res = await fetch(path(key), { headers: auth });
-      if (!res.ok) throw await fail(`download ${key}`, res);
-      return new Uint8Array(await res.arrayBuffer());
+      return ask(`download ${key}`, path(key), {}, async (res) => new Uint8Array(await res.arrayBuffer()));
     },
     async put(key, bytes) {
-      const res = await fetch(path(key), { method: 'PUT', headers: auth, body: bytes as BodyInit });
-      if (!res.ok) throw await fail(`upload ${key}`, res);
+      await ask(`upload ${key}`, path(key), { method: 'PUT', body: bytes as BodyInit }, drop);
     },
     async remove(key) {
-      const res = await fetch(path(key), { method: 'DELETE', headers: auth });
-      if (!res.ok && res.status !== 404) throw await fail(`remove ${key}`, res);
+      await ask(`remove ${key}`, path(key), { method: 'DELETE' }, drop, (res) => res.ok || res.status === 404);
     }
   };
 }
